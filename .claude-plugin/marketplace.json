@@ -1,0 +1,13 @@
+{
+  "name": "mitarbyte",
+  "owner": { "name": "Mitarbyte", "email": "office@mitarbyte.com", "url": "https://mitarbyte.com" },
+  "description": "Mitarbyte KI-OS — Plugins für das lokale Mitarbeiter-Onboarding.",
+  "plugins": [
+    {
+      "name": "user-onboarding",
+      "source": "./plugins/user-onboarding",
+      "description": "Lokales KI-OS-Onboarding für Mitarbeiter (SSH, noVNC/Cockpit-Tunnel, Mutagen).",
+      "version": "2026.06.26"
+    }
+  ]
+}
