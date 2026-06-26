@@ -750,8 +750,10 @@ Alles laeuft auf der VM — lokal gibt es keinen Bridge-Chrome mehr:
   noVNC-Passwort ist ein lokales Schutz-Geheimnis des Users — nicht in
   Configs oder Logs schreiben, nur dem User zeigen. API-Tokens werden in
   diesem Skill gar nicht angefasst.
-- **Distribution:** Dieser Skill wird vom Admin verteilt (z.B. ZIP per
-  SharePoint/USB). Installation: nach `~/.claude/skills/user-onboarding/`
-  entpacken, dann `claude` starten und `/user-onboarding` tippen. Der
-  Skill ist self-contained — kein Repo-Zugriff, kein Internet noetig
-  (ausser fuer den Mutagen-Download in Schritt 9a).
+- **Distribution:** Dieser Skill kommt als Claude-Code-Plugin aus dem
+  oeffentlichen Mitarbyte-Marketplace. Installation:
+  `/plugin marketplace add Mitarbyte/marketplace` →
+  `/plugin install user-onboarding@mitarbyte` → `/user-onboarding`.
+  Updates: `/plugin marketplace update mitarbyte`. Oeffentlich — kein
+  GitHub-Account/Login noetig (HTTPS-Clone). Internet wird sonst nur fuer
+  den Mutagen-Download in Schritt 9a gebraucht.

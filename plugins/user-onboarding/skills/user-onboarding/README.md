@@ -11,28 +11,18 @@ Workspace-Eintrag fuer die Claude-Code-Desktop-App.
 
 ## Installation beim User
 
-Du bekommst den Skill von deinem Admin (z.B. als ZIP per SharePoint
-oder USB-Stick):
+Der Skill kommt als Claude-Code-Plugin aus dem oeffentlichen
+Mitarbyte-Marketplace. Claude Code in einem beliebigen Verzeichnis
+starten und nacheinander eingeben (gleich auf macOS, Linux und Windows):
 
-```bash
-# 1. ZIP entpacken nach ~/.claude/skills/user-onboarding/
-mkdir -p ~/.claude/skills
-unzip user-onboarding.zip -d ~/.claude/skills/
-# (oder den Ordner einfach dorthin kopieren)
-
-# 2. Claude Code in einem beliebigen Verzeichnis starten:
-claude
-# 3. Skill aufrufen:
+```
+/plugin marketplace add Mitarbyte/marketplace
+/plugin install user-onboarding@mitarbyte
 /user-onboarding
 ```
 
-```powershell
-# Windows (PowerShell): nach %USERPROFILE%\.claude\skills\ entpacken
-Expand-Archive user-onboarding.zip "$env:USERPROFILE\.claude\skills\"
-```
-
-Der Skill ist self-contained — kein Repo-Zugriff, kein GitHub-Account
-noetig.
+Der Marketplace ist oeffentlich — kein GitHub-Account, kein Login, kein
+ZIP-Download noetig (Claude Code klont per HTTPS).
 
 ## Voraussetzungen
 
@@ -102,9 +92,13 @@ uebersprungen.
 
 ## Updates
 
-Neue Skill-Versionen verteilt dein Admin auf demselben Weg (ZIP).
-Einfach das Verzeichnis `~/.claude/skills/user-onboarding/`
-ueberschreiben und `/user-onboarding` erneut laufen lassen — der Skill
-erkennt bestehende Komponenten und zieht nur Aenderungen nach. Es gibt
-keine lokal installierten Helper-Scripts mehr; alles Persistente sind
-die drei Autostarts + SSH-Config + `~/.claude.json`-Eintrag.
+Neue Skill-Versionen landen automatisch im Marketplace. Aktualisieren mit:
+
+```
+/plugin marketplace update mitarbyte
+```
+
+danach `/user-onboarding` erneut laufen lassen — der Skill erkennt
+bestehende Komponenten und zieht nur Aenderungen nach. Es gibt keine
+lokal installierten Helper-Scripts mehr; alles Persistente sind die drei
+Autostarts + SSH-Config + `~/.claude.json`-Eintrag.
