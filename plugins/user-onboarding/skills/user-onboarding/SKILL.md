@@ -750,10 +750,13 @@ Alles laeuft auf der VM — lokal gibt es keinen Bridge-Chrome mehr:
   noVNC-Passwort ist ein lokales Schutz-Geheimnis des Users — nicht in
   Configs oder Logs schreiben, nur dem User zeigen. API-Tokens werden in
   diesem Skill gar nicht angefasst.
-- **Distribution:** Dieser Skill kommt als Claude-Code-Plugin aus dem
-  oeffentlichen Mitarbyte-Marketplace. Installation:
-  `/plugin marketplace add Mitarbyte/marketplace` →
-  `/plugin install user-onboarding@mitarbyte` → `/user-onboarding`.
-  Updates: `/plugin marketplace update mitarbyte`. Oeffentlich — kein
-  GitHub-Account/Login noetig (HTTPS-Clone). Internet wird sonst nur fuer
-  den Mutagen-Download in Schritt 9a gebraucht.
+- **Distribution:** Dieser Skill wird per oeffentlichem One-Line-Installer
+  nach `~/.claude/skills/user-onboarding/` verteilt — laedt in Desktop-App,
+  Web und Terminal. macOS/Linux:
+  `curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.sh | bash`;
+  Windows: `irm https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.ps1 | iex`.
+  Update = Installer erneut ausfuehren. Terminal-CLI-Nutzer koennen
+  alternativ das Plugin nehmen (`claude plugin marketplace add …`), aber
+  `/plugin` gibt es NICHT in der Desktop-App/Web. Kein GitHub-Login noetig;
+  Internet wird sonst nur fuer den Mutagen-Download in Schritt 9a
+  gebraucht.

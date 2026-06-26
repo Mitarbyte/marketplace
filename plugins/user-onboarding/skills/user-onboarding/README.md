@@ -11,18 +11,29 @@ Workspace-Eintrag fuer die Claude-Code-Desktop-App.
 
 ## Installation beim User
 
-Der Skill kommt als Claude-Code-Plugin aus dem oeffentlichen
-Mitarbyte-Marketplace. Claude Code in einem beliebigen Verzeichnis
-starten und nacheinander eingeben (gleich auf macOS, Linux und Windows):
+Ein Befehl installiert den Skill nach `~/.claude/skills/user-onboarding/`
+— von dort laedt ihn **jede** Claude-Code-Umgebung (Desktop-App, Web und
+Terminal). Kein GitHub-Login, kein ZIP noetig.
 
-```
-/plugin marketplace add Mitarbyte/marketplace
-/plugin install user-onboarding@mitarbyte
-/user-onboarding
+**macOS / Linux** (Terminal):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.sh | bash
 ```
 
-Der Marketplace ist oeffentlich — kein GitHub-Account, kein Login, kein
-ZIP-Download noetig (Claude Code klont per HTTPS).
+**Windows** (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.ps1 | iex
+```
+
+Danach Claude Code starten (Desktop-App oder `claude` im Terminal) und
+`/user-onboarding` eingeben.
+
+> Terminal-CLI-Nutzer koennen den Skill alternativ als Plugin installieren
+> (`claude plugin marketplace add Mitarbyte/marketplace` →
+> `claude plugin install user-onboarding@mitarbyte`). Die `/plugin`-Befehle
+> gibt es aber **nur im Terminal-CLI**, nicht in der Desktop-App/Web.
 
 ## Voraussetzungen
 
@@ -92,13 +103,9 @@ uebersprungen.
 
 ## Updates
 
-Neue Skill-Versionen landen automatisch im Marketplace. Aktualisieren mit:
-
-```
-/plugin marketplace update mitarbyte
-```
-
-danach `/user-onboarding` erneut laufen lassen — der Skill erkennt
-bestehende Komponenten und zieht nur Aenderungen nach. Es gibt keine
-lokal installierten Helper-Scripts mehr; alles Persistente sind die drei
+Zum Aktualisieren denselben Installer (curl- bzw. `irm`-Zeile von oben)
+noch einmal ausfuehren — er ueberschreibt den Skill in-place. Danach
+`/user-onboarding` erneut laufen lassen — der Skill erkennt bestehende
+Komponenten und zieht nur Aenderungen nach. Es gibt keine lokal
+installierten Helper-Scripts mehr; alles Persistente sind die drei
 Autostarts + SSH-Config + `~/.claude.json`-Eintrag.
