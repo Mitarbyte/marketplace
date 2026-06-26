@@ -9,32 +9,6 @@ den Zugriff ein: SSH-Key, minimale SSH-Config und drei
 Pflicht-Autostarts (noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync) plus den
 Workspace-Eintrag fuer die Claude-Code-Desktop-App.
 
-## Installation beim User
-
-Ein Befehl installiert den Skill nach `~/.claude/skills/user-onboarding/`
-— von dort laedt ihn **jede** Claude-Code-Umgebung (Desktop-App, Web und
-Terminal). Kein GitHub-Login, kein ZIP noetig.
-
-**macOS / Linux** (Terminal):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.sh | bash
-```
-
-**Windows** (PowerShell):
-
-```powershell
-irm https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.ps1 | iex
-```
-
-Danach Claude Code starten (Desktop-App oder `claude` im Terminal) und
-`/user-onboarding` eingeben.
-
-> Terminal-CLI-Nutzer koennen den Skill alternativ als Plugin installieren
-> (`claude plugin marketplace add Mitarbyte/marketplace` →
-> `claude plugin install user-onboarding@mitarbyte`). Die `/plugin`-Befehle
-> gibt es aber **nur im Terminal-CLI**, nicht in der Desktop-App/Web.
-
 ## Voraussetzungen
 
 - macOS, Linux oder Windows
@@ -100,12 +74,3 @@ uebersprungen.
 - `references/api-keys.md` — Beispiel-Liste der API-Keys + OAuth-Flows
 - `references/ssh-pubkey-handoff.md` — Mail-/Slack-Vorlage fuer den
   Pubkey-Versand
-
-## Updates
-
-Zum Aktualisieren denselben Installer (curl- bzw. `irm`-Zeile von oben)
-noch einmal ausfuehren — er ueberschreibt den Skill in-place. Danach
-`/user-onboarding` erneut laufen lassen — der Skill erkennt bestehende
-Komponenten und zieht nur Aenderungen nach. Es gibt keine lokal
-installierten Helper-Scripts mehr; alles Persistente sind die drei
-Autostarts + SSH-Config + `~/.claude.json`-Eintrag.
