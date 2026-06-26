@@ -1,26 +1,50 @@
-# Mitarbyte KI-OS — Marketplace
+# Mitarbyte KI-OS — user-onboarding
 
-Claude-Code-Plugins für Mitarbyte-KI-OS. Aktuell ein Plugin:
+Lokales Onboarding-Skill für Mitarbeiter: SSH-Key, gehärtete
+noVNC-/Cockpit-Tunnel und Mutagen-Sync zur Firmen-VM.
 
-| Plugin | Wofür |
-|---|---|
-| `user-onboarding` | Lokales Onboarding für Mitarbeiter: SSH-Key, gehärtete noVNC-/Cockpit-Tunnel, Mutagen-Sync zur Firmen-VM. |
+## Installation — Desktop-App, Web & Terminal
 
-## Installation
+Eine Zeile installiert den Skill nach `~/.claude/skills/user-onboarding/`;
+von dort lädt ihn **jede** Claude-Code-Umgebung (Desktop-App,
+claude.ai/code und Terminal). Kein GitHub-Login, kein ZIP nötig.
 
-In Claude Code (lokal auf deinem Mac/Linux/Windows-Gerät):
+**macOS / Linux** (Terminal):
 
 ```
-/plugin marketplace add Mitarbyte/marketplace
-/plugin install user-onboarding@mitarbyte
+curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.sh | bash
+```
+
+**Windows** (PowerShell):
+
+```
+irm https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.ps1 | iex
+```
+
+Danach Claude Code starten (Desktop-App oder `claude` im Terminal) und
+eingeben:
+
+```
 /user-onboarding
 ```
 
-## Updates
+## Update
+
+Denselben Installer noch einmal ausführen — er überschreibt den Skill
+in-place.
+
+## Alternative: als Plugin (nur Terminal-CLI)
+
+Wer ausschließlich das Terminal nutzt, kann den Skill auch als Plugin
+installieren:
 
 ```
-/plugin marketplace update mitarbyte
+claude plugin marketplace add Mitarbyte/marketplace
+claude plugin install user-onboarding@mitarbyte
 ```
+
+> Hinweis: `/plugin`-Befehle gibt es **nur im Terminal-CLI**, nicht in
+> der Desktop-App oder im Web — dort den Installer oben verwenden.
 
 ---
 
