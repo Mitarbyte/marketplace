@@ -704,7 +704,10 @@ Naechste Schritte fuer den User:
      (macOS/Windows; auf Linux funktioniert die macOS-Anleitung analog)
 2. **Claude-Login (einmalig):** `ssh <SSH_ALIAS>` → auf der VM
    `claude auth login` (Paste-Code-Flow: URL aus dem Terminal in den
-   **lokalen** Browser, Code zurueck ins Terminal).
+   **lokalen** Browser, Code zurueck ins Terminal). Optional zusaetzlich ein
+   Long-lived Token fuer headless/interaktive Sessions ohne Re-Login
+   (`claude setup-token`) — Rezept + Abgrenzung zu Remote Control in
+   `references/api-keys.md`.
 3. **Browser-Logins (einmalig):** `http://localhost:6080/vnc.html?resize=scale` oeffnen
    und im VM-Chrome in die Zielsysteme einloggen — siehe naechster Abschnitt.
 4. **Dateien & Obsidian:** `~/KI-OS` ist der lokale Spiegel des Workspaces —

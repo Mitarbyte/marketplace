@@ -59,6 +59,30 @@ claude auth login
 # bei Anthropic einloggen, angezeigten Code zurueck ins Terminal pasten.
 ```
 
+### Optional: Long-lived Token (einmalig) fuer headless/interaktive Sessions
+
+Wenn deine **normalen** `claude`-Sessions (interaktiv im noVNC-Terminal,
+Scheduler/headless) lange ohne Re-Login laufen sollen, setzt du einmalig einen
+Long-lived, inference-only Token. **Fuer `claude remote-control` ist das NICHT
+noetig und reicht auch NICHT** — Remote Control nutzt weiterhin den
+Full-Scope-OAuth-Login (`claude auth login`, der bei Ablauf selbst-heilt).
+
+```bash
+ssh <SSH_ALIAS>
+# auf der VM, EINMALIG:
+claude setup-token
+# Link im LOKALEN Browser oeffnen, anmelden, angezeigten Code zurueck ins
+# Terminal pasten. Es erscheint ein Token `sk-ant-...`. Diesen sicher ablegen:
+umask 077
+printf 'export CLAUDE_CODE_OAUTH_TOKEN=%s\n' 'sk-ant-DEIN-TOKEN' \
+    > ~/.config/ki-os/claude-token.env
+```
+
+Die VM sourct `~/.config/ki-os/claude-token.env` automatisch aus `~/.bashrc`
+(vom Admin via `provision-display-stack.sh` eingerichtet) — ab dann laufen neue
+`claude`-Sessions ohne Re-Login. Der Token landet ausschliesslich in dieser
+Datei (Mode 600), nie im Hub-Repo.
+
 ## Sicherheit
 
 - `.env` ist gitignored — keine Sorge, dass du sie versehentlich commitest.
