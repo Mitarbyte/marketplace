@@ -59,13 +59,14 @@ claude auth login
 # bei Anthropic einloggen, angezeigten Code zurueck ins Terminal pasten.
 ```
 
-### Optional: Long-lived Token (einmalig) fuer headless/interaktive Sessions
+### Long-lived Token (einmalig, Pflicht) fuer headless/interaktive Sessions
 
-Wenn deine **normalen** `claude`-Sessions (interaktiv im noVNC-Terminal,
-Scheduler/headless) lange ohne Re-Login laufen sollen, setzt du einmalig einen
-Long-lived, inference-only Token. **Fuer `claude remote-control` ist das NICHT
-noetig und reicht auch NICHT** — Remote Control nutzt weiterhin den
-Full-Scope-OAuth-Login (`claude auth login`, der bei Ablauf selbst-heilt).
+Setze einmalig einen Long-lived, inference-only Token, damit deine **normalen**
+`claude`-Sessions (interaktiv im noVNC-Terminal, Scheduler/headless) ohne
+Re-Login laufen. Das gehoert fest zum Onboarding (Schritt 2). **Fuer `claude
+remote-control` zaehlt dieser Token NICHT** — Remote Control nutzt weiterhin den
+Full-Scope-OAuth-Login (`claude auth login`, der bei Ablauf selbst-heilt); beides
+wird einmalig nebeneinander eingerichtet.
 
 ```bash
 ssh <SSH_ALIAS>
