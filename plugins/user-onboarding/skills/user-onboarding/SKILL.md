@@ -571,15 +571,17 @@ if (-not (Test-Path $appdir)) {
 }
 ```
 
-**Wichtig — Reihenfolge mit der Desktop-App:** Die App liest
-`ssh_configs.json` beim Start und schreibt sie beim eigenen Speichern
-(eigene Verbindung hinzufuegen/aendern) — eine laufende App kann unseren
-Eintrag also beim Beenden ueberschreiben. Am sichersten daher **bei
-geschlossener App schreiben**: ist die Desktop-App offen, **komplett beenden**
-(nicht nur das Fenster schliessen, auf macOS Cmd+Q), dann diesen Schritt
-laufen lassen und die App neu oeffnen. War sie beim Schreiben offen und
-`ki-os-vm` erscheint nach dem Neustart nicht, Schritt 10a bei geschlossener
-App wiederholen. Danach steht `ki-os-vm` im SSH-/Remote-Verbindungs-Dialog.
+**Wichtig — Desktop-App neu starten:** Die laufende App liest
+`ssh_configs.json` nur beim Start; ein neuer Eintrag erscheint deshalb erst
+nach **vollstaendigem Neustart** — App komplett beenden (macOS Cmd+Q, nicht
+nur das Fenster schliessen) und neu oeffnen. Danach steht `ki-os-vm` im
+SSH-/Remote-Verbindungs-Dialog. Die App schreibt die Datei nur beim
+expliziten Hinzufuegen/Aendern einer Verbindung in der UI, ein externer
+Schreibvorgang ueberlebt also einen normalen Neustart auch bei zuvor offener
+App (Smoke-Test 2026-06-28 auf macOS: extern geschriebener Host erscheint
+nach dem Neustart und wird per SSH angesteuert; die laufende App hat die
+Datei beim Beenden NICHT ueberschrieben). Sollte der Host wider Erwarten
+nicht auftauchen, Schritt 10a bei **geschlossener App** wiederholen.
 
 **Manueller Fallback (analog zum claude.ai-Login):** Falls der Host nicht
 auftaucht, in der Desktop-App von Hand eine SSH-Verbindung anlegen und als
