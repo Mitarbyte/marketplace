@@ -718,23 +718,29 @@ Zeige dem User eine Tabelle mit dem Status aller Komponenten:
 
 Naechste Schritte fuer den User:
 
-1. **Arbeiten** — primaer ueber die **Claude-Code-Desktop-App**
+1. **Claude-Login — mach das ZUERST (einmalig):** im noVNC-Browser
+   (`http://localhost:6080/vnc.html?resize=scale`) in **claude.ai** einloggen.
+   Der einzige Claude-Auth-Schritt, den du selbst machst — und die Voraussetzung
+   dafuer, dass Desktop-App, Scheduler und Remote-Control ueberhaupt laufen.
+   Daraus richtet die VM **automatisch** beides ein:
+   - den **Full-Scope-OAuth-Login**, den `claude remote-control` braucht (der
+     `ki-os-relogin`-Watcher loggt `claude` selbst ein bzw. heilt bei Ablauf).
+   - den **Long-lived, inference-only Token** fuer interaktive/headless
+     `claude`-Sessions ohne Re-Login — wird via `ki-os-setup-token` erzeugt und
+     in `~/.config/ki-os/claude-token.env` abgelegt (entsteht innerhalb weniger
+     Minuten von selbst, nichts zu tun).
+
+   Lebt die claude.ai-Session beim Einrichten nicht mehr, oeffnet der Watcher
+   im noVNC-Desktop automatisch ein kleines Login-Terminal — dort einfach dem
+   Link folgen und den angezeigten Code eingeben. Hintergrund, Abgrenzung der
+   Token-Typen + manueller Fallback (`ki-os-setup-token --force`):
+   `references/api-keys.md`.
+2. **Arbeiten** — primaer ueber die **Claude-Code-Desktop-App**
    (Remote-Projekt `<SSH_ALIAS>` / `KI-OS`). Fallbacks:
    - **Browser:** `claude.ai/code` → eigene Remote-Session
    - **Terminal:** `ssh <SSH_ALIAS>` → `cd ~/KI-OS && claude`
    - **VS Code Remote SSH** (Techniker): `references/<os>/vscode-remote-ssh.md`
      (macOS/Windows; auf Linux funktioniert die macOS-Anleitung analog)
-2. **Claude-Login (einmalig):** im noVNC-Browser (`http://localhost:6080/vnc.html?resize=scale`)
-   in **claude.ai** einloggen — das ist der einzige Schritt, den du selbst machst.
-   Daraus richtet die VM **automatisch** beides ein:
-   - den **Full-Scope-OAuth-Login**, den `claude remote-control` braucht (der
-     `ki-os-relogin`-Watcher loggt `claude` selbst ein bzw. heilt bei Ablauf).
-   - den **Long-lived, inference-only Token** fuer interaktive/headless
-     `claude`-Sessions ohne Re-Login — wird automatisch via `ki-os-setup-token`
-     erzeugt und in `~/.config/ki-os/claude-token.env` abgelegt (nichts zu tun).
-
-   Hintergrund, Abgrenzung der Token-Typen + manueller Fallback
-   (`ki-os-setup-token --force`) in `references/api-keys.md`.
 3. **Browser-Logins (einmalig):** `http://localhost:6080/vnc.html?resize=scale` oeffnen
    und im VM-Chrome in die Zielsysteme einloggen — siehe naechster Abschnitt.
 4. **Dateien & Obsidian:** `~/KI-OS` ist der lokale Spiegel des Workspaces —
