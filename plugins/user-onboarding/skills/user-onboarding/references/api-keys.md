@@ -79,10 +79,13 @@ printf 'export CLAUDE_CODE_OAUTH_TOKEN=%s\n' 'sk-ant-DEIN-TOKEN' \
     > ~/.config/ki-os/claude-token.env
 ```
 
-Die VM sourct `~/.config/ki-os/claude-token.env` automatisch aus `~/.bashrc`
-(vom Admin via `provision-display-stack.sh` eingerichtet) — ab dann laufen neue
-`claude`-Sessions ohne Re-Login. Der Token landet ausschliesslich in dieser
-Datei (Mode 600), nie im Hub-Repo.
+Die VM sourct `~/.config/ki-os/claude-token.env` automatisch aus `~/.profile`
+**und** `~/.bashrc` (vom Admin via `provision-display-stack.sh` eingerichtet) —
+`.profile` deckt Login-/headless-Sessions (Scheduler), `.bashrc` interaktive
+Terminals ab. Ab dann laufen neue `claude`-Sessions ohne Re-Login. Der Token
+landet ausschliesslich in dieser Datei (Mode 600), nie im Hub-Repo. (Beim
+Einfügen den **vollständigen** `sk-ant-oat…`-Token kopieren — er ist ~1 Jahr
+gueltig.)
 
 ## Sicherheit
 
