@@ -108,8 +108,10 @@ Host ki-os-vm
     User <VM_USER>
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
-    ServerAliveInterval 60
+    ServerAliveInterval 15
     ServerAliveCountMax 3
+    ConnectTimeout 10
+    TCPKeepAlive yes
 "@ -replace "`r`n", "`n"
 
 # BOM-frei schreiben (NICHT Add-Content -Encoding utf8 verwenden!)

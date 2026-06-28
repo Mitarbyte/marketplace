@@ -37,19 +37,14 @@ Datei: `~/Library/LaunchAgents/com.<mac-user>.ssh-tunnel.ki-os-vm-novnc.plist`
     <key>Label</key><string>com.<mac-user>.ssh-tunnel.ki-os-vm-novnc</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/ssh</string>
-        <string>-N</string>
-        <string>-o</string><string>ExitOnForwardFailure=yes</string>
-        <string>-o</string><string>ServerAliveInterval=60</string>
-        <string>-o</string><string>ServerAliveCountMax=3</string>
-        <string>-o</string><string>StrictHostKeyChecking=accept-new</string>
-        <string>-L</string><string>6080:127.0.0.1:<NOVNC_PORT></string>
-        <string>ki-os-vm</string>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>while true; do /usr/bin/ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -o TCPKeepAlive=yes -o StrictHostKeyChecking=accept-new -L 6080:127.0.0.1:<NOVNC_PORT> ki-os-vm; sleep 5; done</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict><key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
     <key>RunAtLoad</key><true/>
-    <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+    <key>KeepAlive</key><true/>
     <key>ThrottleInterval</key><integer>30</integer>
     <key>StandardOutPath</key><string>/Users/<mac-user>/Library/Logs/ssh-tunnel-ki-os-vm-novnc.log</string>
     <key>StandardErrorPath</key><string>/Users/<mac-user>/Library/Logs/ssh-tunnel-ki-os-vm-novnc.err.log</string>
@@ -82,9 +77,13 @@ launchctl print gui/$(id -u)/${LABEL} | head -20
 ## Warum diese Options
 
 Identisch zum Cockpit-Tunnel (siehe `cockpit-launchagent.md` → "Warum
-diese Options"): `ssh -N` ohne `-f`, `KeepAlive.SuccessfulExit=false`,
-`ThrottleInterval=30`, `ExitOnForwardFailure=yes`,
-`ServerAliveInterval 60`/`ServerAliveCountMax 3`.
+diese Options"): launchd supervidiert einen nie endenden `bash`-Loop
+(`while true; do ssh …; sleep 5; done`) statt `ssh` direkt — sonst **parkt
+launchd den Job nach einer Serie schneller Fehlstarts dauerhaft** (typisch
+nach Sleep/Wake) und der Tunnel kommt nicht wieder. Dazu `ssh -N` ohne `-f`,
+`KeepAlive=true` als Backstop, `ThrottleInterval=30`, `ExitOnForwardFailure=yes`,
+`ServerAliveInterval 15`/`ServerAliveCountMax 3` (~45s Tot-Erkennung),
+`ConnectTimeout 10`, `TCPKeepAlive yes`.
 
 ## Verifikation
 

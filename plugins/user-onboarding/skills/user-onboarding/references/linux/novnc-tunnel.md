@@ -33,18 +33,25 @@ Datei: `~/.config/systemd/user/ki-os-vm-novnc-tunnel.service`
 Description=SSH-Tunnel zum Hub-VM noVNC (ki-os-vm)
 After=network-online.target
 Wants=network-online.target
+# Nie aufgeben: ohne dies parkt systemd die Unit nach einer Fehlstart-Serie
+# (z.B. Netz beim Aufwachen noch nicht da) dauerhaft im "failed"-Zustand
+# ("start request repeated too quickly") — dann bleibt der Tunnel tot,
+# obwohl die VM laengst wieder erreichbar ist. 0 = Rate-Limit aus.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/ssh -N \
     -o ExitOnForwardFailure=yes \
-    -o ServerAliveInterval=60 \
+    -o ServerAliveInterval=15 \
     -o ServerAliveCountMax=3 \
+    -o ConnectTimeout=10 \
+    -o TCPKeepAlive=yes \
     -o StrictHostKeyChecking=accept-new \
     -L 6080:127.0.0.1:<NOVNC_PORT> \
     ki-os-vm
 Restart=always
-RestartSec=30
+RestartSec=15
 
 [Install]
 WantedBy=default.target

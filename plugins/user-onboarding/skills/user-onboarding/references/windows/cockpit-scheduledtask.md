@@ -41,8 +41,9 @@ $guard = "$binDir\$taskName.ps1"
 `$ErrorActionPreference = 'SilentlyContinue'
 if (Get-NetTCPConnection -LocalPort $localPort -State Listen) { exit 0 }
 Start-Process -WindowStyle Hidden -FilePath '$sshExe' -ArgumentList @(
-    '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=60',
-    '-o','ServerAliveCountMax=3','-o','StrictHostKeyChecking=accept-new',
+    '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=15',
+    '-o','ServerAliveCountMax=3','-o','ConnectTimeout=10','-o','TCPKeepAlive=yes',
+    '-o','StrictHostKeyChecking=accept-new',
     '-L','${localPort}:127.0.0.1:$cockpitPort','$sshHost')
 "@ | Set-Content -Path $guard -Encoding ASCII
 
@@ -162,8 +163,12 @@ Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:3847" `
   `Start-Process -WindowStyle Hidden` uebernimmt das Hintergrund-Detachen.
 - `-o ExitOnForwardFailure=yes` — bei Port-Konflikt sofort beenden statt ohne
   Forward weiterzulaufen (zweite Verteidigungslinie hinter dem Guard).
-- `-o ServerAliveInterval=60 -o ServerAliveCountMax=3` — Client-Keepalive,
-  damit NAT-Idle-Timeout die *lebende* Verbindung nicht killt.
+- `-o ServerAliveInterval=15 -o ServerAliveCountMax=3` — Client-Keepalive
+  gegen NAT-Idle-Timeout; erkennt zugleich ein totes Link in ~45s (frueher
+  60×3 = 180s, in dem der Port gebunden blieb aber ins Leere leitete), sodass
+  der 2-Min-Watchdog danach sofort einen frischen Tunnel zieht.
+- `-o ConnectTimeout=10` — fehlgeschlagener Verbindungsaufbau kehrt schnell
+  zurueck; `-o TCPKeepAlive=yes` ergaenzt das OS-Keepalive.
 - `-ExecutionTimeLimit 0` — kein Zeitlimit; sonst killt Windows den Task nach
   dem 72-Stunden-Default. (Betrifft nur den fire-and-forget-Launcher.)
 - `-RestartCount 999 -RestartInterval 1min` — harmloses Netz neben dem

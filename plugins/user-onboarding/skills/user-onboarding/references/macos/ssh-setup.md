@@ -53,10 +53,19 @@ Host ki-os-vm
     User <VM_USER>
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
-    ServerAliveInterval 60
+    ServerAliveInterval 15
     ServerAliveCountMax 3
+    ConnectTimeout 10
+    TCPKeepAlive yes
 EOF
 ```
+
+`ServerAliveInterval 15` / `ServerAliveCountMax 3` / `ConnectTimeout 10` /
+`TCPKeepAlive yes` gelten fuer **jede** Verbindung ueber den Alias — also auch
+fuer **Mutagen** (nutzt `ki-os-vm` direkt als Transport). Damit erkennt Mutagen
+eine tote SSH-Session in ~45s und reconnectet, statt bis zu 180s in
+"Connecting…" zu haengen. (Die noVNC-/Cockpit-Tunnel setzen dieselben Optionen
+zusaetzlich direkt auf der `ssh`-Kommandozeile.)
 
 Das ist der **komplette** Eintrag. Bewusst NICHT enthalten:
 

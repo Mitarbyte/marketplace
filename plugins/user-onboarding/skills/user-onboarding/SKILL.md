@@ -270,13 +270,18 @@ Host <SSH_ALIAS>
     User <VM_USER>
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
-    ServerAliveInterval 60
+    ServerAliveInterval 15
     ServerAliveCountMax 3
+    ConnectTimeout 10
+    TCPKeepAlive yes
 ```
 
 KEIN `ControlMaster`, KEIN `RemoteForward`, KEIN `LocalForward`, KEIN
 Zwei-Alias-Konstrukt. Die Tunnel laufen als eigene Autostart-Prozesse
-(Schritte 7 + 8). Details + OS-Eigenheiten (Windows: BOM-frei schreiben,
+(Schritte 7 + 8). `ServerAliveInterval 15`/`CountMax 3`/`ConnectTimeout 10`/
+`TCPKeepAlive yes` gelten fuer jede Verbindung ueber den Alias — wichtig fuer
+**Mutagen** (Schritt 9), das den Alias direkt als Transport nutzt: tote
+SSH-Session in ~45s erkannt + reconnectet statt bis 180s zu haengen. Details + OS-Eigenheiten (Windows: BOM-frei schreiben,
 ACL-Reparatur): `references/<os>/ssh-setup.md`.
 
 ### Schritt 5 — Warten auf Admin-Freigabe
@@ -346,15 +351,32 @@ VM-Browser dauerhaft unter `http://localhost:6080/vnc.html?resize=scale` erreich
 | Linux | systemd-User-Service `<SSH_ALIAS>-novnc-tunnel.service` | `references/linux/novnc-tunnel.md` |
 | Windows | Scheduled Task `<SSH_ALIAS>-novnc-tunnel` | `references/windows/novnc-tunnel.md` |
 
-Haertung in allen Varianten identisch (NICHT neu erfinden — exakt die
-Vorlagen aus den Referenzen nutzen): Supervisor-Restart
-(macOS `KeepAlive.SuccessfulExit=false` / Linux `Restart=always` /
-Windows 2-Min-Repetition-Watchdog, der ein **liveness-guarded** Guard-Skript
-aufruft — startet `ssh` nur, wenn der lokale Port noch nicht lauscht) plus
-`ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=60
--o ServerAliveCountMax=3`. Windows braucht den Watchdog, weil "Restart on
-failure" allein langlaufende Tunnel nach einem spaeten Crash nicht
-zuverlaessig neu startet. **Wichtig:** der Windows-Watchdog darf `ssh`
+Haertung in allen Varianten gleichwertig (NICHT neu erfinden — exakt die
+Vorlagen aus den Referenzen nutzen) plus gehaertetes
+`ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15
+-o ServerAliveCountMax=3 -o ConnectTimeout=10 -o TCPKeepAlive=yes` (~45s
+Tot-Erkennung statt frueher 180s). Der **kritische** Punkt — und die Ursache
+des wiederkehrenden „Tunnel bricht ab und kommt nicht wieder" — ist die
+Supervision: ein simpler Supervisor-Restart genuegt NICHT, weil alle drei
+Supervisoren einen Job nach einer Serie schneller Fehlstarts (typisch nach
+Sleep/Wake, wenn das Netz noch nicht steht) **dauerhaft parken** und dann gar
+nicht mehr starten — der Tunnel bleibt tot, obwohl die VM laengst erreichbar
+ist. Deshalb pro OS:
+
+- **macOS:** der LaunchAgent supervidiert NICHT `ssh` direkt, sondern einen
+  nie endenden `bash`-Loop (`while true; do ssh …; sleep 5; done`). launchd
+  sieht damit nie schnelle Exits → kann nie parken; stirbt `ssh`, baut der
+  Loop es in ~5s neu auf. `KeepAlive=true` ist nur Backstop fuer den Loop.
+  (Real reproduziert 2026-06-28: drei direkt-`ssh`-LaunchAgents ueber Nacht
+  geparkt bei „exit 255 / not running", VM erreichbar.)
+- **Linux:** `Restart=always` + **`StartLimitIntervalSec=0`** (Rate-Limit aus,
+  sonst „start request repeated too quickly" → failed) + `RestartSec=15`.
+- **Windows:** 2-Min-Repetition-Watchdog, der ein **liveness-guarded**
+  Guard-Skript aufruft (startet `ssh` nur, wenn der lokale Port noch nicht
+  lauscht) — der periodische Watchdog umgeht das Parken, weil er den Tunnel
+  unabhaengig vom Supervisor-Zustand alle 2 Min neu zieht.
+
+**Wichtig (nur Windows):** der Watchdog darf `ssh`
 NICHT blind alle 2 Min respawnen (alte Variante < 2026-06-18) — das leakt
 auf der VM Tausende toter SSH-Sessions (Details + Begruendung:
 `references/windows/cockpit-scheduledtask.md` → "Warum diese Options").

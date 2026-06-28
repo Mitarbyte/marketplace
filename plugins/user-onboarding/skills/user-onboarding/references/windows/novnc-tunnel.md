@@ -48,8 +48,9 @@ $guard = "$binDir\$taskName.ps1"
 `$ErrorActionPreference = 'SilentlyContinue'
 if (Get-NetTCPConnection -LocalPort $localPort -State Listen) { exit 0 }
 Start-Process -WindowStyle Hidden -FilePath '$sshExe' -ArgumentList @(
-    '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=60',
-    '-o','ServerAliveCountMax=3','-o','StrictHostKeyChecking=accept-new',
+    '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=15',
+    '-o','ServerAliveCountMax=3','-o','ConnectTimeout=10','-o','TCPKeepAlive=yes',
+    '-o','StrictHostKeyChecking=accept-new',
     '-L','${localPort}:127.0.0.1:$novncPort','$sshHost')
 "@ | Set-Content -Path $guard -Encoding ASCII
 

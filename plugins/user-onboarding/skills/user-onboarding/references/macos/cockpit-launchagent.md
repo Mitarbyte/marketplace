@@ -31,19 +31,14 @@ Datei: `~/Library/LaunchAgents/com.<mac-user>.ssh-tunnel.ki-os-vm-cockpit.plist`
     <key>Label</key><string>com.<mac-user>.ssh-tunnel.ki-os-vm-cockpit</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/ssh</string>
-        <string>-N</string>
-        <string>-o</string><string>ExitOnForwardFailure=yes</string>
-        <string>-o</string><string>ServerAliveInterval=60</string>
-        <string>-o</string><string>ServerAliveCountMax=3</string>
-        <string>-o</string><string>StrictHostKeyChecking=accept-new</string>
-        <string>-L</string><string>3847:127.0.0.1:<COCKPIT_PORT></string>
-        <string>ki-os-vm</string>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>while true; do /usr/bin/ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -o TCPKeepAlive=yes -o StrictHostKeyChecking=accept-new -L 3847:127.0.0.1:<COCKPIT_PORT> ki-os-vm; sleep 5; done</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict><key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
     <key>RunAtLoad</key><true/>
-    <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+    <key>KeepAlive</key><true/>
     <key>ThrottleInterval</key><integer>30</integer>
     <key>StandardOutPath</key><string>/Users/<mac-user>/Library/Logs/ssh-tunnel-ki-os-vm-cockpit.log</string>
     <key>StandardErrorPath</key><string>/Users/<mac-user>/Library/Logs/ssh-tunnel-ki-os-vm-cockpit.err.log</string>
@@ -83,14 +78,41 @@ Skill-Run sauber neu laedt statt eine zweite Instanz zu erzeugen.
 
 ## Warum diese Options
 
+**Der LaunchAgent supervidiert bewusst NICHT `ssh` direkt, sondern einen
+nie endenden `bash`-Loop** (`while true; do ssh …; sleep 5; done`). Das ist
+der entscheidende Punkt gegen das wiederkehrende Problem „Tunnel bricht nach
+einer Zeit ab und kommt nicht wieder":
+
+- Laesst man launchd direkt `ssh` mit `KeepAlive` ueberwachen, **parkt launchd
+  den Job nach einer Serie schneller Fehlstarts dauerhaft** (typisch nach
+  Sleep/Wake, wenn das Netz beim Aufwachen noch nicht steht und `ssh` in <1s
+  mit „Can't assign requested address" abbricht). Danach versucht launchd den
+  Job **gar nicht mehr** zu starten — der Tunnel bleibt tot, obwohl die VM
+  laengst wieder erreichbar ist. (Real reproduziert 2026-06-28: alle drei
+  Tunnel ueber Nacht geparkt bei „last exit code = 255 / not running", VM
+  erreichbar; `launchctl kickstart` belebt sofort.)
+- Der `bash`-Loop ist **ein einziger langlebiger Prozess** — launchd sieht nie
+  schnelle Exits, kann also nie parken. Stirbt `ssh` (Netzwechsel, Sleep,
+  VM-Neustart), startet der Loop es innerhalb von ~5s neu. Das ist die macOS-
+  Entsprechung des liveness-guarded Windows-Watchdogs.
+- `KeepAlive=true` ist nur noch Backstop: falls der `bash`-Loop selbst je
+  sterben sollte, startet launchd ihn neu.
+
+Die `ssh`-Optionen im Loop:
+
 - `ssh -N` (no remote command) — der Tunnel macht nichts ausser forwarden
-- **NICHT** `-f` (fork to background) — launchd muss den Prozess tracken
-- `KeepAlive.SuccessfulExit=false` — restart wenn Tunnel beendet
-- `ThrottleInterval=30` — nicht zu eng restarten (vermeidet Spinning)
-- `ExitOnForwardFailure=yes` — bei Port-Konflikt sofort beenden statt
-  ohne Forward weiterlaufen
-- `ServerAliveInterval 60` — alle 60s ein Keepalive-Paket, sodass Tunnel
-  durch NAT-Idle-Timeouts nicht stirbt
+- **NICHT** `-f` (fork to background) — der Loop muss `ssh` im Vordergrund
+  halten, sonst kehrt er sofort zum `sleep` zurueck und spawnt Dutzende
+  Tunnel
+- `ServerAliveInterval 15` + `ServerAliveCountMax 3` — ein totes Link wird in
+  **~45s** erkannt (frueher 60×3 = 180s; in diesem Fenster blieb der lokale
+  Port gebunden, leitete aber ins Leere → „verbunden, aber eingefroren")
+- `ConnectTimeout 10` — ein fehlgeschlagener Verbindungsaufbau (VM kurz weg)
+  kehrt schnell zurueck, der Loop probiert sofort erneut
+- `ExitOnForwardFailure=yes` — bei belegtem Port sofort beenden + neu
+  versuchen (raeumt einen halbtoten Listener auf)
+- `TCPKeepAlive=yes` — zusaetzlich gegen NAT-Idle-Timeouts
+- `ThrottleInterval=30` — Backstop-Throttle, falls der Loop doch crasht
 
 ## Logs
 
