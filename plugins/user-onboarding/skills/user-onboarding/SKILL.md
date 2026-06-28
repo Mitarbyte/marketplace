@@ -702,16 +702,17 @@ Naechste Schritte fuer den User:
    - **Terminal:** `ssh <SSH_ALIAS>` → `cd ~/KI-OS && claude`
    - **VS Code Remote SSH** (Techniker): `references/<os>/vscode-remote-ssh.md`
      (macOS/Windows; auf Linux funktioniert die macOS-Anleitung analog)
-2. **Claude-Login + Long-lived Token (beides einmalig, Pflicht):**
-   `ssh <SSH_ALIAS>` → auf der VM nacheinander:
-   - `claude auth login` (Paste-Code-Flow: URL aus dem Terminal in den
-     **lokalen** Browser, Code zurueck ins Terminal) — der Full-Scope-Login,
-     den `claude remote-control` braucht.
-   - `claude setup-token` und den ausgegebenen `sk-ant-...`-Token nach
-     `~/.config/ki-os/claude-token.env` schreiben — damit interaktive +
-     headless `claude`-Sessions ohne Re-Login laufen. Schritt-fuer-Schritt
-     (inkl. `umask 077`) + Abgrenzung zu Remote Control in
-     `references/api-keys.md`.
+2. **Claude-Login (einmalig):** im noVNC-Browser (`http://localhost:6080/vnc.html?resize=scale`)
+   in **claude.ai** einloggen — das ist der einzige Schritt, den du selbst machst.
+   Daraus richtet die VM **automatisch** beides ein:
+   - den **Full-Scope-OAuth-Login**, den `claude remote-control` braucht (der
+     `ki-os-relogin`-Watcher loggt `claude` selbst ein bzw. heilt bei Ablauf).
+   - den **Long-lived, inference-only Token** fuer interaktive/headless
+     `claude`-Sessions ohne Re-Login — wird automatisch via `ki-os-setup-token`
+     erzeugt und in `~/.config/ki-os/claude-token.env` abgelegt (nichts zu tun).
+
+   Hintergrund, Abgrenzung der Token-Typen + manueller Fallback
+   (`ki-os-setup-token --force`) in `references/api-keys.md`.
 3. **Browser-Logins (einmalig):** `http://localhost:6080/vnc.html?resize=scale` oeffnen
    und im VM-Chrome in die Zielsysteme einloggen — siehe naechster Abschnitt.
 4. **Dateien & Obsidian:** `~/KI-OS` ist der lokale Spiegel des Workspaces —

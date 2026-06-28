@@ -59,33 +59,31 @@ claude auth login
 # bei Anthropic einloggen, angezeigten Code zurueck ins Terminal pasten.
 ```
 
-### Long-lived Token (einmalig, Pflicht) fuer headless/interaktive Sessions
+### Long-lived Token fuer headless/interaktive Sessions — laeuft AUTOMATISCH
 
-Setze einmalig einen Long-lived, inference-only Token, damit deine **normalen**
-`claude`-Sessions (interaktiv im noVNC-Terminal, Scheduler/headless) ohne
-Re-Login laufen. Das gehoert fest zum Onboarding (Schritt 2). **Fuer `claude
-remote-control` zaehlt dieser Token NICHT** — Remote Control nutzt weiterhin den
-Full-Scope-OAuth-Login (`claude auth login`, der bei Ablauf selbst-heilt); beides
-wird einmalig nebeneinander eingerichtet.
+Damit deine **normalen** `claude`-Sessions (interaktiv im noVNC-Terminal,
+Scheduler/headless) ohne Re-Login laufen, brauchst du einen Long-lived,
+inference-only Token. **Du musst dafuer nichts tun ausser dich in claude.ai
+einloggen** (genau der Login, den du im noVNC-Browser ohnehin machst): die VM
+erzeugt den Token danach **selbst** und legt ihn sicher ab.
 
-```bash
-ssh <SSH_ALIAS>
-# auf der VM, EINMALIG:
-claude setup-token
-# Link im LOKALEN Browser oeffnen, anmelden, angezeigten Code zurueck ins
-# Terminal pasten. Es erscheint ein Token `sk-ant-...`. Diesen sicher ablegen:
-umask 077
-printf 'export CLAUDE_CODE_OAUTH_TOKEN=%s\n' 'sk-ant-DEIN-TOKEN' \
-    > ~/.config/ki-os/claude-token.env
-```
+Im Hintergrund erkennt der Watcher `ki-os-relogin@<user>`, dass du eingeloggt
+bist, ruft `ki-os-setup-token` auf (automatisiert `claude setup-token` ueber den
+VM-Chrome, klickt den Consent selbst) und schreibt den Token nach
+`~/.config/ki-os/claude-token.env` (Mode 600). Das passiert **einmalig** je User;
+liegt schon ein Token da, bleibt alles unangetastet.
+
+**Fuer `claude remote-control` zaehlt dieser Token NICHT** — Remote Control nutzt
+den Full-Scope-OAuth-Login (`claude auth login`, der bei Ablauf selbst-heilt).
+Beide entstehen aus demselben claude.ai-Login, sind aber getrennte Token-Typen.
 
 Die VM sourct `~/.config/ki-os/claude-token.env` automatisch aus `~/.profile`
-**und** `~/.bashrc` (vom Admin via `provision-display-stack.sh` eingerichtet) —
-`.profile` deckt Login-/headless-Sessions (Scheduler), `.bashrc` interaktive
-Terminals ab. Ab dann laufen neue `claude`-Sessions ohne Re-Login. Der Token
-landet ausschliesslich in dieser Datei (Mode 600), nie im Hub-Repo. (Beim
-Einfügen den **vollständigen** `sk-ant-oat…`-Token kopieren — er ist ~1 Jahr
-gueltig.)
+**und** `~/.bashrc` — `.profile` deckt Login-/headless-Sessions (Scheduler),
+`.bashrc` interaktive Terminals ab. Der Token (gueltig ~1 Jahr) landet
+ausschliesslich in dieser Datei, nie im Hub-Repo.
+
+Manuell nachziehen/rotieren (selten noetig — z.B. wenn der Token mal ungueltig
+wird): auf der VM `ki-os-setup-token --force` (claude.ai-Session muss leben).
 
 ## Sicherheit
 
