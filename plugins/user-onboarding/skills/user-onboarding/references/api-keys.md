@@ -1,6 +1,6 @@
 # API-Keys (auf der VM eintragen)
 
-Nach abgeschlossenem Onboarding loggst du dich per `ssh <SSH_ALIAS>` ein
+Nach abgeschlossenem Onboarding loggst du dich per `ssh ki-os-vm` ein
 (Default `ki-os-vm`) und befuellst — falls dein Hub das vorsieht — die
 `.env`-Datei in deinem Workspace mit den noetigen API-Keys.
 
@@ -33,7 +33,7 @@ einmaliger Browser-Login. Das laeuft komplett **auf der VM**: der
 Browser oeffnet sich im noVNC-Tab (`http://localhost:6080/vnc.html?resize=scale`):
 
 ```bash
-ssh <SSH_ALIAS>
+ssh ki-os-vm
 # auf der VM:
 ki-os-auth gws auth login        # Google Workspace (Drive, Gmail, Calendar, Docs, ...)
 ki-os-auth gh auth login         # GitHub CLI
@@ -52,7 +52,7 @@ Seit Claude Code 2.x laeuft der Login ueber einen **Paste-Code-Flow** mit
 gehosteter Callback-URL — kein Wrapper noetig:
 
 ```bash
-ssh <SSH_ALIAS>
+ssh ki-os-vm
 # auf der VM:
 claude auth login
 # URL aus dem Terminal in deinen LOKALEN Browser kopieren,

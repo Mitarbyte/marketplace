@@ -49,7 +49,7 @@ Sobald der Admin Bescheid gibt, im Skill weitermachen — Schritt 6
 macht den Connection-Smoketest:
 
 ```bash
-ssh -o BatchMode=yes <SSH_ALIAS> true
+ssh -o BatchMode=yes ki-os-vm true
 ```
 
 Wenn Exit-Code 0: Key ist drauf, weiter zu Schritt 7. Wenn nicht:
@@ -57,7 +57,7 @@ Wenn Exit-Code 0: Key ist drauf, weiter zu Schritt 7. Wenn nicht:
   oder falscher Pubkey-Inhalt
 - "Connection refused" → VM-IP/Port falsch, oder VM down
 - "Host key verification failed" → einmalig `ssh-keygen -R <VM_IP>`,
-  dann `ssh <SSH_ALIAS>` manuell zum Akzeptieren des Host-Keys
+  dann `ssh ki-os-vm` manuell zum Akzeptieren des Host-Keys
 
 ## Sicherheitshinweise
 

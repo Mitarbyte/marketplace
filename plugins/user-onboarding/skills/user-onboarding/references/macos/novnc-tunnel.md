@@ -3,8 +3,8 @@
 **Pflicht-Bestandteil** des Setups (Schritt 7 in `SKILL.md`) — einer der
 drei festen Autostarts (noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync).
 
-`ki-os-vm` ist der Default-SSH-Alias; das LaunchAgent-Label endet auf
-`ki-os-vm-novnc`. Bei abweichendem Alias beide Stellen ersetzen.
+`ki-os-vm` ist der feste SSH-Alias (keine Auswahl); das LaunchAgent-Label
+endet auf `ki-os-vm-novnc`.
 
 ## Wozu
 

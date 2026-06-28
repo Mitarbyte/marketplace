@@ -3,8 +3,7 @@
 Detail-Anleitung fuer Schritt 3 + 4 aus `SKILL.md`. Native Windows-Variante
 (PowerShell + Windows-OpenSSH).
 
-`ki-os-vm` ist der Default-SSH-Alias. Bei abweichendem Alias alle Vorkommen
-ersetzen.
+`ki-os-vm` ist der feste SSH-Alias (vom Skill gesetzt, keine Auswahl).
 
 Der **native Windows-OpenSSH** reicht fuer SSH + Tunnel vollstaendig:
 ControlMaster wird nirgendwo mehr gebraucht (das brauchte nur das

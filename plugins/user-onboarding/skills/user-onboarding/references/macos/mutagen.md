@@ -3,8 +3,7 @@
 **Pflicht-Bestandteil** des Setups (Schritt 9 in `SKILL.md`) — einer der
 drei festen Autostarts (noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync).
 
-`ki-os-vm` ist der Default-SSH-Alias. Bei abweichendem Alias alle
-Vorkommen ersetzen.
+`ki-os-vm` ist der feste SSH-Alias (vom Skill gesetzt, keine Auswahl).
 
 ## Wozu
 

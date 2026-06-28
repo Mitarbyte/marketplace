@@ -26,8 +26,8 @@ Workspace-Eintrag fuer die Claude-Code-Desktop-App.
 
 1. SSH-Key erstellen (falls nicht vorhanden) und Public Key in die
    Zwischenablage — du schickst ihn an den Admin
-2. SSH-Alias waehlen (Default `ki-os-vm`) und minimalen
-   `~/.ssh/config`-Eintrag anlegen
+2. Minimalen `~/.ssh/config`-Eintrag fuer den festen SSH-Alias `ki-os-vm`
+   anlegen (wird nicht abgefragt)
 3. **Pause** — du wartest auf Admin-Bestaetigung, dass dein VM-User
    komplett eingerichtet ist
 4. SSH-Verbindung testen + deine User-Werte holen (Cockpit-Port,
@@ -40,8 +40,10 @@ Workspace-Eintrag fuer die Claude-Code-Desktop-App.
 7. **Pflicht-Autostart 3:** Mutagen-Sync — dein VM-Workspace als echter
    lokaler Ordner `~/KI-OS` (two-way, offline lesbar; dort auch den
    Obsidian-Vault oeffnen)
-8. Workspace-Eintrag in `~/.claude.json`, damit die Claude-Code-
-   Desktop-App die VM direkt im Remote-Projekt-Switcher anzeigt
+8. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows): SSH-Host
+   `ki-os-vm` als gespeicherte Verbindung (`ssh_configs.json`) + Workspace-
+   Eintrag in `~/.claude.json` — die App zeigt die VM direkt im
+   Remote-Projekt-Switcher, ohne dass du SSH von Hand einrichten musst
 9. Verifikation; bei Bestands-Usern zusaetzlich: Migration vom alten
    Setup (Chrome-Bridge, vm-oauth, SSHFS werden rueckstandsfrei entfernt)
 

@@ -3,9 +3,7 @@
 Detail-Anleitung fuer Schritt 12 aus `SKILL.md`. Nur relevant fuer
 Bestands-User, die schon nach dem alten Muster onboardet wurden.
 
-`ki-os-vm` ist der Default-SSH-Alias. Bei abweichendem Alias alle
-Vorkommen ersetzen (auch in LaunchAgent-Labels, Unit-/Task-Namen und
-Profilpfaden wie `.chrome-<alias>`).
+`ki-os-vm` ist der feste SSH-Alias (vom Skill gesetzt, keine Auswahl).
 
 ## Was wegfaellt und warum
 

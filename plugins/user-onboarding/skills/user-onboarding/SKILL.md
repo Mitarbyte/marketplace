@@ -1,6 +1,6 @@
 ---
 name: user-onboarding
-description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', 'altes ki-os-setup migrieren', 'chrome-bridge entfernen', 'sshfs abloesen', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when a v1 user (Chrome-Bridge/SSHFS/vm-oauth) wants to migrate to the new setup. Skill macht ausschliesslich LOKALE Schritte: SSH-Key, minimaler ~/.ssh/config-Eintrag, drei Pflicht-Autostarts (gehaerteter noVNC-Tunnel lokal 6080, gehaerteter Cockpit-Tunnel lokal 3847, Mutagen-Daemon + Sync-Session ki-os fuer ~/KI-OS) sowie der ~/.claude.json-Workspace-Eintrag fuer die Claude-Code-Desktop-App. Alle drei Autostarts sind Pflicht-Bestandteile, keine Auswahl. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen auf der VM (noVNC) — Chrome-Bridge, vm-oauth und SSHFS sind obsolet und werden bei Bestands-Usern zurueckgebaut. Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
+description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', 'altes ki-os-setup migrieren', 'chrome-bridge entfernen', 'sshfs abloesen', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when a v1 user (Chrome-Bridge/SSHFS/vm-oauth) wants to migrate to the new setup. Skill macht ausschliesslich LOKALE Schritte: SSH-Key, minimaler ~/.ssh/config-Eintrag, drei Pflicht-Autostarts (gehaerteter noVNC-Tunnel lokal 6080, gehaerteter Cockpit-Tunnel lokal 3847, Mutagen-Daemon + Sync-Session ki-os fuer ~/KI-OS) sowie die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag) fuer die Claude-Code-Desktop-App. Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt. Alle drei Autostarts sind Pflicht-Bestandteile, keine Auswahl. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen auf der VM (noVNC) — Chrome-Bridge, vm-oauth und SSHFS sind obsolet und werden bei Bestands-Usern zurueckgebaut. Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
 ---
 
 ## Was dieser Skill macht
@@ -10,8 +10,8 @@ alles ein, damit er sich auf seine vom Admin angelegte VM verbinden und
 produktiv arbeiten kann:
 
 1. SSH-Key generieren (falls noch nicht vorhanden) und an den Admin senden
-2. Minimaler `~/.ssh/config`-Eintrag fuer den gewaehlten SSH-Alias
-   (Default `ki-os-vm`, idempotent — KEIN ControlMaster, KEINE Forwards)
+2. Minimaler `~/.ssh/config`-Eintrag fuer den festen SSH-Alias `ki-os-vm`
+   (idempotent — KEIN ControlMaster, KEINE Forwards)
 3. **WARTEN auf Admin-Freigabe** — User muss vor Schritt 6 vom Admin die
    Bestaetigung haben, dass sein User auf der VM angelegt ist und der
    SSH-Key hinterlegt wurde
@@ -25,9 +25,14 @@ produktiv arbeiten kann:
    (lokal `3847` → VM `<COCKPIT_PORT>`) — `http://localhost:3847`
 7. **Pflicht-Autostart 3:** Mutagen installieren, Daemon-Autostart,
    Sync-Session `ki-os` (`VM:~/KI-OS` ↔ lokal `~/KI-OS`, two-way-resolved)
-8. **Zum Abschluss** — den SSH-Workspace (`ssh:<SSH_ALIAS>:/home/<VM_USER>/KI-OS`)
-   in `~/.claude.json` registrieren, sodass die Claude-Code-Desktop-App ihn
-   ohne weiteres Trust-Prompt direkt im Remote-Projekt-Switcher anzeigt
+8. **Zum Abschluss — Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows):**
+   (a) den SSH-Host `ki-os-vm` in der Desktop-App-Konfiguration
+   (`ssh_configs.json`) als gespeicherte Verbindung **und** Trusted-Host
+   eintragen — sonst kennt die App die VM nicht und SSH muss von Hand
+   angelegt werden; (b) den SSH-Workspace
+   (`ssh:ki-os-vm:/home/<VM_USER>/KI-OS`) in `~/.claude.json` registrieren,
+   sodass die App ihn ohne Trust-Prompt direkt im Remote-Projekt-Switcher
+   anzeigt
 9. Verifikation aller Komponenten + bei Bestands-Usern: Migration vom
    alten Setup (Chrome-Bridge, vm-oauth, SSHFS — alles obsolet)
 
@@ -66,8 +71,9 @@ eigenen Laptop): noVNC immer `6080`, Cockpit immer `3847`. Nur die
 VM-seitigen Ports sind pro User verschieden.
 
 Primaerer Arbeitszugang ist die **Claude-Code-Desktop-App** (verbindet
-sich selbst per SSH). Fallbacks: claude.ai/code im Browser, `ssh` +
-`claude` im Terminal, VS Code Remote-SSH.
+sich selbst per SSH; Schritt 10 registriert den Host `ki-os-vm` vorab,
+damit sie ohne manuelles SSH-Setup auskommt). Fallbacks: claude.ai/code im
+Browser, `ssh` + `claude` im Terminal, VS Code Remote-SSH.
 
 ---
 
@@ -80,10 +86,11 @@ Vor dem Start klaert der Skill diese Punkte mit dem User per `AskUserQuestion`:
    fragen. WSL2-Ubuntu wird als Linux behandelt.
 2. **VM-Public-IP** — vom Admin erhalten (z.B. `1.2.3.4`)
 3. **VM-Username** — vom Admin erhalten (z.B. `alice`)
-4. **SSH-Alias** — kurzer Name fuer die VM in `~/.ssh/config` (Default
-   `ki-os-vm`; alternativ z.B. `<kunde>-vm`, wenn der User mehrere
-   Hub-VMs hat). Der Alias bestimmt auch die Namen der Autostart-Dienste.
-5. **Email-Adresse** — fuer SSH-Key-Kommentar (Default: `git config --global user.email`)
+4. **Email-Adresse** — fuer SSH-Key-Kommentar (Default: `git config --global user.email`)
+
+Der **SSH-Alias ist fest `ki-os-vm`** — wird **nicht** abgefragt (jeder
+Mitarbeiter hat genau eine Firmen-VM auf seinem Geraet). Der Alias bestimmt
+auch die Namen der Autostart-Dienste (LaunchAgent-Labels, Unit-/Task-Namen).
 
 **Feste Setup-Bestandteile (keine Auswahl, immer installiert):**
 
@@ -95,12 +102,13 @@ Der Skill fragt diese Komponenten **nicht** ab — sie gehoeren fest zum
 Setup. Backend pro OS: LaunchAgents (macOS), systemd-User-Services
 (Linux), Scheduled Tasks (Windows).
 
-## Konvention: SSH-Alias als zentrale Variable
+## Konvention: SSH-Alias ist fest `ki-os-vm`
 
-Im gesamten Ablauf wird der in Schritt 2 gewaehlte Wert als `<SSH_ALIAS>`
-verwendet (Default: `ki-os-vm`). In den Referenz-Dokumenten steht ebenfalls
-`ki-os-vm` als Default — falls der User einen anderen Alias waehlt, ersetzt
-der Skill **konsequent in allen Konfigurationen, Pfaden und Befehlen**.
+Der SSH-Alias ist im gesamten Ablauf fest `ki-os-vm` und wird **nicht**
+abgefragt. Alle Konfigurationen, Pfade, Service-Namen (LaunchAgent-Labels,
+Unit-/Task-Namen) und die beiden Desktop-App-Eintraege (`ssh_configs.json`
+und `~/.claude.json`) verwenden konsequent diesen Wert; die
+Referenz-Dokumente ebenso.
 
 ## Konvention: Tunnel laufen als eigene Prozesse, nicht in der SSH-Config
 
@@ -200,14 +208,15 @@ Details kommen aus den Referenzdateien.
 
 ### Schritt 2 — User-Inputs sammeln
 
-`AskUserQuestion` fuer die Pflichtfelder (VM-IP, VM-Username, SSH-Alias,
-Email). Default fuer Email aus `git config --global user.email`. Default
-fuer SSH-Alias: `ki-os-vm`. **Keine Frage nach optionalen Komponenten** —
-noVNC-Tunnel, Cockpit-Tunnel und Mutagen-Sync werden immer eingerichtet.
+`AskUserQuestion` fuer die Pflichtfelder (VM-IP, VM-Username, Email). Default
+fuer Email aus `git config --global user.email`. Der **SSH-Alias wird nicht
+abgefragt** (fest `ki-os-vm`), und es gibt **keine Frage nach optionalen
+Komponenten** — noVNC-Tunnel, Cockpit-Tunnel und Mutagen-Sync werden immer
+eingerichtet.
 
 Speichere die Antworten in lokalen Shell-Variablen (`VM_IP`, `VM_USER`,
-`SSH_ALIAS`, `EMAIL`) — sie werden in den naechsten Schritten mehrfach
-gebraucht. Aus `SSH_ALIAS` ergeben sich automatisch die Namen der
+`EMAIL`) — sie werden in den naechsten Schritten mehrfach gebraucht. Der
+SSH-Alias ist fest `ki-os-vm`; daraus ergeben sich automatisch die Namen der
 Autostart-Dienste (LaunchAgent-Labels, Unit-Namen, Task-Namen).
 
 ### Schritt 3 — SSH-Key generieren
@@ -252,20 +261,20 @@ Skill gibt die passende direkt aus.
 
 ### Schritt 4 — ~/.ssh/config Basis-Eintrag (minimal)
 
-Idempotent einen `Host ${SSH_ALIAS}`-Block in `~/.ssh/config` einfuegen.
+Idempotent einen `Host ki-os-vm`-Block in `~/.ssh/config` einfuegen.
 Vorher pruefen, ob der Block schon existiert
-(`grep -q "^Host ${SSH_ALIAS}$" ~/.ssh/config`).
+(`grep -q "^Host ki-os-vm$" ~/.ssh/config`).
 
 Falls existiert: User fragen ob ueberschrieben werden soll. **Wenn der
 bestehende Block noch v1-Zeilen enthaelt (`RemoteForward`, `LocalForward`,
 `ControlMaster`, `ControlPath`, `ControlPersist`, oder es existiert ein
-`Host ${SSH_ALIAS}-mux`-Block): immer ersetzen** — das ist Teil der
+`Host ki-os-vm-mux`-Block): immer ersetzen** — das ist Teil der
 Migration (Schritt 12 raeumt den Rest auf).
 
 Der komplette Block — mehr braucht es nicht:
 
 ```
-Host <SSH_ALIAS>
+Host ki-os-vm
     HostName <VM_IP>
     User <VM_USER>
     IdentityFile ~/.ssh/id_ed25519
@@ -301,7 +310,7 @@ nochmal aufrufen — der Skill ist idempotent.
 ### Schritt 6 — Connection-Smoketest + User-Werte holen
 
 ```bash
-ssh -o BatchMode=yes <SSH_ALIAS> true 2>&1
+ssh -o BatchMode=yes ki-os-vm true 2>&1
 ```
 
 Fehlerbilder (Permission denied, Timeout, Host-Key): siehe
@@ -312,7 +321,7 @@ Bei Erfolg drei Werte von der VM holen:
 **1. Cockpit-Port:**
 
 ```bash
-ssh <SSH_ALIAS> 'mitarbyte cockpit-port 2>/dev/null || echo "MISSING_CLI"'
+ssh ki-os-vm 'mitarbyte cockpit-port 2>/dev/null || echo "MISSING_CLI"'
 ```
 
 Druckt einen Block mit `Port auf der VM: <NNNNN>` (Schema `30000 + UID`,
@@ -322,7 +331,7 @@ z.B. `31001`). Den Wert extrahieren → `COCKPIT_PORT`. Falls
 **2. noVNC-Port:**
 
 ```bash
-ssh <SSH_ALIAS> 'grep "^NOVNC_PORT=" ~/.config/ki-os/display.env | cut -d= -f2'
+ssh ki-os-vm 'grep "^NOVNC_PORT=" ~/.config/ki-os/display.env | cut -d= -f2'
 ```
 
 Schema `6080 + (UID - 1000)`, z.B. `6081` fuer den zweiten User →
@@ -332,7 +341,7 @@ User noch nicht provisioniert — Admin kontaktieren, dann hier weitermachen.
 **3. noVNC-Passwort:**
 
 ```bash
-ssh <SSH_ALIAS> 'cat ~/.config/ki-os/vnc.pass'
+ssh ki-os-vm 'cat ~/.config/ki-os/vnc.pass'
 ```
 
 Das Klartext-Passwort dem User zeigen — er gibt es spaeter einmalig im
@@ -347,9 +356,9 @@ VM-Browser dauerhaft unter `http://localhost:6080/vnc.html?resize=scale` erreich
 
 | OS | Backend | Referenz |
 |----|---------|----------|
-| macOS | LaunchAgent `com.<mac-user>.ssh-tunnel.<SSH_ALIAS>-novnc` | `references/macos/novnc-tunnel.md` |
-| Linux | systemd-User-Service `<SSH_ALIAS>-novnc-tunnel.service` | `references/linux/novnc-tunnel.md` |
-| Windows | Scheduled Task `<SSH_ALIAS>-novnc-tunnel` | `references/windows/novnc-tunnel.md` |
+| macOS | LaunchAgent `com.<mac-user>.ssh-tunnel.ki-os-vm-novnc` | `references/macos/novnc-tunnel.md` |
+| Linux | systemd-User-Service `ki-os-vm-novnc-tunnel.service` | `references/linux/novnc-tunnel.md` |
+| Windows | Scheduled Task `ki-os-vm-novnc-tunnel` | `references/windows/novnc-tunnel.md` |
 
 Haertung in allen Varianten gleichwertig (NICHT neu erfinden — exakt die
 Vorlagen aus den Referenzen nutzen) plus gehaertetes
@@ -401,9 +410,9 @@ Danach ist das Cockpit dauerhaft unter `http://localhost:3847` erreichbar.
 
 | OS | Backend | Referenz |
 |----|---------|----------|
-| macOS | LaunchAgent `com.<mac-user>.ssh-tunnel.<SSH_ALIAS>-cockpit` | `references/macos/cockpit-launchagent.md` |
-| Linux | systemd-User-Service `<SSH_ALIAS>-cockpit-tunnel.service` | `references/linux/cockpit-systemd.md` |
-| Windows | Scheduled Task `<SSH_ALIAS>-cockpit-tunnel` | `references/windows/cockpit-scheduledtask.md` |
+| macOS | LaunchAgent `com.<mac-user>.ssh-tunnel.ki-os-vm-cockpit` | `references/macos/cockpit-launchagent.md` |
+| Linux | systemd-User-Service `ki-os-vm-cockpit-tunnel.service` | `references/linux/cockpit-systemd.md` |
+| Windows | Scheduled Task `ki-os-vm-cockpit-tunnel` | `references/windows/cockpit-scheduledtask.md` |
 
 Hinweis fuer Bestands-User: Der lokale Cockpit-Port ist jetzt einheitlich
 `3847` (frueher lief der Autostart-Tunnel auf `13847` — alte Bookmarks
@@ -450,7 +459,7 @@ mutagen sync create \
     --ignore="dist" \
     --ignore=".next" \
     --ignore=".DS_Store" \
-    <SSH_ALIAS>:/home/<VM_USER>/KI-OS ~/KI-OS
+    ki-os-vm:/home/<VM_USER>/KI-OS ~/KI-OS
 ```
 
 Die Ignores sind Pflicht (Git-Metadaten inkl. `hub/.git` bleiben
@@ -473,19 +482,127 @@ ein, offline lesbar.
 Windows aber noch nicht im Kundenbetrieb verifiziert — bei Problemen
 (Daemon startet nicht, Sync haengt nach Netzwechsel) an den Admin.
 
-### Schritt 10 — SSH-Workspace in Claude-Code-Settings registrieren
+### Schritt 10 — Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows)
 
-Pflicht-Bestandteil. Traegt den Remote-Workspace als bekanntes Projekt in
-`~/.claude.json` ein, damit die Claude-Code-Desktop-App (und `claude` im
-Terminal) den VM-Workspace ohne erneutes Trust-Prompt direkt im
-Remote-Projekt-Switcher anzeigt.
+Pflicht-Bestandteil. Die Desktop-App verbindet sich selbst per SSH, kennt
+die VM aber **nur, wenn sie in zwei getrennten Dateien hinterlegt ist** —
+der `~/.claude.json`-Eintrag allein reicht nicht (deshalb tauchte die VM
+bisher nicht im Verbindungs-Dialog auf):
+
+| Datei | Was sie bewirkt | Schritt |
+|---|---|---|
+| `ssh_configs.json` (App-Support-Verzeichnis) | macht `ki-os-vm` als **gespeicherte SSH-Verbindung** im Connect-Dialog sichtbar + als **Trusted-Host** (kein Host-Trust-Prompt) | 10a |
+| `~/.claude.json` (`.projects[…]`) | macht den **Workspace-Ordner** vorab vertraut (kein Projekt-Trust-Prompt) | 10b |
+
+Beide zusammen = die App zeigt `ki-os-vm` an und oeffnet `~/KI-OS` ohne ein
+einziges Prompt. **Nur macOS + Windows** (es gibt keine Linux-Desktop-App —
+Linux-User arbeiten ueber `claude.ai/code` oder Terminal, siehe Hinweis am
+Ende von 10a).
+
+#### Schritt 10a — SSH-Host `ki-os-vm` in der Desktop-App registrieren
+
+Schreibt einen `configs[]`-Eintrag (`name`/`sshHost` = `ki-os-vm`,
+eindeutige `id`, `source: "desktop"`) und ergaenzt `ki-os-vm` in
+`trustedHosts[]`. Idempotent — vorhandene Eintraege bleiben unangetastet.
+
+**Konfig-Datei finden:**
+
+| OS | Pfad |
+|----|------|
+| macOS | `$HOME/Library/Application Support/Claude/ssh_configs.json` |
+| Windows | `$env:APPDATA\Claude\ssh_configs.json` |
+
+```bash
+# macOS — nur wenn die Desktop-App installiert ist
+APPDIR="$HOME/Library/Application Support/Claude"
+if [ ! -d "$APPDIR" ]; then
+    echo "SKIP: Claude-Desktop-App nicht gefunden ($APPDIR) — 10a ueberspringen (claude.ai/code oder Terminal nutzen)."
+else
+    CFG="$APPDIR/ssh_configs.json"
+    command -v jq >/dev/null || { echo "jq fehlt — bitte installieren (brew install jq)"; exit 1; }
+    [ -f "$CFG" ] || echo '{"configs":[],"trustedHosts":[]}' > "$CFG"
+    ID=$(uuidgen | tr 'A-Z' 'a-z')
+    tmp=$(mktemp)
+    jq --arg h "ki-os-vm" --arg id "$ID" '
+      .configs = (.configs // []) |
+      .trustedHosts = (.trustedHosts // []) |
+      (if any(.configs[]; .sshHost == $h) then .
+       else .configs += [{name:$h, sshHost:$h, id:$id, source:"desktop"}] end) |
+      (if any(.trustedHosts[]; . == $h) then .
+       else .trustedHosts += [$h] end)
+    ' "$CFG" > "$tmp" && mv "$tmp" "$CFG"
+    echo "OK: SSH-Host ki-os-vm in $CFG registriert."
+fi
+```
+
+```powershell
+# Native Windows (PowerShell, 5.1-kompatibel, BOM-frei)
+$appdir = Join-Path $env:APPDATA 'Claude'
+if (-not (Test-Path $appdir)) {
+    Write-Host "SKIP: Claude-Desktop-App nicht gefunden ($appdir) — 10a ueberspringen."
+} else {
+    $cfgPath = Join-Path $appdir 'ssh_configs.json'
+    if (-not (Test-Path $cfgPath)) {
+        '{"configs":[],"trustedHosts":[]}' | Set-Content -LiteralPath $cfgPath -Encoding ascii
+    }
+    $cfg = Get-Content -LiteralPath $cfgPath -Raw | ConvertFrom-Json
+    if (-not ($cfg.PSObject.Properties.Name -contains 'configs') -or $null -eq $cfg.configs) {
+        $cfg | Add-Member -NotePropertyName configs -NotePropertyValue @() -Force
+    }
+    if (-not ($cfg.PSObject.Properties.Name -contains 'trustedHosts') -or $null -eq $cfg.trustedHosts) {
+        $cfg | Add-Member -NotePropertyName trustedHosts -NotePropertyValue @() -Force
+    }
+    if (-not (@($cfg.configs) | Where-Object { $_.sshHost -eq 'ki-os-vm' })) {
+        $entry = [PSCustomObject]@{
+            name    = 'ki-os-vm'
+            sshHost = 'ki-os-vm'
+            id      = [guid]::NewGuid().ToString()
+            source  = 'desktop'
+        }
+        $cfg.configs = @($cfg.configs) + $entry
+    }
+    if (@($cfg.trustedHosts) -notcontains 'ki-os-vm') {
+        $cfg.trustedHosts = @($cfg.trustedHosts) + 'ki-os-vm'
+    }
+    $out = $cfg | ConvertTo-Json -Depth 100
+    $enc = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($cfgPath, $out, $enc)
+    Write-Host "OK: SSH-Host ki-os-vm in $cfgPath registriert."
+}
+```
+
+**Wichtig — Reihenfolge mit der Desktop-App:** Die App liest
+`ssh_configs.json` beim Start und schreibt sie beim eigenen Speichern
+(eigene Verbindung hinzufuegen/aendern) — eine laufende App kann unseren
+Eintrag also beim Beenden ueberschreiben. Am sichersten daher **bei
+geschlossener App schreiben**: ist die Desktop-App offen, **komplett beenden**
+(nicht nur das Fenster schliessen, auf macOS Cmd+Q), dann diesen Schritt
+laufen lassen und die App neu oeffnen. War sie beim Schreiben offen und
+`ki-os-vm` erscheint nach dem Neustart nicht, Schritt 10a bei geschlossener
+App wiederholen. Danach steht `ki-os-vm` im SSH-/Remote-Verbindungs-Dialog.
+
+**Manueller Fallback (analog zum claude.ai-Login):** Falls der Host nicht
+auftaucht, in der Desktop-App von Hand eine SSH-Verbindung anlegen und als
+Host `ki-os-vm` eintragen — HostName, User und Key liefert die
+`~/.ssh/config` aus Schritt 4. Einmal verbinden, Trust-Prompt bestaetigen,
+fertig.
+
+**Linux:** Keine Claude-Desktop-App fuer Linux → Schritt 10a entfaellt.
+Linux-User arbeiten ueber `claude.ai/code` (Browser) oder `ssh ki-os-vm` +
+`claude` im Terminal; der Projekt-Eintrag aus 10b gilt trotzdem (Terminal-CLI).
+
+#### Schritt 10b — Workspace-Projekt in `~/.claude.json` registrieren
+
+Traegt den Remote-Workspace als bekanntes, vertrautes Projekt ein, damit die
+Desktop-App (und `claude` im Terminal) den VM-Workspace ohne erneutes
+Trust-Prompt direkt im Remote-Projekt-Switcher anzeigt.
 
 **Schluessel-Konvention:** Claude Code speichert Remote-Projekte unter
-`.projects["ssh:<SSH_ALIAS>:<remote-pfad>"]`. Fuer das KI-OS-Setup ist
+`.projects["ssh:ki-os-vm:<remote-pfad>"]`. Fuer das KI-OS-Setup ist
 das immer:
 
 ```
-ssh:<SSH_ALIAS>:/home/<VM_USER>/KI-OS
+ssh:ki-os-vm:/home/<VM_USER>/KI-OS
 ```
 
 **Settings-Datei finden** (Cross-Platform identisch im User-Home):
@@ -500,7 +617,7 @@ ssh:<SSH_ALIAS>:/home/<VM_USER>/KI-OS
 ```bash
 # macOS / Linux
 SETTINGS="$HOME/.claude.json"
-KEY="ssh:${SSH_ALIAS}:/home/${VM_USER}/KI-OS"
+KEY="ssh:ki-os-vm:/home/${VM_USER}/KI-OS"
 
 # Settings-Datei muss existieren (Claude Code legt sie beim ersten Start an)
 if [ ! -f "$SETTINGS" ]; then
@@ -537,7 +654,7 @@ echo "OK: $KEY eingetragen in $SETTINGS"
 # vermeiden — sonst bleibt $json bei $null und das nachfolgende
 # ConvertTo-Json wuerde "null" in die .claude.json schreiben (Config kaputt).
 $settings = "$env:USERPROFILE\.claude.json"
-$key = "ssh:${SSH_ALIAS}:/home/${VM_USER}/KI-OS"
+$key = "ssh:ki-os-vm:/home/${VM_USER}/KI-OS"
 
 if (-not (Test-Path $settings)) {
     Write-Host "WARN: $settings fehlt — bitte einmalig 'claude' starten und Schritt 10 wiederholen."
@@ -592,7 +709,7 @@ Eintrag wuerde Claude Code beim ersten Connect den Trust-Dialog werfen.
 **Verifikation:**
 
 ```bash
-jq -r --arg k "ssh:${SSH_ALIAS}:/home/${VM_USER}/KI-OS" '.projects[$k]' ~/.claude.json
+jq -r --arg k "ssh:ki-os-vm:/home/${VM_USER}/KI-OS" '.projects[$k]' ~/.claude.json
 ```
 
 Sollte das Objekt mit `"hasTrustDialogAccepted": true` zurueckliefern.
@@ -634,9 +751,21 @@ ls ~/KI-OS
 # zeigt den Workspace-Inhalt (CLAUDE.md, hub/, ...)
 ```
 
-**4. Desktop-App verbindet:** User oeffnet die Claude-Code-Desktop-App →
-Remote-Projekt-Switcher → `<SSH_ALIAS>` / `KI-OS` waehlen. Es darf kein
-Trust-Prompt erscheinen, und eine Session auf der VM startet.
+**4. Desktop-App kennt die VM + verbindet (macOS/Windows):** Desktop-App
+(nach dem Neustart aus Schritt 10a) oeffnen → im SSH-/Remote-Verbindungs-
+Dialog muss `ki-os-vm` als gespeicherte Verbindung erscheinen. `ki-os-vm` /
+`KI-OS` waehlen — es darf **kein** Trust-Prompt (weder Host noch Projekt)
+erscheinen, und eine Session auf der VM startet. Vorab per CLI pruefbar:
+
+```bash
+# macOS — Host in ssh_configs.json hinterlegt?
+jq -e '.configs[] | select(.sshHost=="ki-os-vm")' \
+  "$HOME/Library/Application Support/Claude/ssh_configs.json" >/dev/null \
+  && echo "OK: ki-os-vm in ssh_configs.json"
+```
+
+Linux: kein Desktop-App-Check — stattdessen `claude.ai/code` im Browser oder
+`ssh ki-os-vm` → `cd ~/KI-OS && claude`.
 
 Schlaegt etwas fehl → Troubleshooting-Tabellen in den jeweiligen
 Referenz-Dokumenten.
@@ -685,8 +814,8 @@ Rueckbau-Anleitung in `references/migration-v1.md` durcharbeiten — Kurzfassung
    (Windows: `vm-oauth.ps1`, `win-chrome-bridge.ps1`, `win-sshfs-mount.ps1`)
 4. `~/.ssh/config` bereinigen: `RemoteForward`-/`LocalForward`-/
    `ControlMaster`-/`ControlPath`-/`ControlPersist`-Zeilen + den ganzen
-   `Host <SSH_ALIAS>-mux`-Block entfernen (passiert i.d.R. schon in Schritt 4)
-5. Optional: altes lokales Bridge-Chrome-Profil `~/.chrome-<SSH_ALIAS>`
+   `Host ki-os-vm-mux`-Block entfernen (passiert i.d.R. schon in Schritt 4)
+5. Optional: altes lokales Bridge-Chrome-Profil `~/.chrome-ki-os-vm`
    loeschen
 6. VM-seitig den obsoleten `CHROME_BRIDGE_PORT`-Export aus `~/.bashrc`
    entfernen (Kommando in `references/migration-v1.md`)
@@ -707,11 +836,12 @@ Zeige dem User eine Tabelle mit dem Status aller Komponenten:
 |----------------------------------|--------|
 | OS                               | macOS / Linux / Windows |
 | SSH-Key                          | Erstellt / Vorhanden |
-| ~/.ssh/config <SSH_ALIAS>        | Eingetragen (minimal) |
+| ~/.ssh/config ki-os-vm        | Eingetragen (minimal) |
 | SSH-Verbindung                   | OK |
 | noVNC-Tunnel (lokal 6080)        | Aktiv — http://localhost:6080/vnc.html?resize=scale |
 | Cockpit-Tunnel (lokal 3847)      | Aktiv — http://localhost:3847 |
 | Mutagen-Session ki-os            | Watching for changes — ~/KI-OS |
+| Desktop-App SSH-Host (ssh_configs.json) | ki-os-vm registriert / Linux: entfaellt |
 | Claude-Code-Settings (~/.claude.json) | SSH-Workspace registriert |
 | Migration v1-Setup               | Durchgefuehrt / Nicht noetig |
 ```
@@ -736,9 +866,9 @@ Naechste Schritte fuer den User:
    Token-Typen + manueller Fallback (`ki-os-setup-token --force`):
    `references/api-keys.md`.
 2. **Arbeiten** — primaer ueber die **Claude-Code-Desktop-App**
-   (Remote-Projekt `<SSH_ALIAS>` / `KI-OS`). Fallbacks:
+   (Remote-Projekt `ki-os-vm` / `KI-OS`). Fallbacks:
    - **Browser:** `claude.ai/code` → eigene Remote-Session
-   - **Terminal:** `ssh <SSH_ALIAS>` → `cd ~/KI-OS && claude`
+   - **Terminal:** `ssh ki-os-vm` → `cd ~/KI-OS && claude`
    - **VS Code Remote SSH** (Techniker): `references/<os>/vscode-remote-ssh.md`
      (macOS/Windows; auf Linux funktioniert die macOS-Anleitung analog)
 3. **Browser-Logins (einmalig):** `http://localhost:6080/vnc.html?resize=scale` oeffnen

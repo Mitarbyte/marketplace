@@ -2,9 +2,8 @@
 
 Detail-Anleitung fuer Schritt 3 + 4 aus `SKILL.md`.
 
-Im Folgenden steht `ki-os-vm` als Default-SSH-Alias. Wenn der User in
-Schritt 2 einen anderen Alias gewaehlt hat, muessen alle Vorkommen
-ersetzt werden.
+Im Folgenden steht der feste SSH-Alias `ki-os-vm` (vom Skill gesetzt,
+keine Auswahl).
 
 ## SSH-Key erstellen
 

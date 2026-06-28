@@ -2,8 +2,7 @@
 
 Detail-Anleitung fuer Schritt 3 + 4 aus `SKILL.md`.
 
-`ki-os-vm` ist der Default-SSH-Alias. Bei abweichendem Alias alle Vorkommen
-ersetzen.
+`ki-os-vm` ist der feste SSH-Alias (vom Skill gesetzt, keine Auswahl).
 
 Identisch zu macOS bis auf:
 

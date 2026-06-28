@@ -4,8 +4,7 @@
 drei festen Autostarts (noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync).
 Windows-Aequivalent zu macOS-LaunchAgent / Linux-systemd-User-Service.
 
-`ki-os-vm` ist der Default-SSH-Alias. Bei abweichendem Alias den Task-Namen
-und die SSH-Host-Referenz ersetzen.
+`ki-os-vm` ist der feste SSH-Alias (vom Skill gesetzt, keine Auswahl).
 
 ## Wozu
 

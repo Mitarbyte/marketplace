@@ -3,10 +3,9 @@
 **Pflicht-Bestandteil** des Setups (Schritt 8 in `SKILL.md`) — einer der
 drei festen Autostarts (noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync).
 
-`ki-os-vm` ist der Default-SSH-Alias. Bei abweichendem Alias den Unit-Namen
-`ki-os-vm-cockpit-tunnel.service` und die SSH-Host-Referenz entsprechend
-ersetzen. Der Service-Name auf der VM bleibt unabhaengig davon
-`mitarbyte-cockpit@<user>.service`.
+`ki-os-vm` ist der feste SSH-Alias (keine Auswahl); der Unit-Name ist
+entsprechend `ki-os-vm-cockpit-tunnel.service`. Der Service-Name auf der VM
+bleibt unabhaengig davon `mitarbyte-cockpit@<user>.service`.
 
 ## Wozu
 
