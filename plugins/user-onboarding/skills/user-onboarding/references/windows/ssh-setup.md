@@ -41,13 +41,46 @@ Start-Service ssh-agent
 Standard-User-PowerShell (kein Admin noetig):
 
 ```powershell
+$key = "$env:USERPROFILE\.ssh\id_ed25519"
+
 # Pruefen
-Test-Path "$env:USERPROFILE\.ssh\id_ed25519"
+Test-Path $key
 # True → bestehenden Key nutzen
 # False → neu generieren
 
+# Leere Passphrase VERSIONSSICHER uebergeben:
+# Windows PowerShell 5.1 (Legacy-Arg-Passing) und PowerShell 7.2+ (Standard-
+# Arg-Passing) reichen einen leeren -N-Wert UNTERSCHIEDLICH an ssh-keygen weiter:
+#   - 5.1 :  -N '""'  ergibt die echte Leer-Passphrase
+#   - 7.x :  -N ''    ergibt die echte Leer-Passphrase
+# Falsch herum baut ssh-keygen einen Key mit der 2-Zeichen-Passphrase «""».
+# Symptom: Der Server akzeptiert den Public Key in der Probe-Phase, aber das
+# Signieren scheitert in BatchMode → «Permission denied (publickey)» beim Connect.
+$np = if ($PSVersionTable.PSVersion.Major -ge 7) { '' } else { '""' }
+
 # Neu generieren (ohne Passphrase — User kann nachtraeglich per 'ssh-keygen -p' setzen)
-ssh-keygen -t ed25519 -C "<email>" -f "$env:USERPROFILE\.ssh\id_ed25519" -N '""'
+ssh-keygen -t ed25519 -C "<email>" -f $key -N $np
+```
+
+**Pflicht-Verifikation** — der Private Key MUSS ohne Passphrase nutzbar sein.
+Faengt jede Fehl-Quoting-Variante sofort ab, statt sie erst beim SSH-Connect
+als raetselhaftes `Permission denied` auftauchen zu lassen:
+
+```powershell
+# -P $np vermeidet einen interaktiven Passphrase-Prompt (kein Haengen):
+# Bei einem korrekt passphrasenlosen Key ignoriert ssh-keygen -y das -P und
+# liefert den Public Key (Exit 0). Schlaegt es fehl, ist der Key verschluesselt.
+$null = ssh-keygen -y -P $np -f $key 2>$null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "OK — Key hat eine leere Passphrase (BatchMode-tauglich)."
+} else {
+    Write-Warning @"
+Der erzeugte Key hat NICHT die erwartete leere Passphrase (Quoting-Problem).
+Key loeschen und exakt mit dem Block oben neu generieren:
+  Remove-Item "$key", "$key.pub" -Force
+Danach den NEUEN Public Key an den Admin schicken — der alte ist ungueltig.
+"@
+}
 ```
 
 Public-Key in die Zwischenablage:
@@ -147,7 +180,11 @@ ssh -o BatchMode=yes ki-os-vm true; if ($LASTEXITCODE -eq 0) { "OK" } else { "FA
 - `OK`: Verbindung steht.
 - `Permission denied (publickey)`: Admin hat den Key noch nicht hinterlegt
   oder falscher Key. Public-Key (`~/.ssh/id_ed25519.pub`) erneut an den
-  Admin schicken.
+  Admin schicken. **Sonderfall:** Zeigt `ssh -v` erst `Server accepts key`
+  und dann `Permission denied`, ist der Key trotz Hinterlegung
+  passphrasen-geschuetzt (Signieren scheitert im BatchMode) — das ist das
+  Quoting-Problem aus dem Generieren-Schritt. Verifikation oben laufen
+  lassen, Key neu generieren, NEUEN Public Key schicken.
 - `Connection refused / timed out`: VM nicht erreichbar (IP falsch oder
   Firewall). Admin fragen.
 - `Host key verification failed`: bei erstem Connect fragt SSH nach dem
@@ -166,6 +203,8 @@ gesperrt. Admin entsperrt mit `fail2ban-client set sshd unbanip <IP>`.
 |---------|---------|
 | `ssh: command not found` | OpenSSH-Client nicht installiert → `Add-WindowsCapability` siehe oben |
 | `Permission denied (publickey)` | Public-Key nochmal an Admin schicken; `ssh -i $env:USERPROFILE\.ssh\id_ed25519 ki-os-vm` zum Erzwingen |
+| `ssh -v`: erst `Server accepts key`, dann `Permission denied` | Key hat eine echte Passphrase (Quoting beim `-N`) → Signieren scheitert im BatchMode. Verifikation aus "SSH-Key erstellen" laufen lassen, Key neu generieren, NEUEN Public Key schicken |
+| `ssh-keygen -y` haengt / fragt nach Passphrase | Key ist passphrasen-geschuetzt (`-N`-Quoting) — beim Aufruf `-P $np` mitgeben bzw. Key neu generieren |
 | `Bad owner or permissions on ...config` | `icacls`-Block oben anwenden |
 | `no argument after keyword "\357\273\277"` | UTF-8-BOM in der config → BOM-frei neu schreiben (siehe oben) |
 | `getsockname failed: Not a socket` | v1-Altlast: `ControlMaster`-Zeilen stehen noch in der Config → Block durch die minimale Fassung ersetzen (`../migration-v1.md`) |
