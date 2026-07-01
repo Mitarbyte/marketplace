@@ -354,6 +354,11 @@ Gehaerteter Background-SSH-Tunnel `6080:127.0.0.1:<NOVNC_PORT>`, der nach
 Reboot/Schlaf/Netzwechsel automatisch wieder hochkommt. Danach ist der
 VM-Browser dauerhaft unter `http://localhost:6080/vnc.html?resize=scale` erreichbar.
 
+> **Nicht verwechseln:** die linke `6080` ist der feste *lokale* Port,
+> `<NOVNC_PORT>` (rechts) ist der *VM-seitige, pro-User* Wert aus Schritt 6.2 —
+> nur beim ersten User ebenfalls `6080`, sonst `6081`/`6082`/… Falsch (z.B.
+> `6080` fuer den zweiten User) tunnelt auf das Display eines anderen Users.
+
 | OS | Backend | Referenz |
 |----|---------|----------|
 | macOS | LaunchAgent `com.<mac-user>.ssh-tunnel.ki-os-vm-novnc` | `references/macos/novnc-tunnel.md` |

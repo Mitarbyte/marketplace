@@ -19,8 +19,13 @@ Der Task haelt einen Background-SSH-Tunnel `6080:127.0.0.1:<NOVNC_PORT>`.
 URL: `http://localhost:6080/vnc.html?resize=scale` — beim Verbinden das noVNC-Passwort
 eingeben (`ssh ki-os-vm 'cat ~/.config/ki-os/vnc.pass'`).
 
-Der lokale Port ist fuer alle Mitarbeiter einheitlich `6080`. Nur
-`<NOVNC_PORT>` auf der VM ist pro User verschieden.
+Die beiden Ports duerfen NICHT verwechselt werden: `$localPort` ist der feste
+*lokale* Port `6080` (bei allen Mitarbeitern gleich). `$novncPort`
+(`<NOVNC_PORT>`) ist der *VM-seitige, pro-User* Port aus `display.env` — nur
+beim ersten User (UID 1000) ist der ebenfalls `6080`, danach `6081`, `6082`, …
+Wer hier faelschlich `6080` einsetzt, tunnelt auf das Display eines **anderen**
+Users (durch dessen noVNC-Passwort geschuetzt, aber das falsche Display).
+Exakten Wert holen: `ssh ki-os-vm 'grep "^NOVNC_PORT=" ~/.config/ki-os/display.env | cut -d= -f2'`.
 
 ## Setup
 

@@ -21,8 +21,13 @@ Der Service haelt einen Background-SSH-Tunnel
 URL: `http://localhost:6080/vnc.html?resize=scale` — beim Verbinden das noVNC-Passwort
 eingeben (`ssh ki-os-vm 'cat ~/.config/ki-os/vnc.pass'`).
 
-Der lokale Port ist fuer alle Mitarbeiter einheitlich `6080`. Nur
-`<NOVNC_PORT>` auf der VM ist pro User verschieden.
+Die beiden Ports duerfen NICHT verwechselt werden: die **linke** `6080` im
+`-L 6080:127.0.0.1:<NOVNC_PORT>` ist der feste *lokale* Port (bei allen
+Mitarbeitern gleich). Die **rechte** Seite `<NOVNC_PORT>` ist der *VM-seitige,
+pro-User* Port aus `display.env` — nur beim ersten User (UID 1000) ist der
+ebenfalls `6080`, danach `6081`, `6082`, … Wer hier faelschlich `6080`
+einsetzt, tunnelt auf das Display eines **anderen** Users (durch dessen
+noVNC-Passwort geschuetzt, aber das falsche Display).
 
 ## Setup
 
@@ -57,8 +62,15 @@ RestartSec=15
 WantedBy=default.target
 ```
 
-`<NOVNC_PORT>` aus Schritt 6 von `SKILL.md` einsetzen (z.B. `6080` fuer
-den ersten User, `6081` fuer den zweiten).
+`<NOVNC_PORT>` NICHT raten, sondern den exakten Wert aus `display.env` holen
+(die linke `6080` im `-L` bleibt unveraendert):
+
+```bash
+NOVNC_PORT=$(ssh ki-os-vm 'grep "^NOVNC_PORT=" ~/.config/ki-os/display.env | cut -d= -f2')
+echo "VM-seitiger noVNC-Port dieses Users: ${NOVNC_PORT:?display.env fehlt — Admin kontaktieren}"
+```
+
+Diesen Wert fuer `<NOVNC_PORT>` in der Unit-Zeile (`ExecStart`) oben einsetzen.
 
 Aktivieren:
 
