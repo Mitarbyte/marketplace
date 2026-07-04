@@ -19,6 +19,13 @@ $failed = $false
 if ($LASTEXITCODE -eq 0) { Write-Host 'OK:   SSH-Verbindung (ki-os-vm)' }
 else { Write-Host 'FAIL: SSH-Verbindung (ki-os-vm) — references/ssh.md -> Smoketest'; $failed = $true }
 
+# --- Watchdog-Task (haelt Tunnel + Mutagen-Daemon am Leben) -----------------------
+if (Get-ScheduledTask -TaskName 'ki-os-vm-watchdog' -ErrorAction SilentlyContinue) {
+    Write-Host 'OK:   Scheduled Task ki-os-vm-watchdog'
+} else {
+    Write-Host 'FAIL: Scheduled Task ki-os-vm-watchdog fehlt (setup-tunnels.ps1)'; $failed = $true
+}
+
 # --- Tunnel ------------------------------------------------------------------------
 foreach ($t in @(
     @{ Label = 'noVNC-Tunnel  http://localhost:6080/vnc.html'; Url = 'http://localhost:6080/vnc.html'; Port = 6080 },
@@ -29,7 +36,7 @@ foreach ($t in @(
     try { $code = (Invoke-WebRequest -UseBasicParsing -Uri $t.Url -TimeoutSec 5).StatusCode } catch {}
     if ($listening -and $code -eq 200) { Write-Host "OK:   $($t.Label) (HTTP $code)" }
     elseif ($listening) { Write-Host "WARN: $($t.Label) — Port lauscht, HTTP-Antwort fehlt (VM-Service? Admin fragen)" }
-    else { Write-Host "FAIL: $($t.Label) — Port lauscht nicht (Start-ScheduledTask, references/tunnels.md)"; $failed = $true }
+    else { Write-Host "FAIL: $($t.Label) — Port lauscht nicht (Start-ScheduledTask ki-os-vm-watchdog; references/tunnels.md)"; $failed = $true }
 }
 
 # --- Mutagen ------------------------------------------------------------------------

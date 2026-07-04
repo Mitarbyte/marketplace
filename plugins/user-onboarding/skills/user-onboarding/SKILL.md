@@ -63,7 +63,9 @@ Arbeitszugang ist die **Claude-Code-Desktop-App**; Fallbacks: claude.ai/code,
   Task-Namen) und die Desktop-App-Einträge leiten sich daraus ab.
 - **Drei Pflicht-Autostarts, keine Auswahl** — noVNC-Tunnel, Cockpit-Tunnel,
   Mutagen-Sync werden immer eingerichtet. Backends pro OS: LaunchAgents
-  (macOS), systemd-User-Services (Linux), Scheduled Tasks (Windows).
+  (macOS), systemd-User-Services (Linux), Windows: EIN gemeinsamer Scheduled
+  Task `ki-os-vm-watchdog` (Autor `Mitarbyte` + Beschreibung), der alle drei
+  Komponenten liveness-guarded am Leben hält.
 - **Tunnel laufen als eigene Prozesse, nicht in der SSH-Config** — die
   `~/.ssh/config` enthält KEINE Forward-Zeilen, kein ControlMaster
   (`references/ssh.md`).
@@ -157,8 +159,10 @@ bash "$SKILL_DIR/scripts/setup-tunnels.sh" --novnc-port <NOVNC_PORT> --cockpit-p
 ```
 
 Ein Aufruf richtet **beide** gehärteten Tunnel ein (idempotent, Windows
-zusätzlich self-healing: räumt alt/falsch benannte Tunnel-Tasks auf denselben
-Ports inhaltsbasiert weg). Die Argumente sind die **VM-seitigen** Werte aus
+zusätzlich self-healing: räumt alt/falsch benannte Tunnel-/Daemon-Tasks
+inhaltsbasiert weg). Unter Windows entsteht dabei EIN gemeinsamer Task
+`ki-os-vm-watchdog`, der auch den Mutagen-Daemon aus Schritt 8 mit überwacht —
+Reihenfolge 7 → 8 einhalten. Die Argumente sind die **VM-seitigen** Werte aus
 Schritt 6 — nicht mit den festen lokalen Ports 6080/3847 verwechseln (falscher
 Wert tunnelt auf das Display eines anderen Users!). Härtungs-Hintergrund +
 Troubleshooting: `references/tunnels.md`.
@@ -172,7 +176,8 @@ bash "$SKILL_DIR/scripts/setup-mutagen.sh" --vm-user <VM_USER>
 
 Installiert Mutagen (macOS: Homebrew; Linux: brew oder GitHub-Release;
 Windows: GitHub-Release-Zip mit Download-Retry), richtet den Daemon-Autostart
-ein und legt die Session `ki-os` an. `SESSION_EXISTS` ist okay (läuft schon);
+ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7) und legt
+die Session `ki-os` an. `SESSION_EXISTS` ist okay (läuft schon);
 weicht die Konfiguration ab (z.B. fehlende lokale Skill-Ansicht auf
 macOS/Linux), einmalig mit `--recreate`/`-Recreate` neu anlegen — Dateien
 bleiben erhalten. Ignore-Begründung + Konflikt-Semantik + Obsidian:
@@ -251,7 +256,9 @@ Ein erneuter `/user-onboarding`-Lauf IST das Update: Die Schritte 4–10
 re-deployen alle Komponenten idempotent auf den aktuellen Stand (bestehender
 Key bleibt, Tunnel/Tasks werden neu geladen statt dupliziert, die
 Mutagen-Session bleibt bestehen). Unter Windows heilt der Lauf dabei
-fehlerhaft konfigurierte alte Tunnel-Tasks automatisch (inhaltsbasierter
+fehlerhaft konfigurierte alte Tasks automatisch und konsolidiert
+Bestands-Setups mit drei Einzel-Tasks (`ki-os-vm-{novnc,cockpit}-tunnel`,
+`mutagen-daemon`) auf den einen `ki-os-vm-watchdog`-Task (inhaltsbasierter
 Cleanup in `setup-tunnels.ps1`). Kein Sonderfall, nichts Spezielles zu tun —
 einfach normal durchlaufen lassen.
 

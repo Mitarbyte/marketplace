@@ -6,10 +6,11 @@
 #   Lokal (Beta):                   %USERPROFILE%\KI-OS
 #
 # Kein offizielles winget-Paket -> GitHub-Release-Zip nach ~\.local\bin
-# (Download mit Retry). Daemon laeuft ueber einen unsichtbaren VBS-Launcher als
-# Scheduled Task mit 2-Min-Watchdog (der Daemon-Lock macht den blinden Respawn
-# hier leak-frei — anders als bei den Tunneln). `.claude/skills` bleibt auf
-# Windows im Ignore (Symlinks brauchen SeCreateSymbolicLinkPrivilege).
+# (Download mit Retry). Der Daemon-Autostart laeuft NICHT ueber einen eigenen
+# Task, sondern ueber den gemeinsamen Watchdog-Task ki-os-vm-watchdog aus
+# setup-tunnels.ps1 (dessen 2-Min-Guard startet den Daemon unsichtbar, sobald
+# mutagen installiert ist). `.claude/skills` bleibt auf Windows im Ignore
+# (Symlinks brauchen SeCreateSymbolicLinkPrivilege).
 # Details: references/mutagen.md.
 #
 # PowerShell-5.1-kompatibel. Usage:
@@ -60,48 +61,27 @@ if (-not (Test-Path $mutagenExe)) {
 $mutagenVersion = & $mutagenExe version 2>&1
 Write-Host "OK: mutagen $mutagenVersion ($mutagenExe)"
 
-# --- 2. Daemon-Autostart (Scheduled Task, unsichtbar) ----------------------------
-$taskName = 'mutagen-daemon'
-$vbs = Join-Path $binDir 'mutagen-daemon-hidden.vbs'
-# Exe-Pfad quoten — Windows-Usernamen koennen Leerzeichen enthalten.
-$line = 'CreateObject("WScript.Shell").Run """{0}"" daemon run", 0, False' -f $mutagenExe
-Set-Content -Path $vbs -Value $line -Encoding ASCII
-
-$action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "`"$vbs`""
-
-# 2-Min-Watchdog wie bei den Tunneln; -RepetitionDuration Pflicht, P9999D statt
-# [TimeSpan]::MaxValue (HRESULT 0x80041318).
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-$trigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 2) `
-    -RepetitionDuration (New-TimeSpan -Days 9999)).Repetition
-
-$settings = New-ScheduledTaskSettingsSet `
-    -AllowStartIfOnBatteries `
-    -DontStopIfGoingOnBatteries `
-    -StartWhenAvailable `
-    -MultipleInstances IgnoreNew `
-    -ExecutionTimeLimit (New-TimeSpan -Seconds 0) `
-    -RestartCount 999 `
-    -RestartInterval (New-TimeSpan -Minutes 1)
-
-$principal = New-ScheduledTaskPrincipal `
-    -UserId $env:USERNAME `
-    -LogonType Interactive `
-    -RunLevel Limited
-
-# Idempotent — evtl. sichtbar gestarteten Daemon + alten Task abloesen
+# --- 2. Daemon-Autostart (uebernimmt der Watchdog-Task) --------------------------
+# Den Autostart faehrt der gemeinsame Scheduled Task ki-os-vm-watchdog aus
+# setup-tunnels.ps1: sein 2-Min-Guard startet den Daemon unsichtbar, sobald
+# mutagen installiert ist und kein Daemon laeuft (Daemon-Lock als Backstop).
+# Hier nur: evtl. sichtbar gestarteten Daemon abloesen, den frueheren
+# Einzel-Task mutagen-daemon aufraeumen, Watchdog anstossen.
+$watchdog = 'ki-os-vm-watchdog'
 & $mutagenExe daemon stop 2>$null
-Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-Register-ScheduledTask `
-    -TaskName $taskName `
-    -Action $action `
-    -Trigger $trigger `
-    -Settings $settings `
-    -Principal $principal | Out-Null
-Start-ScheduledTask -TaskName $taskName
-Start-Sleep -Seconds 3
-Write-Host "OK: Daemon-Autostart (Scheduled Task $taskName, unsichtbar via wscript)"
+if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName 'mutagen-daemon' -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $binDir 'mutagen-daemon-hidden.vbs') -ErrorAction SilentlyContinue
+    Start-ScheduledTask -TaskName $watchdog
+    Start-Sleep -Seconds 5
+    Write-Host "OK: Daemon-Autostart via Scheduled Task $watchdog (setup-tunnels.ps1)"
+} else {
+    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen — Daemon fuer diese
+    # Session direkt starten; der Autostart entsteht mit dem Watchdog-Task.
+    Write-Host "WARN: Scheduled Task $watchdog fehlt — setup-tunnels.ps1 nachholen (uebernimmt auch den Mutagen-Daemon-Autostart)."
+    Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
+    Start-Sleep -Seconds 3
+}
 
 # --- 3. Session ki-os -------------------------------------------------------------
 function New-KiOsSession {

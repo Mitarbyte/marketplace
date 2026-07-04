@@ -27,13 +27,14 @@ tote SSH-Session in ~45 s erkennt und reconnectet, statt bis zu 180 s in
 |----|-------------|
 | macOS | `mutagen daemon register` (offizielle launchd-Integration) |
 | Linux | systemd-User-Service `mutagen-daemon.service` (+ Linger); `daemon register` unterstützt Linux nicht |
-| Windows | Scheduled Task `mutagen-daemon` über unsichtbaren VBS-Launcher (`wscript.exe`, Fensterstil 0 — sonst poppt bei jedem Login ein Konsolenfenster mit Daemon-Logs auf), supervised per 2-Min-Watchdog |
+| Windows | der gemeinsame Scheduled Task `ki-os-vm-watchdog` (angelegt von `setup-tunnels.ps1`, Schritt 7): sein 2-Min-Guard startet den Daemon unsichtbar (`wscript.exe`-Launcher, Fensterstil 0 — sonst poppt bei jedem Login ein Konsolenfenster mit Daemon-Logs auf), sobald mutagen installiert ist und kein `mutagen`-Prozess läuft |
 
-> **Windows-Detail:** Beim Daemon ist der **Daemon-Lock** der Guard —
-> `mutagen daemon run` bricht beim Doppelstart ab, *bevor* eine
-> SSH-Verbindung aufgebaut wird. Der blinde 2-Min-Respawn ist hier deshalb
-> leak-frei. Die Tunnel haben keinen solchen Lock und brauchen den expliziten
-> Port-Listen-Check (`references/tunnels.md`). Beide Muster NICHT vermischen.
+> **Windows-Detail:** Beim Daemon prüft der Watchdog-Guard `Get-Process
+> mutagen`; zusätzlich ist der **Daemon-Lock** der Backstop — `mutagen daemon
+> run` bricht beim Doppelstart ab, *bevor* eine SSH-Verbindung aufgebaut
+> wird, selbst ein blinder Respawn wäre hier leak-frei. Die Tunnel haben
+> keinen solchen Lock und brauchen zwingend den expliziten Port-Listen-Check
+> (`references/tunnels.md`). Beide Guards NICHT vermischen.
 
 ## Session-Konfiguration
 
@@ -102,10 +103,10 @@ touch ~/KI-OS/.sync-test && mutagen sync flush ki-os && \
 | `mutagen: command not found` (Windows) | Neue PowerShell-Session öffnen (PATH-Update) oder `%USERPROFILE%\.local\bin\mutagen.exe` direkt aufrufen |
 | „Connecting…" dauerhaft | SSH testen: `ssh -o BatchMode=yes ki-os-vm true` — wenn das hängt, ist es ein SSH-/Netz-Problem |
 | „Conflicts" in `mutagen sync list` | `mutagen sync list ki-os --long` zeigt die Dateien; VM-Version gewinnt beim nächsten Sync — lokale Änderung vorher wegsichern, falls gebraucht |
-| Daemon läuft nach Reboot nicht | macOS: `mutagen daemon register` + `start` erneut · Linux: Linger/Unit prüfen (`loginctl enable-linger`) · Windows: Task-Status prüfen (`AtLogOn` feuert nur beim echten Login) |
+| Daemon läuft nach Reboot nicht | macOS: `mutagen daemon register` + `start` erneut · Linux: Linger/Unit prüfen (`loginctl enable-linger`) · Windows: `ki-os-vm-watchdog`-Task prüfen (`AtLogOn` feuert nur beim echten Login) |
 | Daemon-Unit failed: „daemon already running" (Linux) | `mutagen daemon stop`, dann `systemctl --user restart mutagen-daemon.service` |
-| Daemon-Task beendet sich sofort (Windows) | Erwartet: der Watchdog-Tick sieht den laufenden Daemon und beendet sich — der Daemon-Prozess selbst läuft weiter (`Get-Process mutagen`) |
-| Daemon-Fenster geht beim Login auf (Windows) | Alter Task startet `mutagen.exe` noch direkt — `setup-mutagen.ps1` erneut laufen lassen (registriert auf VBS-Launcher um) |
+| Watchdog-Task „beendet sich sofort" (Windows) | Erwartet: der 2-Min-Tick sieht laufende Tunnel + Daemon und beendet sich — die Prozesse selbst laufen weiter (`Get-Process mutagen`) |
+| Daemon-Fenster geht beim Login auf (Windows) | Alter Task startet `mutagen.exe` noch sichtbar — `setup-tunnels.ps1` erneut laufen lassen (konsolidiert inhaltsbasiert auf den unsichtbaren `ki-os-vm-watchdog`) |
 | Session kaputt/falsch konfiguriert | `--recreate`/`-Recreate` — Dateien bleiben erhalten |
 | Erst-Sync dauert lange | Normal bei großem Workspace — `mutagen sync monitor ki-os` zeigt Fortschritt |
 | Sync-Fehler wegen Symlinks (Windows) | `.claude/skills`-Ignore fehlt in der Session → mit `-Recreate` neu anlegen |

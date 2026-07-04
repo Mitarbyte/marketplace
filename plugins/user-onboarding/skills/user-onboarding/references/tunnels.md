@@ -21,7 +21,7 @@ noVNC-Passwort geschützt, aber das falsche Display).
 |----|---------|-----------|
 | macOS | LaunchAgents `com.<mac-user>.ssh-tunnel.ki-os-vm-{novnc,cockpit}` | `~/Library/LaunchAgents/*.plist`, Logs unter `~/Library/Logs/ssh-tunnel-ki-os-vm-*` |
 | Linux | systemd-User-Services `ki-os-vm-{novnc,cockpit}-tunnel.service` | `~/.config/systemd/user/*.service`, Logs via `journalctl --user -u <unit>` |
-| Windows | Scheduled Tasks `ki-os-vm-{novnc,cockpit}-tunnel` | Guard-`.ps1` + VBS-Launcher unter `%USERPROFILE%\.local\bin\` |
+| Windows | EIN gemeinsamer Scheduled Task `ki-os-vm-watchdog` (Autor `Mitarbyte` + Beschreibung; deckt beide Tunnel **und** den Mutagen-Daemon ab) | Guard `ki-os-vm-watchdog.ps1` + VBS-Launcher unter `%USERPROFILE%\.local\bin\` |
 
 ## Warum diese Härtung (nicht vereinfachen!)
 
@@ -44,10 +44,13 @@ Deshalb pro OS:
   der Loop muss `ssh` im Vordergrund halten, sonst spawnt er Dutzende Tunnel.
 - **Linux:** `Restart=always` + **`StartLimitIntervalSec=0`** (Rate-Limit aus,
   sonst „start request repeated too quickly" → failed) + `RestartSec=15`.
-- **Windows:** 2-Min-Repetition-Watchdog, der ein **liveness-guarded**
-  Guard-Skript aufruft — es startet `ssh` nur, wenn der lokale Port noch
-  nicht lauscht. Der periodische Watchdog umgeht das Parken, weil er den
-  Tunnel unabhängig vom Supervisor-Zustand alle 2 Min neu zieht.
+- **Windows:** EIN 2-Min-Repetition-Watchdog (`ki-os-vm-watchdog`), der ein
+  **liveness-guarded** Guard-Skript aufruft — es startet `ssh` pro Tunnel nur,
+  wenn der lokale Port noch nicht lauscht, und den Mutagen-Daemon nur, wenn
+  kein `mutagen`-Prozess läuft. Der periodische Watchdog umgeht das Parken,
+  weil er alles unabhängig vom Supervisor-Zustand alle 2 Min neu zieht. Ein
+  einzelner Task statt drei hält den Task Scheduler des Users übersichtlich;
+  Autor + Beschreibung machen im UI sofort klar, wozu er da ist.
 
 ### ⚠️ Windows: niemals blind respawnen
 
@@ -70,10 +73,12 @@ Weitere Windows-Fallstricke (im Skript berücksichtigt):
 - VBS-Launcher (`wscript.exe`, Fensterstil 0) — sonst blitzt bei jedem
   Login/Tick ein Konsolenfenster auf.
 - **Self-Healing:** `setup-tunnels.ps1` entfernt vor der Registrierung jeden
-  Task, der einen `ssh -L` auf denselben lokalen Port fährt (inhaltsbasiert,
-  inkl. verlinkter `.vbs`/`.ps1`), und beendet verwaiste `ssh`-Tunnel auf
-  diesen Ports — ein fehlerhaft konfigurierter Alt-Task heilt sich beim
-  nächsten Skill-Lauf von selbst.
+  Task, der einen `ssh -L` auf denselben lokalen Port ODER `mutagen daemon
+  run` fährt (inhaltsbasiert, inkl. verlinkter `.vbs`/`.ps1`), und beendet
+  verwaiste `ssh`-Tunnel auf diesen Ports — ein fehlerhaft konfigurierter
+  Alt-Task heilt sich beim nächsten Skill-Lauf von selbst, und Bestands-Setups
+  mit den früheren drei Einzel-Tasks (`ki-os-vm-{novnc,cockpit}-tunnel`,
+  `mutagen-daemon`) werden automatisch auf den einen Watchdog konsolidiert.
 
 ## Nützliche Kommandos
 
@@ -93,7 +98,7 @@ journalctl --user -u ki-os-vm-novnc-tunnel.service -n 50
 # Windows — Health-Check ist der LAUSCHENDE PORT, nicht der Task-State
 # (der Task ist nach dem fire-and-forget-Start wieder "Ready"):
 Get-NetTCPConnection -LocalPort 6080 -State Listen
-Start-ScheduledTask -TaskName ki-os-vm-novnc-tunnel
+Start-ScheduledTask -TaskName ki-os-vm-watchdog
 ```
 
 ## Copy & Paste (noVNC-Clipboard)
