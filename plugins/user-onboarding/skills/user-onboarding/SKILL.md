@@ -1,62 +1,46 @@
 ---
 name: user-onboarding
-description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', 'altes ki-os-setup migrieren', 'chrome-bridge entfernen', 'sshfs abloesen', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when a v1 user (Chrome-Bridge/SSHFS/vm-oauth) wants to migrate to the new setup. Skill macht ausschliesslich LOKALE Schritte: SSH-Key, minimaler ~/.ssh/config-Eintrag, drei Pflicht-Autostarts (gehaerteter noVNC-Tunnel lokal 6080, gehaerteter Cockpit-Tunnel lokal 3847, Mutagen-Daemon + Sync-Session ki-os fuer ~/KI-OS) sowie die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag) fuer die Claude-Code-Desktop-App. Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt. Alle drei Autostarts sind Pflicht-Bestandteile, keine Auswahl. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen auf der VM (noVNC) — Chrome-Bridge, vm-oauth und SSHFS sind obsolet und werden bei Bestands-Usern zurueckgebaut. Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
+description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Skill macht ausschliesslich LOKALE Schritte ueber parametrisierte Skripte in scripts/: SSH-Key, minimaler ~/.ssh/config-Eintrag, drei Pflicht-Autostarts (gehaerteter noVNC-Tunnel lokal 6080, gehaerteter Cockpit-Tunnel lokal 3847, Mutagen-Daemon + Sync-Session ki-os fuer ~/KI-OS) sowie die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag). Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt. Alle drei Autostarts sind Pflicht-Bestandteile, keine Auswahl. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab). Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
 ---
 
 ## Was dieser Skill macht
 
-Richtet auf dem lokalen macOS-/Linux-/Windows-Geraet des Mitarbeiters
-alles ein, damit er sich auf seine vom Admin angelegte VM verbinden und
-produktiv arbeiten kann:
+Richtet auf dem lokalen macOS-/Linux-/Windows-Gerät des Mitarbeiters alles
+ein, damit er auf seiner vom Admin angelegten VM produktiv arbeiten kann:
 
-1. SSH-Key generieren (falls noch nicht vorhanden) und an den Admin senden
-2. Minimaler `~/.ssh/config`-Eintrag fuer den festen SSH-Alias `ki-os-vm`
-   (idempotent — KEIN ControlMaster, KEINE Forwards)
-3. **WARTEN auf Admin-Freigabe** — User muss vor Schritt 6 vom Admin die
-   Bestaetigung haben, dass sein User auf der VM angelegt ist und der
-   SSH-Key hinterlegt wurde
-4. SSH-Smoketest + User-Werte von der VM holen: Cockpit-Port
-   (`mitarbyte cockpit-port`), noVNC-Port + noVNC-Passwort
-   (`~/.config/ki-os/display.env` + `~/.config/ki-os/vnc.pass`)
-5. **Pflicht-Autostart 1:** gehaerteter SSH-Tunnel zum noVNC
-   (lokal `6080` → VM `<NOVNC_PORT>`) — VM-Browser live im lokalen
-   Browser unter `http://localhost:6080/vnc.html?resize=scale`
-6. **Pflicht-Autostart 2:** gehaerteter SSH-Tunnel zum Cockpit
+1. SSH-Key + minimaler `~/.ssh/config`-Eintrag (fester Alias `ki-os-vm`) —
+   Public Key geht an den Admin
+2. **Pflicht-Autostart 1:** gehärteter SSH-Tunnel zum noVNC
+   (lokal `6080` → VM `<NOVNC_PORT>`) — VM-Browser live unter
+   `http://localhost:6080/vnc.html?resize=scale`
+3. **Pflicht-Autostart 2:** gehärteter SSH-Tunnel zum Cockpit
    (lokal `3847` → VM `<COCKPIT_PORT>`) — `http://localhost:3847`
-7. **Pflicht-Autostart 3:** Mutagen installieren, Daemon-Autostart,
-   Sync-Session `ki-os` (`VM:~/KI-OS` ↔ lokal `~/KI-OS`, two-way-resolved)
-8. **Zum Abschluss — Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows):**
-   (a) den SSH-Host `ki-os-vm` in der Desktop-App-Konfiguration
-   (`ssh_configs.json`) als gespeicherte Verbindung **und** Trusted-Host
-   eintragen — sonst kennt die App die VM nicht und SSH muss von Hand
-   angelegt werden; (b) den SSH-Workspace
-   (`ssh:ki-os-vm:/home/<VM_USER>/KI-OS`) in `~/.claude.json` registrieren,
-   sodass die App ihn ohne Trust-Prompt direkt im Remote-Projekt-Switcher
-   anzeigt
-9. Verifikation aller Komponenten + bei Bestands-Usern: Migration vom
-   alten Setup (Chrome-Bridge, vm-oauth, SSHFS — alles obsolet)
+4. **Pflicht-Autostart 3:** Mutagen-Daemon + Sync-Session `ki-os`
+   (`VM:~/KI-OS` ↔ lokal `~/KI-OS`, two-way, VM gewinnt Konflikte)
+5. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows): SSH-Host in
+   `ssh_configs.json` + vertrauter Workspace in `~/.claude.json`
+6. Verifikation aller Komponenten
 
-**Nicht-Ziele:**
+**Die gesamte Mechanik liegt in fertigen, parametrisierten Skripten unter
+`scripts/`** — der Skill orchestriert nur: Inputs einsammeln, Skripte mit
+Argumenten aufrufen, Output-Marker auswerten, User führen. Die Skripte NICHT
+im Chat nachbauen oder abwandeln; bei Problemen erklären die
+`references/`-Dokumente das Warum.
 
-- VM-seitiges Setup (Workspace, Display-Stack, Cockpit — alles Admin-Sache)
-- Hub-Klone lokal (Workspace + Hub liegen auf der VM; lokal gibt es nur
-  die Mutagen-Kopie unter `~/KI-OS`)
-- Browser-Logins (macht der User spaeter selbst im noVNC-Tab, siehe
-  "Browser-Logins & OAuth" unten)
+**Nicht-Ziele:** VM-seitiges Setup (Admin-Sache), lokale Hub-Klone (lokal
+gibt es nur die Mutagen-Kopie `~/KI-OS`), Browser-Logins (macht der User
+später selbst im noVNC-Tab).
 
 ---
 
 ## Architektur in 30 Sekunden
 
-Auf der VM laeuft pro Mitarbeiter (vom Admin provisioniert):
-
-- ein eigenes virtuelles Display mit **headed Chrome** (eigenes Profil) —
-  darin passieren alle Browser-Logins und der Agent-Browser ist live sichtbar
-- **noVNC** auf `127.0.0.1:<NOVNC_PORT>` — der Blick auf dieses Display,
-  Passwort-geschuetzt
-- das **Cockpit** auf `127.0.0.1:<COCKPIT_PORT>` — Scheduler, Token-Usage,
-  Skills
-- der **Workspace** `/home/<VM_USER>/KI-OS` — normaler Ordner mit dem Hub als geklontem Git-Repo darunter (`hub/`)
+Auf der VM läuft pro Mitarbeiter (vom Admin provisioniert): ein eigenes
+virtuelles Display mit **headed Chrome** (darin alle Browser-Logins, der
+Agent-Browser live sichtbar), **noVNC** auf `127.0.0.1:<NOVNC_PORT>`
+(passwortgeschützt), das **Cockpit** auf `127.0.0.1:<COCKPIT_PORT>`
+(Scheduler, Token-Usage, Skills) und der **Workspace**
+`/home/<VM_USER>/KI-OS` (normaler Ordner, Hub als Git-Klon unter `hub/`).
 
 Lokal richtet dieser Skill nur drei dauerhafte Verbindungen ein:
 
@@ -66,57 +50,28 @@ Lokal richtet dieser Skill nur drei dauerhafte Verbindungen ein:
 | Cockpit-Tunnel | `localhost:3847` | `127.0.0.1:<COCKPIT_PORT>` | Cockpit-Web-UI |
 | Mutagen-Sync | `~/KI-OS` | `/home/<VM_USER>/KI-OS` | Workspace als lokaler Ordner (Obsidian, Finder/Explorer) |
 
-Die lokalen Ports sind fuer ALLE Mitarbeiter gleich (jeder hat seinen
-eigenen Laptop): noVNC immer `6080`, Cockpit immer `3847`. Nur die
-VM-seitigen Ports sind pro User verschieden.
+Die lokalen Ports sind für ALLE Mitarbeiter gleich (jeder hat seinen eigenen
+Laptop); nur die VM-seitigen Ports sind pro User verschieden. Primärer
+Arbeitszugang ist die **Claude-Code-Desktop-App**; Fallbacks: claude.ai/code,
+`ssh` + `claude` im Terminal, VS Code Remote-SSH
+(`references/vscode-remote-ssh.md`).
 
-Primaerer Arbeitszugang ist die **Claude-Code-Desktop-App** (verbindet
-sich selbst per SSH; Schritt 10 registriert den Host `ki-os-vm` vorab,
-damit sie ohne manuelles SSH-Setup auskommt). Fallbacks: claude.ai/code im
-Browser, `ssh` + `claude` im Terminal, VS Code Remote-SSH.
+## Konventionen
 
----
-
-## Voraussetzungen
-
-Vor dem Start klaert der Skill diese Punkte mit dem User per `AskUserQuestion`:
-
-1. **Betriebssystem** — macOS, Linux oder Windows? Auto-Detect ueber
-   `uname -s` (bash) bzw. `$IsWindows` (PowerShell); nur bei Ambiguitaet
-   fragen. WSL2-Ubuntu wird als Linux behandelt.
-2. **VM-Public-IP** — vom Admin erhalten (z.B. `1.2.3.4`)
-3. **VM-Username** — vom Admin erhalten (z.B. `alice`)
-4. **Email-Adresse** — fuer SSH-Key-Kommentar (Default: `git config --global user.email`)
-
-Der **SSH-Alias ist fest `ki-os-vm`** — wird **nicht** abgefragt (jeder
-Mitarbeiter hat genau eine Firmen-VM auf seinem Geraet). Der Alias bestimmt
-auch die Namen der Autostart-Dienste (LaunchAgent-Labels, Unit-/Task-Namen).
-
-**Feste Setup-Bestandteile (keine Auswahl, immer installiert):**
-
-- `novnc-tunnel-autostart` — gehaerteter SSH-Tunnel zum pro-User-noVNC
-- `cockpit-tunnel-autostart` — gehaerteter SSH-Tunnel zum pro-User-Cockpit
-- `mutagen-sync` — Daemon-Autostart + Sync-Session `ki-os` fuer `~/KI-OS`
-
-Der Skill fragt diese Komponenten **nicht** ab — sie gehoeren fest zum
-Setup. Backend pro OS: LaunchAgents (macOS), systemd-User-Services
-(Linux), Scheduled Tasks (Windows).
-
-## Konvention: SSH-Alias ist fest `ki-os-vm`
-
-Der SSH-Alias ist im gesamten Ablauf fest `ki-os-vm` und wird **nicht**
-abgefragt. Alle Konfigurationen, Pfade, Service-Namen (LaunchAgent-Labels,
-Unit-/Task-Namen) und die beiden Desktop-App-Eintraege (`ssh_configs.json`
-und `~/.claude.json`) verwenden konsequent diesen Wert; die
-Referenz-Dokumente ebenso.
-
-## Konvention: Tunnel laufen als eigene Prozesse, nicht in der SSH-Config
-
-Die `~/.ssh/config` enthaelt KEINE `LocalForward`-/`RemoteForward`-Zeilen.
-Beide Tunnel laufen als eigene, gehaertete Autostart-Prozesse mit `-L`
-direkt im Kommando — auf allen drei Plattformen identisch. So bleibt die
-SSH-Config minimal, und interaktive SSH-Sessions (Terminal, Desktop-App,
-VS Code) sind von den Tunneln vollstaendig entkoppelt.
+- **SSH-Alias fest `ki-os-vm`** — wird nie abgefragt (jeder Mitarbeiter hat
+  genau eine Firmen-VM). Alle Service-Namen (LaunchAgent-Labels, Unit-/
+  Task-Namen) und die Desktop-App-Einträge leiten sich daraus ab.
+- **Drei Pflicht-Autostarts, keine Auswahl** — noVNC-Tunnel, Cockpit-Tunnel,
+  Mutagen-Sync werden immer eingerichtet. Backends pro OS: LaunchAgents
+  (macOS), systemd-User-Services (Linux), Scheduled Tasks (Windows).
+- **Tunnel laufen als eigene Prozesse, nicht in der SSH-Config** — die
+  `~/.ssh/config` enthält KEINE Forward-Zeilen, kein ControlMaster
+  (`references/ssh.md`).
+- **Skript-Aufrufe:** `SKILL_DIR` ist das Verzeichnis dieser SKILL.md (bei
+  Mitarbeiter-Installation `~/.claude/skills/user-onboarding`).
+  - macOS/Linux/WSL2: `bash "$SKILL_DIR/scripts/<name>.sh" <args>`
+  - Windows nativ: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<SKILL_DIR>\scripts\<name>.ps1" <args>`
+- **Sprache:** Mit dem User Deutsch; Skripte/Configs sind englisch/ASCII.
 
 ---
 
@@ -124,802 +79,212 @@ VS Code) sind von den Tunneln vollstaendig entkoppelt.
 
 ### Schritt 1 — Betriebssystem erkennen
 
-```bash
-# Bash-Variante (macOS/Linux/WSL)
-case "$(uname -s)" in
-    Darwin)             OS=macos ;;
-    Linux)              OS=linux ;;        # inkl. WSL2-Ubuntu
-    MINGW*|MSYS*|CYGWIN*) OS=windows ;;    # Git Bash etc. auf Windows
-    *)                  OS=unknown ;;
-esac
-```
+`uname -s` (bash: `Darwin`/`Linux`) bzw. PowerShell (`$env:OS` =
+`Windows_NT`). Nur bei Ambiguität nachfragen. WSL2-Ubuntu = Linux-Pfad.
 
-```powershell
-# PowerShell-Variante (native Windows)
-if ($IsWindows -or $env:OS -eq 'Windows_NT') { $OS = 'windows' }
-elseif ($IsMacOS)   { $OS = 'macos' }
-elseif ($IsLinux)   { $OS = 'linux' }
-else                { $OS = 'unknown' }
-```
+Bei Windows per `AskUserQuestion` klären: **native Windows-Variante**
+(Default; PowerShell + Windows-OpenSSH + Scheduled Tasks) oder **WSL2**
+(User startet `wsl` und durchläuft den Linux-Pfad; systemd muss in WSL2
+aktiv sein — `/etc/wsl.conf`: `[boot]\nsystemd=true`, danach
+`wsl --shutdown`).
 
-Bei `windows` per `AskUserQuestion` klaeren, ob der User **native Windows-
-Variante** oder **WSL2** nutzen will:
-
-- **Native Windows** — PowerShell + Windows-OpenSSH + Scheduled Tasks
-  + Git for Windows (Pflicht — Claude Code braucht auf nativem Windows
-  die Git Bash, siehe Schritt 1.5). Default fuer Windows-User.
-- **WSL2** — User startet `wsl` und durchlaeuft den Linux-Pfad. Einfacher
-  fuer User, die schon WSL2 nutzen. Achtung: systemd muss in WSL2 aktiv
-  sein (`/etc/wsl.conf`: `[boot]\nsystemd=true`, danach `wsl --shutdown`).
-
-### Schritt 1.5 — Windows-Vorbedingung pruefen (nur Native-Windows)
-
-Skip diesen Schritt fuer macOS, Linux und WSL2.
-
-Zwei harte Vorbedingungen:
-
-**1. Windows-OpenSSH-Client** (bei Windows 10/11 normalerweise
-vorinstalliert):
-
-```powershell
-Get-Command ssh -ErrorAction SilentlyContinue
-# vorhanden → fertig
-# fehlt → als Administrator installieren:
-Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-```
-
-Der native Windows-OpenSSH reicht fuer SSH + Tunnel vollstaendig —
-ControlMaster wird nirgendwo mehr gebraucht.
-
-**2. Git for Windows** — **Pflicht**, nicht fuer dieses Setup, sondern
-weil Claude Code auf nativem Windows (Desktop-App wie CLI) die
-mitgelieferte Git Bash voraussetzt:
-
-```powershell
-Get-Command git -ErrorAction SilentlyContinue
-# vorhanden → fertig
-# fehlt → installieren:
-winget install --id Git.Git -e --source winget
-```
-
-Wichtig: Git for Windows nur installieren — dessen `ssh.exe` NICHT vor
-den Windows-OpenSSH in den PATH stellen. Alle SSH-/Tunnel-Schritte in
-diesem Skill nutzen den nativen Client
-(`C:\Windows\System32\OpenSSH\ssh.exe`).
-
-Lies basierend auf `$OS` (und ggf. Windows-Native vs. WSL2) die passende
-Detail-Doku:
-
-- macOS: `references/macos/ssh-setup.md`,
-  `references/macos/novnc-tunnel.md`,
-  `references/macos/cockpit-launchagent.md`,
-  `references/macos/mutagen.md`
-- Linux (inkl. WSL2): `references/linux/ssh-setup.md`,
-  `references/linux/novnc-tunnel.md`,
-  `references/linux/cockpit-systemd.md`,
-  `references/linux/mutagen.md`
-- Windows (nativ): `references/windows/ssh-setup.md`,
-  `references/windows/novnc-tunnel.md`,
-  `references/windows/cockpit-scheduledtask.md`,
-  `references/windows/mutagen.md`
-
-Diese Dateien enthalten die exakten Commands. Der Skill orchestriert; die
-Details kommen aus den Referenzdateien.
-
-### Schritt 2 — User-Inputs sammeln
-
-`AskUserQuestion` fuer die Pflichtfelder (VM-IP, VM-Username, Email). Default
-fuer Email aus `git config --global user.email`. Der **SSH-Alias wird nicht
-abgefragt** (fest `ki-os-vm`), und es gibt **keine Frage nach optionalen
-Komponenten** — noVNC-Tunnel, Cockpit-Tunnel und Mutagen-Sync werden immer
-eingerichtet.
-
-Speichere die Antworten in lokalen Shell-Variablen (`VM_IP`, `VM_USER`,
-`EMAIL`) — sie werden in den naechsten Schritten mehrfach gebraucht. Der
-SSH-Alias ist fest `ki-os-vm`; daraus ergeben sich automatisch die Namen der
-Autostart-Dienste (LaunchAgent-Labels, Unit-Namen, Task-Namen).
-
-### Schritt 3 — SSH-Key generieren
-
-Pruefen ob `~/.ssh/id_ed25519` schon existiert:
-
-```bash
-test -f ~/.ssh/id_ed25519 && echo EXISTS || echo MISSING
-```
-
-- `EXISTS`: User fragen ob bestehender Key genutzt werden soll (Default: ja).
-  Falls ja → Schritt 3 ueberspringen.
-- `MISSING`: `ssh-keygen -t ed25519 -C "$EMAIL" -f ~/.ssh/id_ed25519 -N ""`
-  (Passphrase leer; User kann nachtraeglich per `ssh-keygen -p` setzen).
-
-Public-Key ausgeben und in die Zwischenablage kopieren:
-
-```bash
-cat ~/.ssh/id_ed25519.pub | pbcopy   # macOS
-cat ~/.ssh/id_ed25519.pub | xclip -selection clipboard   # Linux (falls xclip da)
-```
-
-```powershell
-# Windows (PowerShell)
-Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub" | Set-Clipboard
-```
-
-Dem User mitteilen:
-
-> **Dein Public Key ist in der Zwischenablage.**
->
-> Schick ihn jetzt an deinen Admin (Slack, Mail, Signal — egal). Der Admin
-> braucht den Key, um deinen User auf der VM anzulegen.
->
-> Public Key (auch hier zum Kopieren):
-> ```
-> <inhalt von id_ed25519.pub>
-> ```
-
-Fertige Mail-/Slack-Vorlagen: `references/ssh-pubkey-handoff.md` — der
-Skill gibt die passende direkt aus.
-
-### Schritt 4 — ~/.ssh/config Basis-Eintrag (minimal)
-
-Idempotent einen `Host ki-os-vm`-Block in `~/.ssh/config` einfuegen.
-Vorher pruefen, ob der Block schon existiert
-(`grep -q "^Host ki-os-vm$" ~/.ssh/config`).
-
-Falls existiert: User fragen ob ueberschrieben werden soll. **Wenn der
-bestehende Block noch v1-Zeilen enthaelt (`RemoteForward`, `LocalForward`,
-`ControlMaster`, `ControlPath`, `ControlPersist`, oder es existiert ein
-`Host ki-os-vm-mux`-Block): immer ersetzen** — das ist Teil der
-Migration (Schritt 12 raeumt den Rest auf).
-
-Der komplette Block — mehr braucht es nicht:
+### Schritt 2 — Vorbedingungen (nur natives Windows)
 
 ```
-Host ki-os-vm
-    HostName <VM_IP>
-    User <VM_USER>
-    IdentityFile ~/.ssh/id_ed25519
-    IdentitiesOnly yes
-    ServerAliveInterval 15
-    ServerAliveCountMax 3
-    ConnectTimeout 10
-    TCPKeepAlive yes
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<SKILL_DIR>\scripts\check-prereqs.ps1"
 ```
 
-KEIN `ControlMaster`, KEIN `RemoteForward`, KEIN `LocalForward`, KEIN
-Zwei-Alias-Konstrukt. Die Tunnel laufen als eigene Autostart-Prozesse
-(Schritte 7 + 8). `ServerAliveInterval 15`/`CountMax 3`/`ConnectTimeout 10`/
-`TCPKeepAlive yes` gelten fuer jede Verbindung ueber den Alias — wichtig fuer
-**Mutagen** (Schritt 9), das den Alias direkt als Transport nutzt: tote
-SSH-Session in ~45s erkannt + reconnectet statt bis 180s zu haengen. Details + OS-Eigenheiten (Windows: BOM-frei schreiben,
-ACL-Reparatur): `references/<os>/ssh-setup.md`.
+Prüft/installiert in einem Durchlauf: Windows-OpenSSH-Client (Install braucht
+Admin — bei `MISSING_ADMIN` den User eine Admin-PowerShell öffnen lassen) und
+Git for Windows (Pflicht für Claude Code auf nativem Windows). macOS/Linux:
+überspringen.
+
+### Schritt 3 — User-Inputs sammeln
+
+`AskUserQuestion`: **VM-Public-IP** und **VM-Username** (beides vom Admin
+erhalten), **Email** für den Key-Kommentar (Default:
+`git config --global user.email`). Keine weiteren Fragen — Alias und
+Komponenten stehen fest.
+
+### Schritt 4 — SSH einrichten (Key + Config + Pubkey-Übergabe)
+
+```
+bash "$SKILL_DIR/scripts/setup-ssh.sh" --ip <VM_IP> --user <VM_USER> --email <EMAIL>
+# Windows: setup-ssh.ps1 -VmIp <IP> -VmUser <USER> -Email <EMAIL>
+```
+
+Erzeugt den Ed25519-Key nur, falls keiner existiert (`KEY_EXISTS` →
+bestehender Key wird genutzt; will der User explizit einen neuen, erst alten
+Key manuell wegsichern, dann `--new-key`/`-NewKey`). Ersetzt den
+`Host ki-os-vm`-Block idempotent durch die minimale Fassung und legt den
+Public Key in die Zwischenablage (`PUBKEY:`-Zeile).
+
+Dem User den Public Key zeigen und die Übergabe an den Admin anbieten —
+fertige Mail-/Slack-Vorlagen: `references/ssh-pubkey-handoff.md`.
 
 ### Schritt 5 — Warten auf Admin-Freigabe
 
-Bevor der Skill weitermacht, muss der Admin den SSH-Key auf der VM
-hinterlegt und den User komplett eingerichtet haben (Workspace,
-Cockpit-Service, Display-Stack mit noVNC). Per `AskUserQuestion`:
+Der Admin muss den Key hinterlegt und den User komplett eingerichtet haben
+(Workspace, Cockpit-Service, Display-Stack). `AskUserQuestion`:
 
-> "Hat dein Admin bestaetigt, dass dein User auf der VM angelegt ist
-> (Workspace + Zugang bereit)?"
->
-> Optionen: "Ja, kann's testen" | "Noch nicht — pausiere hier"
+> „Hat dein Admin bestätigt, dass dein User auf der VM angelegt ist?"
+> Optionen: „Ja, kann's testen" | „Noch nicht — pausiere hier"
 
-Wenn "Noch nicht": Skill pausiert, User kann `/user-onboarding` spaeter
-nochmal aufrufen — der Skill ist idempotent.
+Bei „Noch nicht": pausieren — `/user-onboarding` später erneut aufrufen, der
+Skill ist idempotent und macht bereits Erledigtes nicht kaputt.
 
-### Schritt 6 — Connection-Smoketest + User-Werte holen
-
-```bash
-ssh -o BatchMode=yes ki-os-vm true 2>&1
-```
-
-Fehlerbilder (Permission denied, Timeout, Host-Key): siehe
-`references/<os>/ssh-setup.md` → Smoketest/Troubleshooting.
-
-Bei Erfolg drei Werte von der VM holen:
-
-**1. Cockpit-Port:**
-
-```bash
-ssh ki-os-vm 'mitarbyte cockpit-port 2>/dev/null || echo "MISSING_CLI"'
-```
-
-Druckt einen Block mit `Port auf der VM: <NNNNN>` (Schema `30000 + UID`,
-z.B. `31001`). Den Wert extrahieren → `COCKPIT_PORT`. Falls
-`MISSING_CLI`: VM-CLI nicht installiert — Admin kontaktieren.
-
-**2. noVNC-Port:**
-
-```bash
-ssh ki-os-vm 'grep "^NOVNC_PORT=" ~/.config/ki-os/display.env | cut -d= -f2'
-```
-
-Schema `6080 + (UID - 1000)`, z.B. `6081` fuer den zweiten User →
-`NOVNC_PORT`. Falls die Datei fehlt: Der Display-Stack ist fuer diesen
-User noch nicht provisioniert — Admin kontaktieren, dann hier weitermachen.
-
-**3. noVNC-Passwort:**
-
-```bash
-ssh ki-os-vm 'cat ~/.config/ki-os/vnc.pass'
-```
-
-Das Klartext-Passwort dem User zeigen — er gibt es spaeter einmalig im
-noVNC-Tab ein (der Browser merkt es sich nicht; gerne in den
-Passwort-Manager).
-
-### Schritt 7 — Pflicht-Autostart: noVNC-Tunnel
-
-Gehaerteter Background-SSH-Tunnel `6080:127.0.0.1:<NOVNC_PORT>`, der nach
-Reboot/Schlaf/Netzwechsel automatisch wieder hochkommt. Danach ist der
-VM-Browser dauerhaft unter `http://localhost:6080/vnc.html?resize=scale` erreichbar.
-
-> **Nicht verwechseln:** die linke `6080` ist der feste *lokale* Port,
-> `<NOVNC_PORT>` (rechts) ist der *VM-seitige, pro-User* Wert aus Schritt 6.2 —
-> nur beim ersten User ebenfalls `6080`, sonst `6081`/`6082`/… Falsch (z.B.
-> `6080` fuer den zweiten User) tunnelt auf das Display eines anderen Users.
-
-| OS | Backend | Referenz |
-|----|---------|----------|
-| macOS | LaunchAgent `com.<mac-user>.ssh-tunnel.ki-os-vm-novnc` | `references/macos/novnc-tunnel.md` |
-| Linux | systemd-User-Service `ki-os-vm-novnc-tunnel.service` | `references/linux/novnc-tunnel.md` |
-| Windows | Scheduled Task `ki-os-vm-novnc-tunnel` | `references/windows/novnc-tunnel.md` |
-
-Haertung in allen Varianten gleichwertig (NICHT neu erfinden — exakt die
-Vorlagen aus den Referenzen nutzen) plus gehaertetes
-`ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15
--o ServerAliveCountMax=3 -o ConnectTimeout=10 -o TCPKeepAlive=yes` (~45s
-Tot-Erkennung statt frueher 180s). Der **kritische** Punkt — und die Ursache
-des wiederkehrenden „Tunnel bricht ab und kommt nicht wieder" — ist die
-Supervision: ein simpler Supervisor-Restart genuegt NICHT, weil alle drei
-Supervisoren einen Job nach einer Serie schneller Fehlstarts (typisch nach
-Sleep/Wake, wenn das Netz noch nicht steht) **dauerhaft parken** und dann gar
-nicht mehr starten — der Tunnel bleibt tot, obwohl die VM laengst erreichbar
-ist. Deshalb pro OS:
-
-- **macOS:** der LaunchAgent supervidiert NICHT `ssh` direkt, sondern einen
-  nie endenden `bash`-Loop (`while true; do ssh …; sleep 5; done`). launchd
-  sieht damit nie schnelle Exits → kann nie parken; stirbt `ssh`, baut der
-  Loop es in ~5s neu auf. `KeepAlive=true` ist nur Backstop fuer den Loop.
-  (Real reproduziert 2026-06-28: drei direkt-`ssh`-LaunchAgents ueber Nacht
-  geparkt bei „exit 255 / not running", VM erreichbar.)
-- **Linux:** `Restart=always` + **`StartLimitIntervalSec=0`** (Rate-Limit aus,
-  sonst „start request repeated too quickly" → failed) + `RestartSec=15`.
-- **Windows:** 2-Min-Repetition-Watchdog, der ein **liveness-guarded**
-  Guard-Skript aufruft (startet `ssh` nur, wenn der lokale Port noch nicht
-  lauscht) — der periodische Watchdog umgeht das Parken, weil er den Tunnel
-  unabhaengig vom Supervisor-Zustand alle 2 Min neu zieht.
-
-**Wichtig (nur Windows):** der Watchdog darf `ssh`
-NICHT blind alle 2 Min respawnen (alte Variante < 2026-06-18) — das leakt
-auf der VM Tausende toter SSH-Sessions (Details + Begruendung:
-`references/windows/cockpit-scheduledtask.md` → "Warum diese Options").
-Der Repetition-Trigger braucht zwingend ein `-RepetitionDuration` — fehlt es,
-feuert der Task auf Win11 24H2 nur einmal (toter Watchdog). **NICHT**
-`[TimeSpan]::MaxValue` verwenden: der Task Scheduler lehnt das mit
-HRESULT `0x80041318` (out of range) ab (real auf Win11 24H2 aufgetreten,
-2026-06-20). Stattdessen `(New-TimeSpan -Days 9999)` — registriert als `P9999D`
-(~27 Jahre), akzeptiert und effektiv unendlich. Die Windows-Tunnel-Schritte sind zudem self-healing: sie
-entfernen beim Re-Setup jeden alt/falsch benannten Tunnel-Task auf demselben
-lokalen Port (inhaltsbasiert), bevor sie den korrekten neu anlegen.
-
-Idempotenz: Wenn das Plist / die Unit / der Task schon existiert, vor dem
-Schreiben mit der `bootout`-/`disable`-/`Unregister`-Sequenz entladen und
-neu registrieren. Bestehende Werte werden ueberschrieben — bewusst, damit
-Konfig-Drift nicht unbemerkt bleibt.
-
-### Schritt 8 — Pflicht-Autostart: Cockpit-Tunnel
-
-Identisches Muster, zweiter Tunnel: `3847:127.0.0.1:<COCKPIT_PORT>`.
-Danach ist das Cockpit dauerhaft unter `http://localhost:3847` erreichbar.
-
-| OS | Backend | Referenz |
-|----|---------|----------|
-| macOS | LaunchAgent `com.<mac-user>.ssh-tunnel.ki-os-vm-cockpit` | `references/macos/cockpit-launchagent.md` |
-| Linux | systemd-User-Service `ki-os-vm-cockpit-tunnel.service` | `references/linux/cockpit-systemd.md` |
-| Windows | Scheduled Task `ki-os-vm-cockpit-tunnel` | `references/windows/cockpit-scheduledtask.md` |
-
-Hinweis fuer Bestands-User: Der lokale Cockpit-Port ist jetzt einheitlich
-`3847` (frueher lief der Autostart-Tunnel auf `13847` — alte Bookmarks
-anpassen).
-
-### Schritt 9 — Pflicht-Autostart: Mutagen-Sync
-
-Mutagen ersetzt den frueheren SSHFS-Mount komplett: statt eines
-FUSE-Mounts (der bei Netzunterbrechung einfror) haelt Mutagen eine echte
-lokale Kopie des Workspaces unter `~/KI-OS` und synchronisiert beidseitig.
-Offline lesbar, voller Speed, reconnectet selbst.
-
-Drei Teilschritte (Details + OS-Eigenheiten: `references/<os>/mutagen.md`):
-
-**9a — Installieren:**
-
-- macOS: `brew install mutagen-io/mutagen/mutagen`
-- Linux: Homebrew falls vorhanden, sonst GitHub-Release-Binary
-- Windows: GitHub-Release-Zip nach `%USERPROFILE%\.local\bin\`
-  (kein offizielles winget-Paket)
-
-**9b — Daemon-Autostart:**
-
-- macOS: `mutagen daemon register` (offizielle launchd-Integration)
-- Linux: systemd-User-Service `mutagen-daemon.service` (+ Linger)
-- Windows: Scheduled Task `mutagen-daemon` startet `mutagen daemon run`
-  ueber einen **unsichtbaren VBS-Launcher** (`wscript.exe`, Fensterstil 0
-  — sonst poppt bei jedem Login ein Konsolenfenster mit Daemon-Logs auf),
-  supervised per 2-Min-Watchdog wie die Tunnel
-
-**9c — Session `ki-os` anlegen** (VM ist Alpha und gewinnt bei Konflikten;
-lokal `~/KI-OS` ist Beta):
-
-```bash
-mutagen sync create \
-    --name=ki-os \
-    --sync-mode=two-way-resolved \
-    --ignore-vcs \
-    --ignore="node_modules" \
-    --ignore=".venv" \
-    --ignore="__pycache__" \
-    --ignore=".obsidian/workspace*" \
-    --ignore=".cache" \
-    --ignore="dist" \
-    --ignore=".next" \
-    --ignore=".DS_Store" \
-    ki-os-vm:/home/<VM_USER>/KI-OS ~/KI-OS
-```
-
-Die Ignores sind Pflicht (Git-Metadaten inkl. `hub/.git` bleiben
-VM-seitig; Build-/Browser-Caches und geraetespezifische Obsidian-Fenster-
-Layouts werden nicht gesynct). `.claude/skills` wird auf **macOS/Linux
-bewusst mitgesynct**: `sync-skills.sh` baut die Skill-Symlinks **relativ**
-in den Sync-Root (`../../hub/Skills/…`), sie loesen lokal korrekt auf
-`~/KI-OS/hub/Skills/…` auf → klickbare Skill-Ansicht. **Auf Windows
-bleibt `--ignore=".claude/skills"` stehen** (Symlinks brauchen dort
-`SeCreateSymbolicLinkPrivilege`/Developer-Mode, sonst Sync-Fehler) — siehe
-`references/windows/mutagen.md`. Begruendung, Konflikt-Semantik und der
-Bestands-User-Hinweis (Session einmalig neu anlegen, damit die Ansicht
-erscheint): `references/<os>/mutagen.md`.
-
-**Obsidian:** Der Vault wird kuenftig auf dem **lokalen** Ordner `~/KI-OS`
-geoeffnet (statt frueher auf dem SSHFS-Mount) — gleiche UX, friert nicht
-ein, offline lesbar.
-
-**Hinweis Windows:** Mutagen ist die beschlossene Architektur, auf
-Windows aber noch nicht im Kundenbetrieb verifiziert — bei Problemen
-(Daemon startet nicht, Sync haengt nach Netzwechsel) an den Admin.
-
-### Schritt 10 — Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows)
-
-Pflicht-Bestandteil. Die Desktop-App verbindet sich selbst per SSH, kennt
-die VM aber **nur, wenn sie in zwei getrennten Dateien hinterlegt ist** —
-der `~/.claude.json`-Eintrag allein reicht nicht (deshalb tauchte die VM
-bisher nicht im Verbindungs-Dialog auf):
-
-| Datei | Was sie bewirkt | Schritt |
-|---|---|---|
-| `ssh_configs.json` (App-Support-Verzeichnis) | macht `ki-os-vm` als **gespeicherte SSH-Verbindung** im Connect-Dialog sichtbar + als **Trusted-Host** (kein Host-Trust-Prompt) | 10a |
-| `~/.claude.json` (`.projects[…]`) | macht den **Workspace-Ordner** vorab vertraut (kein Projekt-Trust-Prompt) | 10b |
-
-Beide zusammen = die App zeigt `ki-os-vm` an und oeffnet `~/KI-OS` ohne ein
-einziges Prompt. **Nur macOS + Windows** (es gibt keine Linux-Desktop-App —
-Linux-User arbeiten ueber `claude.ai/code` oder Terminal, siehe Hinweis am
-Ende von 10a).
-
-#### Schritt 10a — SSH-Host `ki-os-vm` in der Desktop-App registrieren
-
-Schreibt einen `configs[]`-Eintrag (`name`/`sshHost` = `ki-os-vm`,
-eindeutige `id`, `source: "desktop"`) und ergaenzt `ki-os-vm` in
-`trustedHosts[]`. Idempotent — vorhandene Eintraege bleiben unangetastet.
-
-**Konfig-Datei finden:**
-
-| OS | Pfad |
-|----|------|
-| macOS | `$HOME/Library/Application Support/Claude/ssh_configs.json` |
-| Windows | `$env:APPDATA\Claude\ssh_configs.json` |
-
-```bash
-# macOS — nur wenn die Desktop-App installiert ist
-APPDIR="$HOME/Library/Application Support/Claude"
-if [ ! -d "$APPDIR" ]; then
-    echo "SKIP: Claude-Desktop-App nicht gefunden ($APPDIR) — 10a ueberspringen (claude.ai/code oder Terminal nutzen)."
-else
-    CFG="$APPDIR/ssh_configs.json"
-    command -v jq >/dev/null || { echo "jq fehlt — bitte installieren (brew install jq)"; exit 1; }
-    [ -f "$CFG" ] || echo '{"configs":[],"trustedHosts":[]}' > "$CFG"
-    ID=$(uuidgen | tr 'A-Z' 'a-z')
-    tmp=$(mktemp)
-    jq --arg h "ki-os-vm" --arg id "$ID" '
-      .configs = (.configs // []) |
-      .trustedHosts = (.trustedHosts // []) |
-      (if any(.configs[]; .sshHost == $h) then .
-       else .configs += [{name:$h, sshHost:$h, id:$id, source:"desktop"}] end) |
-      (if any(.trustedHosts[]; . == $h) then .
-       else .trustedHosts += [$h] end)
-    ' "$CFG" > "$tmp" && mv "$tmp" "$CFG"
-    echo "OK: SSH-Host ki-os-vm in $CFG registriert."
-fi
-```
-
-```powershell
-# Native Windows (PowerShell, 5.1-kompatibel, BOM-frei)
-$appdir = Join-Path $env:APPDATA 'Claude'
-if (-not (Test-Path $appdir)) {
-    Write-Host "SKIP: Claude-Desktop-App nicht gefunden ($appdir) — 10a ueberspringen."
-} else {
-    $cfgPath = Join-Path $appdir 'ssh_configs.json'
-    if (-not (Test-Path $cfgPath)) {
-        '{"configs":[],"trustedHosts":[]}' | Set-Content -LiteralPath $cfgPath -Encoding ascii
-    }
-    $cfg = Get-Content -LiteralPath $cfgPath -Raw | ConvertFrom-Json
-    if (-not ($cfg.PSObject.Properties.Name -contains 'configs') -or $null -eq $cfg.configs) {
-        $cfg | Add-Member -NotePropertyName configs -NotePropertyValue @() -Force
-    }
-    if (-not ($cfg.PSObject.Properties.Name -contains 'trustedHosts') -or $null -eq $cfg.trustedHosts) {
-        $cfg | Add-Member -NotePropertyName trustedHosts -NotePropertyValue @() -Force
-    }
-    if (-not (@($cfg.configs) | Where-Object { $_.sshHost -eq 'ki-os-vm' })) {
-        $entry = [PSCustomObject]@{
-            name    = 'ki-os-vm'
-            sshHost = 'ki-os-vm'
-            id      = [guid]::NewGuid().ToString()
-            source  = 'desktop'
-        }
-        $cfg.configs = @($cfg.configs) + $entry
-    }
-    if (@($cfg.trustedHosts) -notcontains 'ki-os-vm') {
-        $cfg.trustedHosts = @($cfg.trustedHosts) + 'ki-os-vm'
-    }
-    $out = $cfg | ConvertTo-Json -Depth 100
-    $enc = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($cfgPath, $out, $enc)
-    Write-Host "OK: SSH-Host ki-os-vm in $cfgPath registriert."
-}
-```
-
-**Wichtig — Desktop-App neu starten:** Die laufende App liest
-`ssh_configs.json` nur beim Start; ein neuer Eintrag erscheint deshalb erst
-nach **vollstaendigem Neustart** — App komplett beenden (macOS Cmd+Q, nicht
-nur das Fenster schliessen) und neu oeffnen. Danach steht `ki-os-vm` im
-SSH-/Remote-Verbindungs-Dialog. Die App schreibt die Datei nur beim
-expliziten Hinzufuegen/Aendern einer Verbindung in der UI, ein externer
-Schreibvorgang ueberlebt also einen normalen Neustart auch bei zuvor offener
-App (Smoke-Test 2026-06-28 auf macOS: extern geschriebener Host erscheint
-nach dem Neustart und wird per SSH angesteuert; die laufende App hat die
-Datei beim Beenden NICHT ueberschrieben). Sollte der Host wider Erwarten
-nicht auftauchen, Schritt 10a bei **geschlossener App** wiederholen.
-
-**Manueller Fallback (analog zum claude.ai-Login):** Falls der Host nicht
-auftaucht, in der Desktop-App von Hand eine SSH-Verbindung anlegen und als
-Host `ki-os-vm` eintragen — HostName, User und Key liefert die
-`~/.ssh/config` aus Schritt 4. Einmal verbinden, Trust-Prompt bestaetigen,
-fertig.
-
-**Linux:** Keine Claude-Desktop-App fuer Linux → Schritt 10a entfaellt.
-Linux-User arbeiten ueber `claude.ai/code` (Browser) oder `ssh ki-os-vm` +
-`claude` im Terminal; der Projekt-Eintrag aus 10b gilt trotzdem (Terminal-CLI).
-
-#### Schritt 10b — Workspace-Projekt in `~/.claude.json` registrieren
-
-Traegt den Remote-Workspace als bekanntes, vertrautes Projekt ein, damit die
-Desktop-App (und `claude` im Terminal) den VM-Workspace ohne erneutes
-Trust-Prompt direkt im Remote-Projekt-Switcher anzeigt.
-
-**Schluessel-Konvention:** Claude Code speichert Remote-Projekte unter
-`.projects["ssh:ki-os-vm:<remote-pfad>"]`. Fuer das KI-OS-Setup ist
-das immer:
+### Schritt 6 — Smoketest + VM-Werte holen (ein SSH-Roundtrip)
 
 ```
-ssh:ki-os-vm:/home/<VM_USER>/KI-OS
+bash "$SKILL_DIR/scripts/get-vm-values.sh"
+# Windows: get-vm-values.ps1
 ```
 
-**Settings-Datei finden** (Cross-Platform identisch im User-Home):
+Liefert `SSH_OK` + `COCKPIT_PORT=` / `NOVNC_PORT=` / `NOVNC_PASS=`. Die
+Werte für die nächsten Schritte merken; das **noVNC-Passwort dem User
+zeigen** (er gibt es später einmalig im noVNC-Tab ein — gern in den
+Passwort-Manager; nirgendwo hinschreiben/loggen).
 
-| OS | Pfad |
-|----|------|
-| macOS / Linux | `$HOME/.claude.json` |
-| Windows | `$env:USERPROFILE\.claude.json` |
+- `SSH_FAIL` → Fehlerbild nachschlagen: `references/ssh.md` → Smoketest.
+- `NOVNC_PORT=MISSING` → Display-Stack noch nicht provisioniert — Admin
+  kontaktieren, danach hier weitermachen.
 
-**Eintrag schreiben** (idempotent per `jq`, atomar via tmp-File):
-
-```bash
-# macOS / Linux
-SETTINGS="$HOME/.claude.json"
-KEY="ssh:ki-os-vm:/home/${VM_USER}/KI-OS"
-
-# Settings-Datei muss existieren (Claude Code legt sie beim ersten Start an)
-if [ ! -f "$SETTINGS" ]; then
-    echo "WARN: $SETTINGS fehlt — bitte einmalig 'claude' lokal starten und Schritt 10 erneut laufen lassen."
-    exit 0
-fi
-
-# jq ist Pflicht — auf Mac via Homebrew, auf Linux via apt
-command -v jq >/dev/null || { echo "jq fehlt — bitte installieren (brew/apt)"; exit 1; }
-
-tmp=$(mktemp)
-jq --arg k "$KEY" '
-  .projects = (.projects // {}) |
-  .projects[$k] = ((.projects[$k] // {}) + {
-    "allowedTools": ((.projects[$k].allowedTools) // []),
-    "mcpContextUris": ((.projects[$k].mcpContextUris) // []),
-    "enabledMcpjsonServers": ((.projects[$k].enabledMcpjsonServers) // []),
-    "disabledMcpjsonServers": ((.projects[$k].disabledMcpjsonServers) // []),
-    "hasTrustDialogAccepted": true,
-    "projectOnboardingSeenCount": ((.projects[$k].projectOnboardingSeenCount) // 0),
-    "hasClaudeMdExternalIncludesApproved": ((.projects[$k].hasClaudeMdExternalIncludesApproved) // false),
-    "hasClaudeMdExternalIncludesWarningShown": ((.projects[$k].hasClaudeMdExternalIncludesWarningShown) // false)
-  })
-' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
-
-echo "OK: $KEY eingetragen in $SETTINGS"
-```
-
-```powershell
-# Native Windows (PowerShell) — ohne jq via ConvertFrom-Json
-# WICHTIG: PowerShell-5.1-kompatibel. Windows liefert nativ Windows
-# PowerShell 5.1; deren ConvertFrom-Json kennt KEIN -AsHashtable, und
-# Hashtable-Merge (+) gibt es ebenfalls erst ab PowerShell 7. Beides hier
-# vermeiden — sonst bleibt $json bei $null und das nachfolgende
-# ConvertTo-Json wuerde "null" in die .claude.json schreiben (Config kaputt).
-$settings = "$env:USERPROFILE\.claude.json"
-$key = "ssh:ki-os-vm:/home/${VM_USER}/KI-OS"
-
-if (-not (Test-Path $settings)) {
-    Write-Host "WARN: $settings fehlt — bitte einmalig 'claude' starten und Schritt 10 wiederholen."
-    return
-}
-
-# Sicherheitsnetz: Backup vor dem Schreiben (einmal pro Lauf ueberschrieben)
-Copy-Item $settings "$settings.bak-onboarding" -Force
-
-# Als PSCustomObject laden (5.1-kompatibel)
-$json = Get-Content $settings -Raw | ConvertFrom-Json
-
-# .projects sicherstellen (ohne Hashtable-Indizierung)
-if (-not ($json.PSObject.Properties.Name -contains 'projects') -or $null -eq $json.projects) {
-    $json | Add-Member -NotePropertyName projects -NotePropertyValue ([PSCustomObject]@{}) -Force
-}
-
-$existing = $json.projects.PSObject.Properties[$key]
-if ($existing) {
-    # Bestehenden Eintrag nur ergaenzen — Trust-Flag setzen, Rest unangetastet
-    if ($existing.Value.PSObject.Properties['hasTrustDialogAccepted']) {
-        $existing.Value.hasTrustDialogAccepted = $true
-    } else {
-        $existing.Value | Add-Member -NotePropertyName hasTrustDialogAccepted -NotePropertyValue $true -Force
-    }
-} else {
-    $entry = [PSCustomObject]@{
-        allowedTools = @()
-        mcpContextUris = @()
-        enabledMcpjsonServers = @()
-        disabledMcpjsonServers = @()
-        hasTrustDialogAccepted = $true
-        projectOnboardingSeenCount = 0
-        hasClaudeMdExternalIncludesApproved = $false
-        hasClaudeMdExternalIncludesWarningShown = $false
-    }
-    # Schluessel enthaelt ':' und '/' → per Add-Member setzen, nicht per Punkt-Notation
-    $json.projects | Add-Member -NotePropertyName $key -NotePropertyValue $entry -Force
-}
-
-# BOM-frei schreiben (Set-Content -Encoding utf8 in 5.1 schreibt ein BOM,
-# an dem manche JSON-Parser stolpern) — wie der ssh/config-Schreibweg
-$out = $json | ConvertTo-Json -Depth 100
-$enc = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($settings, $out, $enc)
-Write-Host "OK: $key eingetragen in $settings"
-```
-
-`hasTrustDialogAccepted: true` ist das entscheidende Feld — ohne den
-Eintrag wuerde Claude Code beim ersten Connect den Trust-Dialog werfen.
-
-**Verifikation:**
-
-```bash
-jq -r --arg k "ssh:ki-os-vm:/home/${VM_USER}/KI-OS" '.projects[$k]' ~/.claude.json
-```
-
-Sollte das Objekt mit `"hasTrustDialogAccepted": true` zurueckliefern.
-
-**Hinweis:** Wenn `~/.claude.json` noch gar nicht existiert (Claude Code
-nie gestartet), gibt der Skill nur eine Warnung aus und ueberspringt
-diesen Schritt — der Eintrag wird beim naechsten `/user-onboarding`-Lauf
-nachgezogen. Der Skill-Re-Run ist idempotent.
-
-### Schritt 11 — Verifikation
-
-Alle vier Komponenten pruefen, bevor der Skill "fertig" meldet:
-
-**1. noVNC erreichbar + Passwort funktioniert:**
-
-```bash
-curl -fsS -o /dev/null -w '%{http_code}' http://localhost:6080/vnc.html
-# erwartet: 200
-```
-
-Dann den User aktiv testen lassen: `http://localhost:6080/vnc.html?resize=scale` im
-Browser oeffnen, "Connect" klicken, das noVNC-Passwort aus Schritt 6
-eingeben. Er sollte den VM-Desktop sehen (ggf. leer/grau, solange kein
-Chrome laeuft — das ist okay).
-
-**2. Cockpit erreichbar:**
-
-```bash
-curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3847
-# erwartet: 200 (oder 30x)
-```
-
-**3. Mutagen-Session gruen:**
-
-```bash
-mutagen sync list ki-os
-# Status: "Watching for changes" und keine Konflikte/Probleme
-ls ~/KI-OS
-# zeigt den Workspace-Inhalt (CLAUDE.md, hub/, ...)
-```
-
-**4. Desktop-App kennt die VM + verbindet (macOS/Windows):** Desktop-App
-(nach dem Neustart aus Schritt 10a) oeffnen → im SSH-/Remote-Verbindungs-
-Dialog muss `ki-os-vm` als gespeicherte Verbindung erscheinen. `ki-os-vm` /
-`KI-OS` waehlen — es darf **kein** Trust-Prompt (weder Host noch Projekt)
-erscheinen, und eine Session auf der VM startet. Vorab per CLI pruefbar:
-
-```bash
-# macOS — Host in ssh_configs.json hinterlegt?
-jq -e '.configs[] | select(.sshHost=="ki-os-vm")' \
-  "$HOME/Library/Application Support/Claude/ssh_configs.json" >/dev/null \
-  && echo "OK: ki-os-vm in ssh_configs.json"
-```
-
-Linux: kein Desktop-App-Check — stattdessen `claude.ai/code` im Browser oder
-`ssh ki-os-vm` → `cd ~/KI-OS && claude`.
-
-Schlaegt etwas fehl → Troubleshooting-Tabellen in den jeweiligen
-Referenz-Dokumenten.
-
-### Schritt 12 — Migration / Background-Autostarts aktualisieren (Bestands-User)
-
-Zwei Faelle, beide nur fuer Bestands-User:
-
-**12a — v2-Bestands-User (haben schon noVNC/Cockpit/Mutagen):** Ein erneuter
-`/user-onboarding`-Lauf IST die Migration — die Schritte 7–9 re-deployen die
-Background-Autostarts auf den aktuellen Stand. Das ist Routine, kein Sonderfall.
-Unter **Windows** raeumen die Tunnel-Schritte dabei automatisch alt oder falsch
-benannte Tunnel-Tasks weg (inhaltsbasiert ueber den `-L <lokalport>`-Forward,
-nicht ueber den Task-Namen) und legen den Task mit korrektem
-`-RepetitionDuration` neu an. Damit heilt sich ein vor 2026-06-19 fehlerhaft
-konfigurierter Watchdog (Task feuerte nur einmal / leakte SSH-Sessions) beim
-naechsten Lauf von selbst — ohne separates Fix-Dokument und ohne dass der User
-etwas Spezielles tun muss. Einfach den Skill normal durchlaufen lassen.
-
-**12b — v1-Altlasten (Chrome-Bridge + vm-oauth + SSHFS):**
-Nur relevant, wenn der User schon einmal mit dem alten Setup (v1:
-Chrome-Bridge + vm-oauth + SSHFS) onboardet wurde. Erkennungsmerkmale —
-mindestens eines davon vorhanden:
-
-```bash
-# macOS / Linux
-ls ~/Library/LaunchAgents/ 2>/dev/null | grep -E 'chrome-bridge|sshfs'   # macOS
-systemctl --user list-unit-files 2>/dev/null | grep -E 'chrome-bridge|sshfs'  # Linux
-test -f ~/.local/bin/vm-oauth && echo V1_FOUND
-grep -E 'RemoteForward|ControlMaster' ~/.ssh/config 2>/dev/null
-```
-
-```powershell
-# Windows
-Get-ScheduledTask | Where-Object { $_.TaskName -match 'chrome-bridge|sshfs' }
-Test-Path "$env:USERPROFILE\.local\bin\vm-oauth.ps1"
-```
-
-Wenn nichts gefunden: Schritt ueberspringen. Sonst die komplette
-Rueckbau-Anleitung in `references/migration-v1.md` durcharbeiten — Kurzfassung:
-
-1. Alte Autostarts stoppen + entfernen (Chrome-Bridge, SSHFS-Mount,
-   alter Cockpit-Tunnel auf 13847)
-2. SSHFS-Mount unmounten, Mount-Verzeichnis entfernen
-3. Helper loeschen: `~/.local/bin/vm-oauth`, `~/.local/bin/mac-chrome-bridge`
-   (Windows: `vm-oauth.ps1`, `win-chrome-bridge.ps1`, `win-sshfs-mount.ps1`)
-4. `~/.ssh/config` bereinigen: `RemoteForward`-/`LocalForward`-/
-   `ControlMaster`-/`ControlPath`-/`ControlPersist`-Zeilen + den ganzen
-   `Host ki-os-vm-mux`-Block entfernen (passiert i.d.R. schon in Schritt 4)
-5. Optional: altes lokales Bridge-Chrome-Profil `~/.chrome-ki-os-vm`
-   loeschen
-6. VM-seitig den obsoleten `CHROME_BRIDGE_PORT`-Export aus `~/.bashrc`
-   entfernen (Kommando in `references/migration-v1.md`)
-
-> **Wichtig fuer den User:** Die Browser-Logins lebten bisher im lokalen
-> Bridge-Chrome. Nach der Migration muessen sie **einmalig neu** im
-> VM-Chrome gemacht werden — `http://localhost:6080/vnc.html?resize=scale` oeffnen und
-> in die Zielsysteme (Google, GitHub, CRM, ...) einloggen.
-
-### Schritt 13 — Abschluss-Zusammenfassung
-
-Zeige dem User eine Tabelle mit dem Status aller Komponenten:
+### Schritt 7 — Beide Tunnel-Autostarts einrichten
 
 ```
-## Onboarding abgeschlossen
-
-| Komponente                       | Status |
-|----------------------------------|--------|
-| OS                               | macOS / Linux / Windows |
-| SSH-Key                          | Erstellt / Vorhanden |
-| ~/.ssh/config ki-os-vm        | Eingetragen (minimal) |
-| SSH-Verbindung                   | OK |
-| noVNC-Tunnel (lokal 6080)        | Aktiv — http://localhost:6080/vnc.html?resize=scale |
-| Cockpit-Tunnel (lokal 3847)      | Aktiv — http://localhost:3847 |
-| Mutagen-Session ki-os            | Watching for changes — ~/KI-OS |
-| Desktop-App SSH-Host (ssh_configs.json) | ki-os-vm registriert / Linux: entfaellt |
-| Claude-Code-Settings (~/.claude.json) | SSH-Workspace registriert |
-| Migration v1-Setup               | Durchgefuehrt / Nicht noetig |
+bash "$SKILL_DIR/scripts/setup-tunnels.sh" --novnc-port <NOVNC_PORT> --cockpit-port <COCKPIT_PORT>
+# Windows: setup-tunnels.ps1 -NovncPort <NOVNC_PORT> -CockpitPort <COCKPIT_PORT>
 ```
 
-Naechste Schritte fuer den User:
+Ein Aufruf richtet **beide** gehärteten Tunnel ein (idempotent, Windows
+zusätzlich self-healing: räumt alt/falsch benannte Tunnel-Tasks auf denselben
+Ports inhaltsbasiert weg). Die Argumente sind die **VM-seitigen** Werte aus
+Schritt 6 — nicht mit den festen lokalen Ports 6080/3847 verwechseln (falscher
+Wert tunnelt auf das Display eines anderen Users!). Härtungs-Hintergrund +
+Troubleshooting: `references/tunnels.md`.
 
-1. **Claude-Login — mach das ZUERST (einmalig):** im noVNC-Browser
+### Schritt 8 — Mutagen-Sync einrichten
+
+```
+bash "$SKILL_DIR/scripts/setup-mutagen.sh" --vm-user <VM_USER>
+# Windows: setup-mutagen.ps1 -VmUser <VM_USER>
+```
+
+Installiert Mutagen (macOS: Homebrew; Linux: brew oder GitHub-Release;
+Windows: GitHub-Release-Zip mit Download-Retry), richtet den Daemon-Autostart
+ein und legt die Session `ki-os` an. `SESSION_EXISTS` ist okay (läuft schon);
+weicht die Konfiguration ab (z.B. fehlende lokale Skill-Ansicht auf
+macOS/Linux), einmalig mit `--recreate`/`-Recreate` neu anlegen — Dateien
+bleiben erhalten. Ignore-Begründung + Konflikt-Semantik + Obsidian:
+`references/mutagen.md`. (Windows-Status: Mutagen ist die beschlossene
+Architektur, dort aber noch nicht im Kundenbetrieb verifiziert — bei
+Problemen an den Admin.)
+
+### Schritt 9 — Claude-Code-Desktop-App vorkonfigurieren
+
+```
+bash "$SKILL_DIR/scripts/register-desktop-app.sh" --vm-user <VM_USER>
+# Windows: register-desktop-app.ps1 -VmUser <VM_USER>
+```
+
+Registriert den SSH-Host `ki-os-vm` in der Desktop-App (`ssh_configs.json`,
+macOS/Windows) und den Workspace `ssh:ki-os-vm:/home/<VM_USER>/KI-OS` als
+vertrautes Projekt in `~/.claude.json` — die App zeigt die VM dann ohne
+Trust-Prompts im Remote-Projekt-Switcher. Danach **Desktop-App komplett
+beenden und neu öffnen** (liest `ssh_configs.json` nur beim Start). Linux:
+keine Desktop-App — es wird nur `~/.claude.json` geschrieben (gilt für die
+Terminal-CLI). Fehlt `~/.claude.json` (WARN): einmalig `claude` starten,
+Schritt wiederholen. Hintergrund + manueller Fallback:
+`references/desktop-app.md`.
+
+### Schritt 10 — Verifikation
+
+```
+bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER>
+# Windows: verify.ps1 -VmUser <VM_USER>
+```
+
+Prüft SSH, beide Tunnel, Mutagen-Session, `~/KI-OS` und die
+Desktop-App-Einträge (OK/WARN/FAIL pro Komponente). Zusätzlich den User
+**aktiv testen lassen**:
+
+1. `http://localhost:6080/vnc.html?resize=scale` öffnen → „Connect" →
+   noVNC-Passwort aus Schritt 6 → VM-Desktop sichtbar (leer/grau ist okay,
+   solange kein Chrome läuft).
+2. Desktop-App (nach Neustart): `ki-os-vm` / `KI-OS` wählen — es darf kein
+   Trust-Prompt erscheinen.
+
+Bei FAILs: Troubleshooting-Tabellen in `references/tunnels.md`,
+`references/mutagen.md`, `references/ssh.md`.
+
+### Schritt 11 — Abschluss-Zusammenfassung
+
+Statustabelle zeigen (Komponente → Status, aus dem `verify`-Output), dann die
+nächsten Schritte:
+
+1. **Claude-Login — ZUERST (einmalig):** im noVNC-Browser
    (`http://localhost:6080/vnc.html?resize=scale`) in **claude.ai** einloggen.
-   Der einzige Claude-Auth-Schritt, den du selbst machst — und die Voraussetzung
-   dafuer, dass Desktop-App, Scheduler und Remote-Control ueberhaupt laufen.
-   Daraus richtet die VM **automatisch** beides ein:
-   - den **Full-Scope-OAuth-Login**, den `claude remote-control` braucht (der
-     `ki-os-relogin`-Watcher loggt `claude` selbst ein bzw. heilt bei Ablauf).
-   - den **Long-lived, inference-only Token** fuer interaktive/headless
-     `claude`-Sessions ohne Re-Login — wird via `ki-os-setup-token` erzeugt und
-     in `~/.config/ki-os/claude-token.env` abgelegt (entsteht innerhalb weniger
-     Minuten von selbst, nichts zu tun).
-
-   Lebt die claude.ai-Session beim Einrichten nicht mehr, oeffnet der Watcher
-   im noVNC-Desktop automatisch ein kleines Login-Terminal — dort einfach dem
-   Link folgen und den angezeigten Code eingeben. Hintergrund, Abgrenzung der
-   Token-Typen + manueller Fallback (`ki-os-setup-token --force`):
-   `references/api-keys.md`.
-2. **Arbeiten** — primaer ueber die **Claude-Code-Desktop-App**
-   (Remote-Projekt `ki-os-vm` / `KI-OS`). Fallbacks:
-   - **Browser:** `claude.ai/code` → eigene Remote-Session
-   - **Terminal:** `ssh ki-os-vm` → `cd ~/KI-OS && claude`
-   - **VS Code Remote SSH** (Techniker): `references/<os>/vscode-remote-ssh.md`
-     (macOS/Windows; auf Linux funktioniert die macOS-Anleitung analog)
-3. **Browser-Logins (einmalig):** `http://localhost:6080/vnc.html?resize=scale` oeffnen
-   und im VM-Chrome in die Zielsysteme einloggen — siehe naechster Abschnitt.
-4. **Dateien & Obsidian:** `~/KI-OS` ist der lokale Spiegel des Workspaces —
-   als Obsidian-Vault oeffnen, im Finder/Explorer nutzen, in jedem Editor
-   bearbeiten. Aenderungen syncen automatisch.
-5. **Token-Setup:** Falls dein Hub API-Keys braucht: `references/api-keys.md`.
+   Der einzige Claude-Auth-Schritt, den der User selbst macht — Voraussetzung
+   für Desktop-App, Scheduler und Remote-Control. Die VM richtet daraus
+   automatisch beides ein: den Full-Scope-OAuth-Login für
+   `claude remote-control` (der `ki-os-relogin`-Watcher heilt bei Ablauf
+   selbst) und den long-lived Inference-Token für interaktive/headless
+   Sessions (`ki-os-setup-token`, entsteht in wenigen Minuten von selbst).
+   Läuft die claude.ai-Session ab, öffnet der Watcher im noVNC-Desktop
+   automatisch ein kleines Login-Terminal — dem Link folgen, Code eingeben.
+   Details + manueller Fallback: `references/api-keys.md`.
+2. **Arbeiten** — primär über die **Desktop-App** (Remote-Projekt `ki-os-vm`
+   / `KI-OS`). Fallbacks: `claude.ai/code` im Browser · Terminal:
+   `ssh ki-os-vm` → `cd ~/KI-OS && claude` · VS Code Remote-SSH:
+   `references/vscode-remote-ssh.md`.
+3. **Browser-Logins (einmalig):** im noVNC-Tab in die Zielsysteme einloggen —
+   siehe „Browser-Logins & OAuth" unten.
+4. **Dateien & Obsidian:** `~/KI-OS` ist der lokale Spiegel — als
+   Obsidian-Vault öffnen, im Finder/Explorer nutzen; Änderungen syncen
+   automatisch.
 
 ---
 
-## Browser-Logins & OAuth (Doku fuer den User)
+## Re-Run = Update (Bestands-User)
 
-Alles laeuft auf der VM — lokal gibt es keinen Bridge-Chrome mehr:
+Ein erneuter `/user-onboarding`-Lauf IST das Update: Die Schritte 4–10
+re-deployen alle Komponenten idempotent auf den aktuellen Stand (bestehender
+Key bleibt, Tunnel/Tasks werden neu geladen statt dupliziert, die
+Mutagen-Session bleibt bestehen). Unter Windows heilt der Lauf dabei
+fehlerhaft konfigurierte alte Tunnel-Tasks automatisch (inhaltsbasierter
+Cleanup in `setup-tunnels.ps1`). Kein Sonderfall, nichts Spezielles zu tun —
+einfach normal durchlaufen lassen.
 
-- **Browser-Logins (Google, GitHub-Web, CRM, ...):** Im noVNC-Tab
-  (`http://localhost:6080/vnc.html?resize=scale`) laeuft der VM-Chrome mit deinem
-  eigenen Profil. Dort einmalig einloggen — die Sessions persistieren auf
-  der VM und stehen dem Agent zur Verfuegung. **Keine privaten/Banking-
-  Logins** in diesem Profil — der Agent kann auf alles zugreifen.
-- **OAuth-Flows von CLIs auf der VM** (`gh auth login`,
-  `gws auth login`, MCP-OAuth): auf der VM mit dem `ki-os-auth`-Wrapper
-  starten (z.B. `ki-os-auth gh auth login`) — der Browser oeffnet sich im
-  noVNC-Tab, Loopback-Callbacks funktionieren, weil CLI und Browser auf
-  derselben VM laufen.
+---
+
+## Browser-Logins & OAuth (Doku für den User)
+
+Alles läuft auf der VM:
+
+- **Browser-Logins (Google, GitHub-Web, CRM, …):** Im noVNC-Tab läuft der
+  VM-Chrome mit eigenem Profil. Dort einmalig einloggen — die Sessions
+  persistieren auf der VM und stehen dem Agent zur Verfügung. **Keine
+  privaten/Banking-Logins** in diesem Profil — der Agent kann auf alles
+  zugreifen.
+- **OAuth-Flows von CLIs auf der VM** (`gh auth login`, `gws auth login`,
+  MCP-OAuth): auf der VM mit dem `ki-os-auth`-Wrapper starten (z.B.
+  `ki-os-auth gh auth login`) — der Browser öffnet sich im noVNC-Tab,
+  Loopback-Callbacks funktionieren, weil CLI und Browser auf derselben VM
+  laufen.
 - **Device-/Paste-Code-Flows** (`claude auth login`, `gh` Device-Flow):
   Code + URL erscheinen im Chat/Terminal — die URL im **lokalen** Browser
-  oeffnen und den Code eingeben. Kein Sonderfall, kein Helper noetig.
-- Der fruehere `vm-oauth`-Helper ist obsolet und wird in Schritt 12
-  entfernt.
+  öffnen und den Code eingeben. Kein Sonderfall, kein Helper nötig.
 
 ---
 
 ## Hinweise
 
-- **Sprache:** Kommunikation mit dem User auf Deutsch. Config-Dateien und
-  Code auf Englisch.
-- **Idempotent:** Alle Schritte pruefen den Zustand. Bestehende Configs
-  werden nur nach expliziter User-Confirmation ueberschrieben (Ausnahme:
-  v1-Altlasten in `~/.ssh/config` werden immer ersetzt).
-- **Plattform:** macOS, Linux (inkl. WSL2) und Windows (nativ via
-  PowerShell + Windows-OpenSSH + Scheduled Tasks). Windows-User koennen
-  alternativ den WSL2-Pfad waehlen, wenn sie schon WSL2 nutzen.
-- **Sicherheit:** SSH-Private-Keys nie ausgeben oder loggen. Das
-  noVNC-Passwort ist ein lokales Schutz-Geheimnis des Users — nicht in
-  Configs oder Logs schreiben, nur dem User zeigen. API-Tokens werden in
-  diesem Skill gar nicht angefasst.
+- **Idempotent:** Alle Skripte prüfen den Zustand; `ki-os-vm`-Config-Block
+  und Autostarts werden bewusst überschrieben/neu geladen, damit Konfig-Drift
+  nicht unbemerkt bleibt. Der SSH-Key wird nie ungefragt ersetzt.
+- **Sicherheit:** Private Keys nie ausgeben oder loggen. Das noVNC-Passwort
+  nur dem User zeigen — nicht in Configs/Logs schreiben. API-Tokens werden in
+  diesem Skill nicht angefasst.
+- **Windows nativ:** Alle SSH-/Tunnel-Schritte nutzen den nativen
+  Windows-OpenSSH (`C:\Windows\System32\OpenSSH\ssh.exe`); die Git-Bash-ssh
+  nicht davor in den PATH stellen.

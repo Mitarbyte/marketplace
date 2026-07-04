@@ -1,78 +1,72 @@
 # user-onboarding — Lokaler KI-OS-Onboarding-Skill
 
-Claude-Code-Skill, den ein Mitarbeiter auf seinem lokalen Geraet
+Claude-Code-Skill, den ein Mitarbeiter auf seinem lokalen Gerät
 (Mac/Linux/Windows) installiert, um sich mit dem vom Admin angelegten
 KI-OS-Workspace auf der Firmen-VM zu verbinden.
 
-Workspaces, Browser und Logins leben auf der VM — lokal richten wir nur
-den Zugriff ein: SSH-Key, minimale SSH-Config und drei
-Pflicht-Autostarts (noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync) plus den
-Workspace-Eintrag fuer die Claude-Code-Desktop-App.
+Workspaces, Browser und Logins leben auf der VM — lokal richten wir nur den
+Zugriff ein: SSH-Key, minimale SSH-Config und drei Pflicht-Autostarts
+(noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync) plus die Vorkonfiguration der
+Claude-Code-Desktop-App. Die gesamte Mechanik liegt in fertigen,
+parametrisierten Skripten unter `scripts/` (bash für macOS/Linux, PowerShell
+für natives Windows) — der Skill orchestriert nur noch.
 
 ## Voraussetzungen
 
 - macOS, Linux oder Windows
-  - macOS / Linux: `ssh`, `curl` (Standard)
-  - Windows nativ: PowerShell 5.1+, der Windows-OpenSSH-Client
-    (vorinstalliert auf Windows 10/11; sonst installiert ihn der Skill)
-    und Git for Windows (Pflicht — Claude Code braucht auf nativem
-    Windows die Git Bash; der Skill installiert es bei Bedarf per
-    winget). WSL2 bleibt als Alternative — die Wahl trifft der Skill
-    in Schritt 1.
+  - macOS / Linux: `ssh`, `curl` (Standard); macOS zusätzlich Homebrew
+    (für Mutagen)
+  - Windows nativ: PowerShell 5.1+, Windows-OpenSSH-Client (vorinstalliert
+    auf Windows 10/11; sonst installiert ihn `scripts/check-prereqs.ps1`,
+    braucht Admin) und Git for Windows (Pflicht — Claude Code braucht auf
+    nativem Windows die Git Bash). WSL2 bleibt als Alternative.
 - Claude Code installiert (`https://claude.com/claude-code`)
 - Vom Admin erhalten: VM-Public-IP, VM-Username
 
 ## Was passiert beim ersten Lauf
 
-1. SSH-Key erstellen (falls nicht vorhanden) und Public Key in die
-   Zwischenablage — du schickst ihn an den Admin
-2. Minimalen `~/.ssh/config`-Eintrag fuer den festen SSH-Alias `ki-os-vm`
-   anlegen (wird nicht abgefragt)
-3. **Pause** — du wartest auf Admin-Bestaetigung, dass dein VM-User
-   komplett eingerichtet ist
-4. SSH-Verbindung testen + deine User-Werte holen (Cockpit-Port,
+1. SSH-Key erstellen (falls nicht vorhanden) + minimalen
+   `~/.ssh/config`-Eintrag für den festen Alias `ki-os-vm` schreiben —
+   Public Key geht in die Zwischenablage, du schickst ihn an den Admin
+2. **Pause** — warten auf Admin-Bestätigung, dass dein VM-User komplett
+   eingerichtet ist
+3. SSH-Smoketest + deine User-Werte holen (ein Roundtrip: Cockpit-Port,
    noVNC-Port, noVNC-Passwort)
-5. **Pflicht-Autostart 1:** gehaerteter SSH-Tunnel zum noVNC —
-   der VM-Browser ist danach dauerhaft unter
-   `http://localhost:6080/vnc.html?resize=scale` zu sehen (Logins + Agent-Browser live)
-6. **Pflicht-Autostart 2:** gehaerteter SSH-Tunnel zum Cockpit —
-   dauerhaft unter `http://localhost:3847`
-7. **Pflicht-Autostart 3:** Mutagen-Sync — dein VM-Workspace als echter
+4. **Pflicht-Autostart 1+2:** gehärtete SSH-Tunnel zu noVNC
+   (`http://localhost:6080/vnc.html?resize=scale`) und Cockpit
+   (`http://localhost:3847`)
+5. **Pflicht-Autostart 3:** Mutagen-Sync — dein VM-Workspace als echter
    lokaler Ordner `~/KI-OS` (two-way, offline lesbar; dort auch den
-   Obsidian-Vault oeffnen)
-8. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows): SSH-Host
-   `ki-os-vm` als gespeicherte Verbindung (`ssh_configs.json`) + Workspace-
-   Eintrag in `~/.claude.json` — die App zeigt die VM direkt im
-   Remote-Projekt-Switcher, ohne dass du SSH von Hand einrichten musst
-9. Verifikation; bei Bestands-Usern zusaetzlich: Migration vom alten
-   Setup (Chrome-Bridge, vm-oauth, SSHFS werden rueckstandsfrei entfernt)
+   Obsidian-Vault öffnen)
+6. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows): SSH-Host
+   `ki-os-vm` + vertrauter Workspace — die VM erscheint direkt im
+   Remote-Projekt-Switcher
+7. Verifikation aller Komponenten
 
 Autostart-Backends pro OS: LaunchAgents (macOS), systemd-User-Services
-(Linux), Scheduled Tasks (Windows). Skill ist idempotent — kann beliebig
-oft ausgefuehrt werden, schon konfigurierte Komponenten werden
-uebersprungen.
+(Linux), Scheduled Tasks (Windows). Der Skill ist idempotent — ein erneuter
+Lauf ist das Update.
 
 ## Danach: so arbeitest du
 
-- **Claude-Code-Desktop-App** (primaer): Remote-Projekt `ki-os-vm` /
-  `KI-OS` waehlen
+- **Claude-Code-Desktop-App** (primär): Remote-Projekt `ki-os-vm` / `KI-OS`
 - **Browser:** `claude.ai/code` → eigene Remote-Session
 - **Terminal:** `ssh ki-os-vm` → `cd ~/KI-OS && claude`
-- **VS Code Remote-SSH** (Techniker): `references/<os>/vscode-remote-ssh.md`
-- **Browser-Logins:** einmalig im noVNC-Tab
-  (`http://localhost:6080/vnc.html?resize=scale`) in die Zielsysteme einloggen
+- **VS Code Remote-SSH** (Techniker): `references/vscode-remote-ssh.md`
+- **Browser-Logins:** einmalig im noVNC-Tab in die Zielsysteme einloggen
 - **Dateien/Obsidian:** lokaler Ordner `~/KI-OS`
 
 ## Quellen
 
-- `SKILL.md` — Hauptlogik
-- `references/macos/` — macOS-Detail-Anleitungen (SSH, noVNC-Tunnel,
-  Cockpit-Tunnel, Mutagen, VS Code)
-- `references/linux/` — Linux-Detail-Anleitungen (inkl. WSL2-Hinweise)
-- `references/windows/` — Windows-Detail-Anleitungen (nativ per
-  PowerShell + Windows-OpenSSH + Scheduled Tasks)
-- `references/migration-v1.md` — Rueckbau des alten Setups
-  (Chrome-Bridge, vm-oauth, SSHFS)
-- `references/api-keys.md` — Beispiel-Liste der API-Keys + OAuth-Flows
-- `references/ssh-pubkey-handoff.md` — Mail-/Slack-Vorlage fuer den
-  Pubkey-Versand
+- `SKILL.md` — Orchestrierung (Schritte, Inputs, Skript-Aufrufe)
+- `scripts/` — parametrisierte Setup-Skripte (`.sh` = macOS/Linux,
+  `.ps1` = natives Windows): `check-prereqs.ps1`, `setup-ssh`,
+  `get-vm-values`, `setup-tunnels`, `setup-mutagen`,
+  `register-desktop-app`, `verify`
+- `references/tunnels.md` — Tunnel-Härtung (Warum) + Troubleshooting
+- `references/mutagen.md` — Sync-Semantik, Ignores, Troubleshooting
+- `references/ssh.md` — SSH-Details (BOM/ACL/Passphrase) + Fehlerbilder
+- `references/desktop-app.md` — Desktop-App-Vorkonfiguration
+- `references/vscode-remote-ssh.md` — VS Code Remote-SSH
+- `references/ssh-pubkey-handoff.md` — Mail-/Slack-Vorlage für den Pubkey
+- `references/api-keys.md` — Claude-Login/Token-Setup auf der VM

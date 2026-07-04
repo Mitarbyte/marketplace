@@ -40,7 +40,7 @@ ki-os-auth gh auth login         # GitHub CLI
 ```
 
 Waehrenddessen den noVNC-Tab offen halten und den Login dort
-durchklicken. (Der fruehere lokale `vm-oauth`-Helper ist obsolet.)
+durchklicken.
 
 ## Claude-Code-Auth
 

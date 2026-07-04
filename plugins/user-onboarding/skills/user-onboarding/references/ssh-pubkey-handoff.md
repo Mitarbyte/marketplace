@@ -1,6 +1,6 @@
 # SSH-Pubkey an Admin uebergeben
 
-Schritt 3 des Skills generiert einen Ed25519-Pubkey lokal. Bevor du
+Schritt 4 des Skills generiert einen Ed25519-Pubkey lokal. Bevor du
 weitermachen kannst, muss der Admin diesen Key auf der VM hinterlegen.
 Diese Datei sammelt sinnvolle Uebergabe-Vorlagen — der Skill bietet sie
 in der Reihenfolge an, die zur User-Situation passt (Slack > Mail >
@@ -46,13 +46,13 @@ Du brauchst dafuer nichts zu tun — nur auf seine Bestaetigung warten.
 ## Verifikation auf User-Seite
 
 Sobald der Admin Bescheid gibt, im Skill weitermachen — Schritt 6
-macht den Connection-Smoketest:
+(`scripts/get-vm-values.sh`) macht den Connection-Smoketest:
 
 ```bash
 ssh -o BatchMode=yes ki-os-vm true
 ```
 
-Wenn Exit-Code 0: Key ist drauf, weiter zu Schritt 7. Wenn nicht:
+Wenn Exit-Code 0: Key ist drauf, weiter mit den Tunneln (Schritt 7). Wenn nicht:
 - "Permission denied (publickey)" → Admin hat Key noch nicht hinterlegt
   oder falscher Pubkey-Inhalt
 - "Connection refused" → VM-IP/Port falsch, oder VM down
