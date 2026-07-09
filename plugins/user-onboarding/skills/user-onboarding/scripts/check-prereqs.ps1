@@ -1,8 +1,8 @@
 # =============================================================================
-# check-prereqs.ps1 — Windows-Vorbedingungen in EINEM Durchlauf pruefen/installieren
+# check-prereqs.ps1 - Windows-Vorbedingungen in EINEM Durchlauf pruefen/installieren
 #
 #   1. Windows-OpenSSH-Client (Pflicht fuer SSH + Tunnel; Install braucht Admin)
-#   2. Git for Windows (Pflicht — Claude Code braucht auf nativem Windows die
+#   2. Git for Windows (Pflicht - Claude Code braucht auf nativem Windows die
 #      Git Bash; dessen ssh.exe wird NICHT verwendet)
 #
 # PowerShell-5.1-kompatibel. Usage:
@@ -23,10 +23,10 @@ if (Get-Command ssh -ErrorAction SilentlyContinue) {
         Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0 | Out-Null
         Write-Host "PREREQ ssh: INSTALLED (OpenSSH.Client)"
     } catch {
-        Write-Host "PREREQ ssh: MISSING_ADMIN — Installation fehlgeschlagen: $_"
+        Write-Host "PREREQ ssh: MISSING_ADMIN - Installation fehlgeschlagen: $_"
     }
 } else {
-    Write-Host "PREREQ ssh: MISSING_ADMIN — als Administrator ausfuehren: Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0"
+    Write-Host "PREREQ ssh: MISSING_ADMIN - als Administrator ausfuehren: Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0"
 }
 
 # --- 2. Git for Windows ------------------------------------------------------
@@ -37,8 +37,8 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
         winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
         Write-Host "PREREQ git: INSTALLED (neue PowerShell-Session noetig, damit git im PATH ist)"
     } catch {
-        Write-Host "PREREQ git: FAILED — manuell installieren: winget install --id Git.Git -e"
+        Write-Host "PREREQ git: FAILED - manuell installieren: winget install --id Git.Git -e"
     }
 }
 
-Write-Host "HINWEIS: Alle SSH-/Tunnel-Schritte nutzen den nativen Client C:\Windows\System32\OpenSSH\ssh.exe — die Git-Bash-ssh.exe NICHT vor ihn in den PATH stellen."
+Write-Host "HINWEIS: Alle SSH-/Tunnel-Schritte nutzen den nativen Client C:\Windows\System32\OpenSSH\ssh.exe - die Git-Bash-ssh.exe NICHT vor ihn in den PATH stellen."

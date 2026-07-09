@@ -1,5 +1,5 @@
 # =============================================================================
-# setup-ssh.ps1 — SSH-Key + minimaler ssh-config-Eintrag (natives Windows)
+# setup-ssh.ps1 - SSH-Key + minimaler ssh-config-Eintrag (natives Windows)
 #
 # Erzeugt (falls noetig) den Ed25519-Key (leere Passphrase, 5.1/7-sicheres
 # Quoting + Verifikation), ersetzt den Host-Block `ki-os-vm` idempotent
@@ -27,14 +27,14 @@ New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
 # --- SSH-Key -----------------------------------------------------------------
 # Leere Passphrase VERSIONSSICHER: 5.1 (Legacy-Arg-Passing) braucht -N '""',
 # PowerShell 7.2+ braucht -N ''. Falsch herum entsteht die 2-Zeichen-Passphrase
-# «""» -> «Permission denied (publickey)» im BatchMode trotz akzeptiertem Key.
+# """" -> "Permission denied (publickey)" im BatchMode trotz akzeptiertem Key.
 $np = if ($PSVersionTable.PSVersion.Major -ge 7) { '' } else { '""' }
 
 if ((Test-Path $key) -and (-not $NewKey)) {
     Write-Host "KEY_EXISTS: $key wird verwendet."
 } else {
     if (Test-Path $key) {
-        Write-Host "FAIL: $key existiert bereits — -NewKey wuerde ihn ueberschreiben. Erst manuell wegsichern/loeschen."
+        Write-Host "FAIL: $key existiert bereits - -NewKey wuerde ihn ueberschreiben. Erst manuell wegsichern/loeschen."
         exit 1
     }
     if ($Email) { ssh-keygen -t ed25519 -C $Email -f $key -N $np | Out-Null }
@@ -44,20 +44,20 @@ if ((Test-Path $key) -and (-not $NewKey)) {
 
 # Pflicht-Verifikation: Key MUSS ohne Passphrase nutzbar sein (faengt jede
 # Fehl-Quoting-Variante sofort ab statt spaeter als raetselhaftes
-# «Permission denied» beim Connect).
+# "Permission denied" beim Connect).
 $null = ssh-keygen -y -P $np -f $key 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "FAIL: Der Key hat NICHT die erwartete leere Passphrase (Quoting-Problem)."
     Write-Host "  Key loeschen und Skript erneut laufen lassen:"
     Write-Host "  Remove-Item `"$key`", `"$key.pub`" -Force"
-    Write-Host "  Danach den NEUEN Public Key an den Admin schicken — der alte ist ungueltig."
+    Write-Host "  Danach den NEUEN Public Key an den Admin schicken - der alte ist ungueltig."
     exit 1
 }
 
 # --- Host-Block ersetzen (idempotent, BOM-frei) --------------------------------
 # Bestehende ki-os-vm-Bloecke (inkl. Altlasten wie ki-os-vm-mux) entfernen,
 # dann die minimale Fassung anhaengen. Bewusst KEIN ControlMaster, KEINE
-# LocalForward-/RemoteForward-Zeilen — Tunnel laufen als Scheduled Tasks mit -L.
+# LocalForward-/RemoteForward-Zeilen - Tunnel laufen als Scheduled Tasks mit -L.
 $kept = New-Object System.Collections.Generic.List[string]
 if (Test-Path $cfg) {
     $skip = $false
@@ -91,7 +91,7 @@ $enc = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($cfg, $body, $enc)
 Write-Host "CONFIG_WRITTEN: Host ki-os-vm -> $VmUser@$VmIp ($cfg)"
 
-# --- ACL-Reparatur (Windows-OpenSSH ist pingelig: «Bad owner or permissions») --
+# --- ACL-Reparatur (Windows-OpenSSH ist pingelig: "Bad owner or permissions") --
 foreach ($f in @($key, $cfg)) {
     icacls $f /inheritance:r | Out-Null
     icacls $f /grant:r "$($env:USERNAME):(F)" | Out-Null

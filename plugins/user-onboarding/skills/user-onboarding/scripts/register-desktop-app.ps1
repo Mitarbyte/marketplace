@@ -1,5 +1,5 @@
 # =============================================================================
-# register-desktop-app.ps1 — Claude-Code-Desktop-App vorkonfigurieren (Windows)
+# register-desktop-app.ps1 - Claude-Code-Desktop-App vorkonfigurieren (Windows)
 #
 # (a) SSH-Host ki-os-vm als gespeicherte Verbindung + Trusted-Host in
 #     %APPDATA%\Claude\ssh_configs.json
@@ -23,7 +23,7 @@ $enc = New-Object System.Text.UTF8Encoding($false)
 # --- (a) ssh_configs.json -------------------------------------------------------
 $appdir = Join-Path $env:APPDATA 'Claude'
 if (-not (Test-Path $appdir)) {
-    Write-Host "SKIP: Claude-Desktop-App nicht gefunden ($appdir) — claude.ai/code oder Terminal nutzen."
+    Write-Host "SKIP: Claude-Desktop-App nicht gefunden ($appdir) - claude.ai/code oder Terminal nutzen."
 } else {
     $cfgPath = Join-Path $appdir 'ssh_configs.json'
     if (-not (Test-Path $cfgPath)) {
@@ -50,7 +50,7 @@ if (-not (Test-Path $appdir)) {
     }
     [System.IO.File]::WriteAllText($cfgPath, ($cfg | ConvertTo-Json -Depth 100), $enc)
     Write-Host "OK: SSH-Host ki-os-vm in $cfgPath registriert."
-    Write-Host 'HINWEIS: Desktop-App komplett beenden und neu oeffnen — sie liest ssh_configs.json nur beim Start.'
+    Write-Host 'HINWEIS: Desktop-App komplett beenden und neu oeffnen - sie liest ssh_configs.json nur beim Start.'
 }
 
 # --- (b) ~\.claude.json Workspace-Eintrag ----------------------------------------
@@ -58,7 +58,7 @@ $settings = Join-Path $env:USERPROFILE '.claude.json'
 $key = "ssh:ki-os-vm:/home/$VmUser/KI-OS"
 
 if (-not (Test-Path $settings)) {
-    Write-Host "WARN: $settings fehlt — einmalig 'claude' lokal starten, dann diesen Schritt wiederholen (Skill-Re-Run ist idempotent)."
+    Write-Host "WARN: $settings fehlt - einmalig 'claude' lokal starten, dann diesen Schritt wiederholen (Skill-Re-Run ist idempotent)."
     exit 0
 }
 
@@ -66,7 +66,7 @@ if (-not (Test-Path $settings)) {
 Copy-Item $settings "$settings.bak-onboarding" -Force
 
 $json = Get-Content -LiteralPath $settings -Raw | ConvertFrom-Json
-if ($null -eq $json) { Write-Host "FAIL: $settings liess sich nicht parsen — nicht ueberschrieben."; exit 1 }
+if ($null -eq $json) { Write-Host "FAIL: $settings liess sich nicht parsen - nicht ueberschrieben."; exit 1 }
 
 if (-not ($json.PSObject.Properties.Name -contains 'projects') -or $null -eq $json.projects) {
     $json | Add-Member -NotePropertyName projects -NotePropertyValue ([PSCustomObject]@{}) -Force
@@ -74,7 +74,7 @@ if (-not ($json.PSObject.Properties.Name -contains 'projects') -or $null -eq $js
 
 $existing = $json.projects.PSObject.Properties[$key]
 if ($existing) {
-    # Bestehenden Eintrag nur ergaenzen — Trust-Flag setzen, Rest unangetastet
+    # Bestehenden Eintrag nur ergaenzen - Trust-Flag setzen, Rest unangetastet
     if ($existing.Value.PSObject.Properties['hasTrustDialogAccepted']) {
         $existing.Value.hasTrustDialogAccepted = $true
     } else {

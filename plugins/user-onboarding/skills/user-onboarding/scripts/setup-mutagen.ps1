@@ -1,5 +1,5 @@
 # =============================================================================
-# setup-mutagen.ps1 — Mutagen installieren + Daemon-Autostart + Session ki-os
+# setup-mutagen.ps1 - Mutagen installieren + Daemon-Autostart + Session ki-os
 # (natives Windows)
 #
 #   VM (Alpha, gewinnt Konflikte):  ki-os-vm:/home/<VM_USER>/KI-OS
@@ -49,7 +49,7 @@ if (-not (Test-Path $mutagenExe)) {
             Start-Sleep -Seconds (5 * $i)
         }
     }
-    if (-not $ok) { Write-Host 'FAIL: Mutagen-Download nach 3 Versuchen fehlgeschlagen — Netz pruefen, Schritt wiederholen.'; exit 1 }
+    if (-not $ok) { Write-Host 'FAIL: Mutagen-Download nach 3 Versuchen fehlgeschlagen - Netz pruefen, Schritt wiederholen.'; exit 1 }
 
     # PATH erweitern (User-Scope), falls noetig
     $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
@@ -76,9 +76,9 @@ if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
     Start-Sleep -Seconds 5
     Write-Host "OK: Daemon-Autostart via Scheduled Task $watchdog (setup-tunnels.ps1)"
 } else {
-    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen — Daemon fuer diese
+    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen - Daemon fuer diese
     # Session direkt starten; der Autostart entsteht mit dem Watchdog-Task.
-    Write-Host "WARN: Scheduled Task $watchdog fehlt — setup-tunnels.ps1 nachholen (uebernimmt auch den Mutagen-Daemon-Autostart)."
+    Write-Host "WARN: Scheduled Task $watchdog fehlt - setup-tunnels.ps1 nachholen (uebernimmt auch den Mutagen-Daemon-Autostart)."
     Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
     Start-Sleep -Seconds 3
 }
@@ -86,7 +86,7 @@ if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
 # --- 3. Session ki-os -------------------------------------------------------------
 function New-KiOsSession {
     # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta. `.claude/skills`
-    # bleibt auf Windows im Ignore (Symlink-Privileg) — Details references/mutagen.md.
+    # bleibt auf Windows im Ignore (Symlink-Privileg) - Details references/mutagen.md.
     & $mutagenExe sync create `
         --name=ki-os `
         --sync-mode=two-way-resolved `
@@ -110,7 +110,7 @@ if ($LASTEXITCODE -eq 0) {
         New-KiOsSession
         Write-Host 'SESSION_RECREATED: ki-os neu angelegt (Dateien bleiben erhalten).'
     } else {
-        Write-Host 'SESSION_EXISTS: ki-os laeuft bereits — bei abweichender Konfiguration mit -Recreate neu anlegen.'
+        Write-Host 'SESSION_EXISTS: ki-os laeuft bereits - bei abweichender Konfiguration mit -Recreate neu anlegen.'
     }
 } else {
     New-KiOsSession

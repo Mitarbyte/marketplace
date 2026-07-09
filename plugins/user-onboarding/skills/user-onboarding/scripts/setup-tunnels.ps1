@@ -1,16 +1,16 @@
 # =============================================================================
-# setup-tunnels.ps1 — gehaertete SSH-Tunnel-Autostarts (natives Windows)
+# setup-tunnels.ps1 - gehaertete SSH-Tunnel-Autostarts (natives Windows)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
 #   Cockpit: lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
 #
 # Muster: EIN liveness-guarded Scheduled Task `ki-os-vm-watchdog` (mit Autor +
-# Beschreibung, statt mehrerer anonym wirkender Einzel-Tasks) — sein
+# Beschreibung, statt mehrerer anonym wirkender Einzel-Tasks) - sein
 # 2-Min-Guard startet ssh NUR, wenn der lokale Port noch nicht lauscht
 # (blinder Respawn leakt SSH-Sessions auf der VM), und haelt zusaetzlich den
 # Mutagen-Daemon am Leben (no-op, bis setup-mutagen.ps1 gelaufen ist).
 # Self-Healing: EIN Durchlauf ueber alle Tasks entfernt vorher jeden
-# alt/falsch benannten Tunnel-/Daemon-Task (inhaltsbasiert) — inkl. der
+# alt/falsch benannten Tunnel-/Daemon-Task (inhaltsbasiert) - inkl. der
 # frueheren Einzel-Tasks ki-os-vm-{novnc,cockpit}-tunnel + mutagen-daemon.
 # Haertungs-Begruendung: references/tunnels.md.
 #
@@ -25,7 +25,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $sshExe = 'C:\Windows\System32\OpenSSH\ssh.exe'
-if (-not (Test-Path $sshExe)) { Write-Host "FAIL: $sshExe fehlt — check-prereqs.ps1 laufen lassen."; exit 1 }
+if (-not (Test-Path $sshExe)) { Write-Host "FAIL: $sshExe fehlt - check-prereqs.ps1 laufen lassen."; exit 1 }
 
 $binDir = Join-Path $env:USERPROFILE '.local\bin'
 New-Item -ItemType Directory -Path $binDir -Force | Out-Null
@@ -39,7 +39,7 @@ $tunnels = @(
 # --- Cleanup (Self-Healing): EIN Scan ueber alle Tasks --------------------------
 # Entfernt jeden Task, der einen ssh -L auf einen unserer lokalen Ports ODER
 # `mutagen daemon run` faehrt (egal wie benannt, inkl. der vom Task verlinkten
-# .vbs/.ps1-Dateien) — faengt die frueheren Einzel-Tasks, beliebige Altlasten
+# .vbs/.ps1-Dateien) - faengt die frueheren Einzel-Tasks, beliebige Altlasten
 # und den Watchdog selbst (wird gleich frisch registriert). Separator-Klasse
 # [''",\s] matcht beide Arg-Formate ('-L 6080:...' und '-L','6080:...').
 $portAlt = ($tunnels | ForEach-Object { $_.LocalPort }) -join '|'
@@ -128,7 +128,7 @@ $action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "`"$vbs`""
 
 # Trigger: beim Login + alle 2 Min als Watchdog. -RepetitionDuration ist
 # Pflicht (sonst feuert der Task auf Win11 24H2 nur EINMAL). NICHT
-# [TimeSpan]::MaxValue (HRESULT 0x80041318) — P9999D ist akzeptiert und
+# [TimeSpan]::MaxValue (HRESULT 0x80041318) - P9999D ist akzeptiert und
 # effektiv unendlich.
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $trigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) `
@@ -152,14 +152,52 @@ $principal = New-ScheduledTaskPrincipal `
     -LogonType Interactive `
     -RunLevel Limited
 
-# Autor + Beschreibung: Register-ScheduledTask kennt keinen -Author-Parameter,
-# daher ueber das Task-Objekt (RegistrationInfo) + -InputObject registrieren.
-$task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
-$task.RegistrationInfo.Author      = 'Mitarbyte'
-$task.RegistrationInfo.Description = 'Haelt die KI-OS-Verbindungen am Leben: noVNC-Tunnel (localhost:6080), Cockpit-Tunnel (localhost:3847) und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
+# Beschreibung geht direkt ueber den -Description-Parameter (existiert). Autor
+# NICHT ueber $task.RegistrationInfo.Author setzen: New-ScheduledTask liefert
+# RegistrationInfo=$null, die Zuweisung crasht dann auf PS 5.1 -- und weil der
+# Cleanup oben die Alt-Tasks schon entfernt hat, bliebe das Setup kaputt.
+$desc = 'Haelt die KI-OS-Verbindungen am Leben: noVNC-Tunnel (localhost:6080), Cockpit-Tunnel (localhost:3847) und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
 
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-Register-ScheduledTask -TaskName $taskName -InputObject $task | Out-Null
+Register-ScheduledTask `
+    -TaskName $taskName `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -Principal $principal `
+    -Description $desc | Out-Null
+
+# Autor best-effort per XML-Roundtrip nachtragen (Register-ScheduledTask kennt
+# keinen -Author-Parameter). Schlaegt das fehl, laeuft der Task trotzdem --
+# er hat dann nur keinen Autor im Task Scheduler, ist aber voll funktional.
+try {
+    [xml]$xml = Export-ScheduledTask -TaskName $taskName
+    $nsUri = $xml.DocumentElement.NamespaceURI
+    # local-name()-XPath = namespace-agnostisch (Export setzt einen Default-NS).
+    $reg = $xml.SelectSingleNode('/*[local-name()="Task"]/*[local-name()="RegistrationInfo"]')
+    if (-not $reg) {
+        $reg = $xml.CreateElement('RegistrationInfo', $nsUri)
+        $xml.DocumentElement.InsertBefore($reg, $xml.DocumentElement.FirstChild) | Out-Null
+    }
+    # Windows setzt <Author> beim Register oft automatisch auf den erstellenden
+    # User -> vorhandenen Knoten hart auf 'Mitarbyte' ueberschreiben statt nur
+    # anlegen. Fehlt er, schema-konform VOR Version/Description/Documentation
+    # einfuegen (registrationInfoType ist eine feste xs:sequence, sonst lehnt
+    # Register-ScheduledTask -Xml die XML ab).
+    $authorEl = $reg.SelectSingleNode('*[local-name()="Author"]')
+    if (-not $authorEl) {
+        $authorEl = $xml.CreateElement('Author', $nsUri)
+        $anchor = $reg.SelectSingleNode('*[local-name()="Version" or local-name()="Description" or local-name()="Documentation"]')
+        if ($anchor) { $reg.InsertBefore($authorEl, $anchor) | Out-Null }
+        else { $reg.AppendChild($authorEl) | Out-Null }
+    }
+    $authorEl.InnerText = 'Mitarbyte'
+    # Kein -User: der Principal (LogonType Interactive) steckt schon in der XML;
+    # -User wuerde ihn ggf. auf Password/S4U umbiegen (0x800710E0).
+    Register-ScheduledTask -TaskName $taskName -Xml $xml.OuterXml -Force | Out-Null
+} catch {
+    Write-Host "WARN: Autor 'Mitarbyte' nicht gesetzt ($($_.Exception.Message)) - Task laeuft trotzdem."
+}
 
 Start-ScheduledTask -TaskName $taskName
 Write-Host "OK: Scheduled Task $taskName (noVNC lokal 6080 -> VM $NovncPort, Cockpit lokal 3847 -> VM $CockpitPort, Mutagen-Daemon sobald installiert)"
@@ -170,6 +208,6 @@ foreach ($tun in $tunnels) {
     if (Get-NetTCPConnection -LocalPort $tun.LocalPort -State Listen -ErrorAction SilentlyContinue) {
         Write-Host "VERIFY_OK: localhost:$($tun.LocalPort) lauscht ($($tun.Label))"
     } else {
-        Write-Host "VERIFY_PENDING: localhost:$($tun.LocalPort) lauscht noch nicht — der 2-Min-Watchdog zieht den Tunnel nach; sonst references/tunnels.md -> Troubleshooting."
+        Write-Host "VERIFY_PENDING: localhost:$($tun.LocalPort) lauscht noch nicht - der 2-Min-Watchdog zieht den Tunnel nach; sonst references/tunnels.md -> Troubleshooting."
     }
 }

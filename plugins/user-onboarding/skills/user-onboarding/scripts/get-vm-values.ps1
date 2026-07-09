@@ -1,5 +1,5 @@
 # =============================================================================
-# get-vm-values.ps1 — Smoketest + pro-User-Werte in EINEM SSH-Roundtrip (Windows)
+# get-vm-values.ps1 - Smoketest + pro-User-Werte in EINEM SSH-Roundtrip (Windows)
 #
 # Holt Cockpit-Port, noVNC-Port und noVNC-Passwort von der VM. Schlaegt die
 # Verbindung fehl, wird der SSH-Fehler ausgegeben (Diagnose: references/ssh.md).
@@ -16,7 +16,7 @@ set -u
 cp="$(mitarbyte cockpit-port 2>/dev/null | grep -oE '3[0-9]{4}' | head -1 || true)"
 if [ -z "$cp" ]; then
     cp=$((30000 + $(id -u)))
-    echo "WARN: mitarbyte-CLI nicht gefunden — Cockpit-Port aus UID abgeleitet."
+    echo "WARN: mitarbyte-CLI nicht gefunden - Cockpit-Port aus UID abgeleitet."
 fi
 np="$(grep '^NOVNC_PORT=' ~/.config/ki-os/display.env 2>/dev/null | cut -d= -f2 || true)"
 pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
@@ -37,5 +37,5 @@ Write-Host "SSH_OK"
 $out | ForEach-Object { Write-Host $_ }
 
 if ($out -match 'NOVNC_PORT=MISSING') {
-    Write-Host "WARN: display.env fehlt — Display-Stack fuer diesen User noch nicht provisioniert. Admin kontaktieren, danach hier weitermachen."
+    Write-Host "WARN: display.env fehlt - Display-Stack fuer diesen User noch nicht provisioniert. Admin kontaktieren, danach hier weitermachen."
 }

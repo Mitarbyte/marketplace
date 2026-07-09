@@ -1,5 +1,5 @@
 # =============================================================================
-# verify.ps1 — Abschluss-Verifikation aller Komponenten (natives Windows)
+# verify.ps1 - Abschluss-Verifikation aller Komponenten (natives Windows)
 #
 # Prueft: SSH, noVNC-Tunnel (6080), Cockpit-Tunnel (3847), Mutagen-Session,
 # Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL/WARN aus; Exit-Code 1,
@@ -17,7 +17,7 @@ $failed = $false
 # --- SSH ------------------------------------------------------------------------
 & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm true 2>$null
 if ($LASTEXITCODE -eq 0) { Write-Host 'OK:   SSH-Verbindung (ki-os-vm)' }
-else { Write-Host 'FAIL: SSH-Verbindung (ki-os-vm) — references/ssh.md -> Smoketest'; $failed = $true }
+else { Write-Host 'FAIL: SSH-Verbindung (ki-os-vm) - references/ssh.md -> Smoketest'; $failed = $true }
 
 # --- Watchdog-Task (haelt Tunnel + Mutagen-Daemon am Leben) -----------------------
 if (Get-ScheduledTask -TaskName 'ki-os-vm-watchdog' -ErrorAction SilentlyContinue) {
@@ -35,8 +35,8 @@ foreach ($t in @(
     $code = $null
     try { $code = (Invoke-WebRequest -UseBasicParsing -Uri $t.Url -TimeoutSec 5).StatusCode } catch {}
     if ($listening -and $code -eq 200) { Write-Host "OK:   $($t.Label) (HTTP $code)" }
-    elseif ($listening) { Write-Host "WARN: $($t.Label) — Port lauscht, HTTP-Antwort fehlt (VM-Service? Admin fragen)" }
-    else { Write-Host "FAIL: $($t.Label) — Port lauscht nicht (Start-ScheduledTask ki-os-vm-watchdog; references/tunnels.md)"; $failed = $true }
+    elseif ($listening) { Write-Host "WARN: $($t.Label) - Port lauscht, HTTP-Antwort fehlt (VM-Service? Admin fragen)" }
+    else { Write-Host "FAIL: $($t.Label) - Port lauscht nicht (Start-ScheduledTask ki-os-vm-watchdog; references/tunnels.md)"; $failed = $true }
 }
 
 # --- Mutagen ------------------------------------------------------------------------
