@@ -55,6 +55,21 @@ else
 fi
 check "Lokaler Workspace ~/KI-OS vorhanden" test -e "$HOME/KI-OS"
 
+# Mutagen-Session-Watchdog (Selbstheilung bei paused/halted) — kein Pflicht-FAIL
+if [ "$(uname -s)" = "Darwin" ]; then
+    if launchctl list 2>/dev/null | grep -q 'ki-os-vm.mutagen-watchdog'; then
+        echo "OK:   Mutagen-Session-Watchdog (LaunchAgent geladen)"
+    else
+        echo "WARN: Mutagen-Session-Watchdog nicht geladen (setup-mutagen.sh erneut laufen lassen)"
+    fi
+else
+    if systemctl --user is-enabled ki-os-mutagen-watchdog.timer >/dev/null 2>&1; then
+        echo "OK:   Mutagen-Session-Watchdog (systemd-Timer aktiv)"
+    else
+        echo "WARN: Mutagen-Session-Watchdog-Timer nicht aktiv (setup-mutagen.sh erneut laufen lassen)"
+    fi
+fi
+
 if [ "$(uname -s)" = "Darwin" ]; then
     CFG="$HOME/Library/Application Support/Claude/ssh_configs.json"
     if [ -f "$CFG" ] && grep -q '"ki-os-vm"' "$CFG" 2>/dev/null; then

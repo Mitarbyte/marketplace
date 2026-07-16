@@ -34,10 +34,15 @@ if ! command -v mutagen >/dev/null 2>&1; then
                 echo "FAIL: Homebrew fehlt — erst https://brew.sh folgen, dann diesen Schritt wiederholen." >&2
                 exit 1
             }
+            # Homebrews "trusted tap"-Gate (neuere brew-Versionen) blockiert sonst
+            # den Install, weil der Tap auch mutagen-beta enthaelt. No-op auf
+            # aelteren brew ohne 'trust'-Subcommand.
+            brew trust mutagen-io/mutagen >/dev/null 2>&1 || true
             brew install mutagen-io/mutagen/mutagen
             ;;
         Linux)
             if command -v brew >/dev/null 2>&1; then
+                brew trust mutagen-io/mutagen >/dev/null 2>&1 || true
                 brew install mutagen-io/mutagen/mutagen
             else
                 mkdir -p "$HOME/.local/bin"
@@ -119,6 +124,88 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
 else
     create_session
     echo "SESSION_CREATED: ki-os (VM:/home/${VM_USER}/KI-OS <-> ~/KI-OS)"
+fi
+
+# --- 4. Session-Watchdog (Selbstheilung: resume bei paused/halted) ------------
+# Der Daemon-Autostart aus Schritt 2 haelt nur den *Prozess* am Leben. Eine
+# Session, die nach langem VM-Idle-Suspend in paused/halted laeuft, heilt sich
+# NICHT von selbst (Mutagens Eigen-Reconnect greift nur bei transienten
+# Transport-Abrissen) — VM-seitig erscheint dann ein toter mutagen-agent und
+# lokale Skill-Outputs kommen nicht mehr an. Ein kleiner 2-Min-Guard resumt sie.
+# Windows deckt dasselbe ueber ki-os-vm-watchdog ab (setup-tunnels.ps1).
+GUARD="$HOME/.local/bin/ki-os-mutagen-watchdog.sh"
+mkdir -p "$HOME/.local/bin"
+cat > "$GUARD" <<'GUARD_EOF'
+#!/usr/bin/env bash
+# ki-os-mutagen-watchdog.sh — generiert von setup-mutagen.sh.
+# Haelt Mutagen-Daemon + Session 'ki-os' selbstheilend; laeuft alle ~2 min
+# (launchd StartInterval / systemd-Timer).
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+command -v mutagen >/dev/null 2>&1 || exit 0
+mutagen daemon start >/dev/null 2>&1 || true   # no-op wenn Daemon laeuft
+info="$(mutagen sync list ki-os 2>/dev/null)" || exit 0
+# Session gar nicht vorhanden -> nicht hier neu anlegen (braucht den VM-Pfad);
+# das ist ein Setup-Fall -> /user-onboarding erneut laufen lassen.
+[ -n "$info" ] || exit 0
+# Steady-State 'Watching for changes' = gesund -> nichts tun. Jeder andere
+# Zustand (Paused/Halted/abgerissen) -> resume. resume ist idempotent (no-op
+# auf laufender/scannender Session), heilt aber paused/halted.
+printf '%s\n' "$info" | grep -q 'Watching for changes' \
+    || mutagen sync resume ki-os >/dev/null 2>&1 || true
+GUARD_EOF
+chmod +x "$GUARD"
+
+if [ "$OS" = "Darwin" ]; then
+    WD_LABEL="com.$(id -un).ki-os-vm.mutagen-watchdog"
+    WD_PLIST="$HOME/Library/LaunchAgents/${WD_LABEL}.plist"
+    mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+    cat > "$WD_PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>${WD_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array><string>/bin/bash</string><string>${GUARD}</string></array>
+    <key>EnvironmentVariables</key>
+    <dict><key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+    <key>RunAtLoad</key><true/>
+    <key>StartInterval</key><integer>120</integer>
+    <key>StandardOutPath</key><string>${HOME}/Library/Logs/ki-os-mutagen-watchdog.log</string>
+    <key>StandardErrorPath</key><string>${HOME}/Library/Logs/ki-os-mutagen-watchdog.err.log</string>
+    <key>ProcessType</key><string>Background</string>
+</dict>
+</plist>
+PLIST
+    launchctl bootout "gui/$(id -u)/${WD_LABEL}" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$WD_PLIST"
+    launchctl enable "gui/$(id -u)/${WD_LABEL}" 2>/dev/null || true
+    echo "OK: Session-Watchdog (LaunchAgent ${WD_LABEL}, alle 120s)"
+else
+    mkdir -p "$HOME/.config/systemd/user"
+    cat > "$HOME/.config/systemd/user/ki-os-mutagen-watchdog.service" <<UNIT
+[Unit]
+Description=KI-OS Mutagen-Session-Watchdog (resume bei paused/halted)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash ${GUARD}
+UNIT
+    cat > "$HOME/.config/systemd/user/ki-os-mutagen-watchdog.timer" <<UNIT
+[Unit]
+Description=KI-OS Mutagen-Session-Watchdog alle 2 Minuten
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+    systemctl --user daemon-reload
+    systemctl --user enable --now ki-os-mutagen-watchdog.timer
+    echo "OK: Session-Watchdog (systemd-Timer ki-os-mutagen-watchdog.timer, alle 2 min)"
 fi
 
 "$MUTAGEN_BIN" sync list ki-os || true

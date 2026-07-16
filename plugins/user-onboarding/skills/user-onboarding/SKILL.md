@@ -180,8 +180,12 @@ ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7) und legt
 die Session `ki-os` an. `SESSION_EXISTS` ist okay (läuft schon);
 weicht die Konfiguration ab (z.B. fehlende lokale Skill-Ansicht auf
 macOS/Linux), einmalig mit `--recreate`/`-Recreate` neu anlegen — Dateien
-bleiben erhalten. Ignore-Begründung + Konflikt-Semantik + Obsidian:
-`references/mutagen.md`. (Windows-Status: Mutagen ist die beschlossene
+bleiben erhalten. Richtet zusätzlich einen **Session-Watchdog** ein (macOS
+LaunchAgent / Linux systemd-Timer, ~2 min; Windows deckt der
+`ki-os-vm-watchdog`-Task ab), der eine nach VM-Idle-Suspend in `paused`/`halted`
+gelaufene Session automatisch resumt — sonst kämen lokale Skill-Outputs nicht
+mehr an, obwohl die VM-Seite gesund ist. Ignore-Begründung + Konflikt-Semantik +
+Selbstheilung + Obsidian: `references/mutagen.md`. (Windows-Status: Mutagen ist die beschlossene
 Architektur, dort aber noch nicht im Kundenbetrieb verifiziert — bei
 Problemen an den Admin.)
 

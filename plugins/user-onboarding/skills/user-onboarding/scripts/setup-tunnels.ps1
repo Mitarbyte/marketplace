@@ -115,6 +115,16 @@ if (-not (Test-Path `$mutagen)) { `$mutagen = (Get-Command mutagen).Source }
 if (`$mutagen -and -not (Get-Process -Name mutagen)) {
     Start-Process -WindowStyle Hidden -FilePath `$mutagen -ArgumentList 'daemon','run'
 }
+
+# Mutagen-Session: Der Daemon-Prozess allein garantiert keine laufende Session.
+# Eine nach langem VM-Idle-Suspend in paused/halted gelaufene Session heilt sich
+# nicht selbst -> resume. Idempotent (no-op auf 'Watching for changes').
+if (`$mutagen -and (Get-Process -Name mutagen)) {
+    `$syncState = & `$mutagen sync list ki-os 2>`$null | Out-String
+    if (`$syncState -and (`$syncState -notmatch 'Watching for changes')) {
+        & `$mutagen sync resume ki-os 2>`$null
+    }
+}
 "@ | Set-Content -Path $guard -Encoding ASCII
 
 # Unsichtbarer VBS-Launcher (wscript = GUI-Subsystem, kein Konsolen-Popup)

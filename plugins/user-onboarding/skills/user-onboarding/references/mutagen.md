@@ -36,6 +36,31 @@ tote SSH-Session in ~45 s erkennt und reconnectet, statt bis zu 180 s in
 > keinen solchen Lock und brauchen zwingend den expliziten Port-Listen-Check
 > (`references/tunnels.md`). Beide Guards NICHT vermischen.
 
+## Selbstheilung — Session-Watchdog
+
+Der Daemon-Autostart hält nur den **Daemon-Prozess** am Leben. Mutagen
+reconnectet die Session zwar selbst nach transienten Transport-Abrissen
+(Schlaf/Netzwechsel) — **aber** eine Session, die nach langem **VM-Idle-Suspend**
+in `Paused`/`Halted` landet, kommt **nicht** von allein zurück. VM-seitig
+erscheint dann ein toter `mutagen-agent`, und lokale Skill-Outputs kommen nicht
+mehr im Obsidian-Vault an, obwohl die VM-Seite gesund ist.
+
+Deshalb läuft zusätzlich ein kleiner **Session-Watchdog** (~alle 2 min):
+
+| OS | Mechanismus |
+|----|-------------|
+| macOS | LaunchAgent `com.<user>.ki-os-vm.mutagen-watchdog` (`StartInterval 120`) → `scripts/ki-os-mutagen-watchdog.sh` (aus `~/.local/bin/`) |
+| Linux | systemd-User-Timer `ki-os-mutagen-watchdog.timer` (`OnUnitActiveSec=2min`) + oneshot-Service, ruft denselben Guard |
+| Windows | im gemeinsamen `ki-os-vm-watchdog`-Task mit abgedeckt (2-Min-Tick resumt zusätzlich die Session) |
+
+Der Guard ist idempotent: Steht die Session auf `Watching for changes`, tut er
+nichts; jeder andere Zustand → `mutagen sync resume ki-os` (no-op auf laufender
+Session, heilt aber `paused`/`halted`). Fehlt die Session ganz, greift der
+Watchdog **nicht** (Neuanlegen braucht den VM-Pfad) → dann `/user-onboarding`
+erneut laufen lassen. Manuell prüfen: `mutagen sync list ki-os` ·
+Guard-Logs (macOS) `~/Library/Logs/ki-os-mutagen-watchdog*.log` ·
+(Linux) `journalctl --user -u ki-os-mutagen-watchdog`.
+
 ## Session-Konfiguration
 
 **Endpoint-Reihenfolge ist bewusst:** Die VM ist **Alpha** (erstes Argument),
@@ -104,6 +129,8 @@ touch ~/KI-OS/.sync-test && mutagen sync flush ki-os && \
 | „Connecting…" dauerhaft | SSH testen: `ssh -o BatchMode=yes ki-os-vm true` — wenn das hängt, ist es ein SSH-/Netz-Problem |
 | „Conflicts" in `mutagen sync list` | `mutagen sync list ki-os --long` zeigt die Dateien; VM-Version gewinnt beim nächsten Sync — lokale Änderung vorher wegsichern, falls gebraucht |
 | Daemon läuft nach Reboot nicht | macOS: `mutagen daemon register` + `start` erneut · Linux: Linger/Unit prüfen (`loginctl enable-linger`) · Windows: `ki-os-vm-watchdog`-Task prüfen (`AtLogOn` feuert nur beim echten Login) |
+| Sync tot nach VM-Idle-Suspend, kommt nicht wieder (VM-seitig toter `mutagen-agent`) | Session steckt in `paused`/`halted` — der Session-Watchdog resumt binnen ~2 min; sofort: `mutagen sync resume ki-os`, bei `halted` `mutagen sync reset ki-os` (rescan, danach `resume`). Watchdog fehlt? `setup-mutagen.sh` erneut laufen lassen |
+| Session steht auf `[Paused]` | `mutagen sync resume ki-os` (macht der Watchdog automatisch) |
 | Daemon-Unit failed: „daemon already running" (Linux) | `mutagen daemon stop`, dann `systemctl --user restart mutagen-daemon.service` |
 | Watchdog-Task „beendet sich sofort" (Windows) | Erwartet: der 2-Min-Tick sieht laufende Tunnel + Daemon und beendet sich — die Prozesse selbst laufen weiter (`Get-Process mutagen`) |
 | Daemon-Fenster geht beim Login auf (Windows) | Alter Task startet `mutagen.exe` noch sichtbar — `setup-tunnels.ps1` erneut laufen lassen (konsolidiert inhaltsbasiert auf den unsichtbaren `ki-os-vm-watchdog`) |
