@@ -6,14 +6,22 @@
 # Desktop-App-Eintraege (macOS). Gibt pro Komponente OK/FAIL aus; Exit-Code 1,
 # wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
-# Usage:  verify.sh --vm-user <VM_USER>
+# Usage:  verify.sh --vm-user <VM_USER> [--mode tunnel|gateway]
+#                    [--gateway-cockpit-url <url>] [--gateway-novnc-url <url>]
+#
+# --mode gateway (aus get-vm-values ACCESS_MODE): statt der lokalen Tunnel
+# werden die beiden Gateway-URLs geprueft (302 zum IdP-Login = OK — der
+# Check laeuft unauthentifiziert). SSH/Mutagen/Desktop-App wie gehabt.
 # =============================================================================
 set -uo pipefail
 
-VM_USER=""
+VM_USER="" MODE="tunnel" GW_COCKPIT_URL="" GW_NOVNC_URL=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        --vm-user) VM_USER="$2"; shift 2 ;;
+        --vm-user)             VM_USER="$2"; shift 2 ;;
+        --mode)                MODE="$2"; shift 2 ;;
+        --gateway-cockpit-url) GW_COCKPIT_URL="$2"; shift 2 ;;
+        --gateway-novnc-url)   GW_NOVNC_URL="$2"; shift 2 ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -42,8 +50,27 @@ http_check() { # http_check <label> <url>
 }
 
 check "SSH-Verbindung (ki-os-vm)" ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm true
-http_check "noVNC-Tunnel  http://localhost:6080/vnc.html" "http://localhost:6080/vnc.html"
-http_check "Cockpit-Tunnel http://localhost:3847"          "http://localhost:3847"
+if [ "$MODE" = "gateway" ]; then
+    # Gateway-URLs statt Tunnel: unauthentifiziert MUSS ein Redirect zum
+    # IdP-Login kommen (302). 200 waere ein Auth-Bypass → Admin alarmieren.
+    for pair in "Cockpit|${GW_COCKPIT_URL}" "noVNC|${GW_NOVNC_URL}"; do
+        label="${pair%%|*}"; url="${pair#*|}"
+        if [ -z "$url" ] || [ "$url" = "MISSING" ]; then
+            echo "FAIL: Gateway-${label}-URL fehlt (Admin: ki-os-fleet vm gateway-grant)"
+            RC=1
+            continue
+        fi
+        code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url" 2>/dev/null || true)"
+        case "$code" in
+            302|401|403) echo "OK:   Gateway ${label} ${url} (HTTP ${code} → IdP-Login)" ;;
+            200) echo "FAIL: Gateway ${label} ${url} liefert unauthentifiziert HTTP 200 — Admin SOFORT informieren"; RC=1 ;;
+            *)   echo "FAIL: Gateway ${label} ${url} (HTTP ${code:-keine Antwort})"; RC=1 ;;
+        esac
+    done
+else
+    http_check "noVNC-Tunnel  http://localhost:6080/vnc.html" "http://localhost:6080/vnc.html"
+    http_check "Cockpit-Tunnel http://localhost:3847"          "http://localhost:3847"
+fi
 
 if command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os 2>/dev/null | grep -qiE 'watching|scanning|staging|reconciling|saving|transitioning'; then
     echo "OK:   Mutagen-Session ki-os aktiv"

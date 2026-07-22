@@ -11,17 +11,57 @@
 # Begruendung: references/tunnels.md.
 #
 # Usage:  setup-tunnels.sh --novnc-port <VM_PORT> --cockpit-port <VM_PORT>
+#         setup-tunnels.sh --remove
+#
+# --remove baut beide Tunnel-Autostarts idempotent ab (gateway-Modus: die VM
+# stellt noVNC/Cockpit oeffentlich hinter Caddy+Kunden-IdP bereit, lokale
+# Tunnel sind obsolet). Mutagen/SSH bleiben unangetastet.
 # =============================================================================
 set -euo pipefail
 
-NOVNC_PORT="" COCKPIT_PORT=""
+NOVNC_PORT="" COCKPIT_PORT="" REMOVE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --novnc-port)   NOVNC_PORT="$2"; shift 2 ;;
         --cockpit-port) COCKPIT_PORT="$2"; shift 2 ;;
+        --remove)       REMOVE=1; shift ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
+
+remove_macos_tunnels() {
+    local name label plist
+    for name in novnc cockpit; do
+        label="com.$(id -un).ssh-tunnel.ki-os-vm-${name}"
+        plist="$HOME/Library/LaunchAgents/${label}.plist"
+        launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
+        [ -f "$plist" ] && rm -f "$plist" && echo "OK: LaunchAgent ${label} entfernt" \
+            || echo "OK: LaunchAgent ${label} war nicht vorhanden"
+    done
+}
+
+remove_linux_tunnels() {
+    local name unit
+    for name in novnc cockpit; do
+        unit="ki-os-vm-${name}-tunnel.service"
+        systemctl --user disable --now "${unit}" 2>/dev/null || true
+        [ -f "$HOME/.config/systemd/user/${unit}" ] \
+            && rm -f "$HOME/.config/systemd/user/${unit}" && echo "OK: Unit ${unit} entfernt" \
+            || echo "OK: Unit ${unit} war nicht vorhanden"
+    done
+    systemctl --user daemon-reload 2>/dev/null || true
+}
+
+if [ "$REMOVE" = "1" ]; then
+    case "$(uname -s)" in
+        Darwin) remove_macos_tunnels ;;
+        Linux)  remove_linux_tunnels ;;
+        *) echo "FAIL: nicht unterstuetztes OS ($(uname -s)) — fuer Windows setup-tunnels.ps1 -Remove nutzen." >&2; exit 1 ;;
+    esac
+    echo "OK: Tunnel-Autostarts abgebaut (Mutagen/SSH unangetastet)"
+    exit 0
+fi
+
 [[ "$NOVNC_PORT"   =~ ^[0-9]+$ ]] || { echo "FAIL: --novnc-port fehlt/ungueltig" >&2; exit 2; }
 [[ "$COCKPIT_PORT" =~ ^[0-9]+$ ]] || { echo "FAIL: --cockpit-port fehlt/ungueltig" >&2; exit 2; }
 

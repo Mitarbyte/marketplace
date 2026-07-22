@@ -17,15 +17,29 @@
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File setup-tunnels.ps1 `
 #       -NovncPort <VM_PORT> -CockpitPort <VM_PORT>
+#   powershell ... -File setup-tunnels.ps1 -Remove        # gateway-Modus: Tunnel abbauen
+#   powershell ... -File setup-tunnels.ps1 -MutagenOnly   # frisches gateway-Setup ohne Tunnel
+#
+# -Remove und -MutagenOnly erzeugen denselben Endzustand: der Watchdog-Task
+# bleibt (bzw. entsteht), ueberwacht aber NUR noch den Mutagen-Daemon+Session —
+# noVNC/Cockpit kommen im gateway-Modus direkt vom Browser-Gateway der VM.
 # =============================================================================
 param(
-    [Parameter(Mandatory = $true)][int]$NovncPort,
-    [Parameter(Mandatory = $true)][int]$CockpitPort
+    [int]$NovncPort = 0,
+    [int]$CockpitPort = 0,
+    [switch]$Remove,
+    [switch]$MutagenOnly
 )
 $ErrorActionPreference = 'Stop'
 
+$tunnelLess = [bool]($Remove -or $MutagenOnly)
+if (-not $tunnelLess -and ($NovncPort -lt 1 -or $CockpitPort -lt 1)) {
+    Write-Host "FAIL: -NovncPort/-CockpitPort fehlen (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."
+    exit 2
+}
+
 $sshExe = 'C:\Windows\System32\OpenSSH\ssh.exe'
-if (-not (Test-Path $sshExe)) { Write-Host "FAIL: $sshExe fehlt - check-prereqs.ps1 laufen lassen."; exit 1 }
+if (-not $tunnelLess -and -not (Test-Path $sshExe)) { Write-Host "FAIL: $sshExe fehlt - check-prereqs.ps1 laufen lassen."; exit 1 }
 
 $binDir = Join-Path $env:USERPROFILE '.local\bin'
 New-Item -ItemType Directory -Path $binDir -Force | Out-Null
@@ -86,11 +100,11 @@ Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" -ErrorAction SilentlyCont
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 # --- Guard-Skript: startet nur, was fehlt -----------------------------------------
+# Im tunnelLess-Modus (gateway) enthaelt der Guard KEINE ssh-Tunnel-Bloecke —
+# er ueberwacht nur noch Mutagen-Daemon + Session.
 $guard = Join-Path $binDir "$taskName.ps1"
-@"
-# KI-OS-Watchdog - generiert von setup-tunnels.ps1, laeuft alle 2 Minuten.
-`$ErrorActionPreference = 'SilentlyContinue'
 
+$tunnelBlock = @"
 # Tunnel: ssh NUR starten, wenn der lokale Port noch nicht lauscht
 # (blinder Respawn leakt SSH-Sessions auf der VM).
 if (-not (Get-NetTCPConnection -LocalPort 6080 -State Listen)) {
@@ -108,7 +122,16 @@ if (-not (Get-NetTCPConnection -LocalPort 3847 -State Listen)) {
         '-L','3847:127.0.0.1:$CockpitPort','ki-os-vm')
 }
 
-# Mutagen-Daemon: no-op, bis setup-mutagen.ps1 gelaufen ist. Prozess-Check
+"@
+if ($tunnelLess) {
+    $tunnelBlock = "# gateway-Modus: keine Tunnel - noVNC/Cockpit kommen vom Browser-Gateway der VM.`r`n`r`n"
+}
+
+@"
+# KI-OS-Watchdog - generiert von setup-tunnels.ps1, laeuft alle 2 Minuten.
+`$ErrorActionPreference = 'SilentlyContinue'
+
+$tunnelBlock# Mutagen-Daemon: no-op, bis setup-mutagen.ps1 gelaufen ist. Prozess-Check
 # spart Spawns; der Daemon-Lock macht selbst einen blinden Respawn leak-frei.
 `$mutagen = Join-Path `$env:USERPROFILE '.local\bin\mutagen.exe'
 if (-not (Test-Path `$mutagen)) { `$mutagen = (Get-Command mutagen).Source }
@@ -167,6 +190,9 @@ $principal = New-ScheduledTaskPrincipal `
 # RegistrationInfo=$null, die Zuweisung crasht dann auf PS 5.1 -- und weil der
 # Cleanup oben die Alt-Tasks schon entfernt hat, bliebe das Setup kaputt.
 $desc = 'Haelt die KI-OS-Verbindungen am Leben: noVNC-Tunnel (localhost:6080), Cockpit-Tunnel (localhost:3847) und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
+if ($tunnelLess) {
+    $desc = 'Haelt den KI-OS Mutagen-Sync am Leben (Daemon + Session ki-os). Keine Tunnel - noVNC/Cockpit laufen ueber das Browser-Gateway der VM. Prueft alle 2 Minuten. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
+}
 
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 Register-ScheduledTask `
@@ -210,6 +236,10 @@ try {
 }
 
 Start-ScheduledTask -TaskName $taskName
+if ($tunnelLess) {
+    Write-Host "OK: Scheduled Task $taskName (nur Mutagen-Ueberwachung - keine Tunnel, gateway-Modus)"
+    exit 0
+}
 Write-Host "OK: Scheduled Task $taskName (noVNC lokal 6080 -> VM $NovncPort, Cockpit lokal 3847 -> VM $CockpitPort, Mutagen-Daemon sobald installiert)"
 
 # --- Kurz-Verifikation -----------------------------------------------------------

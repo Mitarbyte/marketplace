@@ -1,6 +1,6 @@
 ---
 name: user-onboarding
-description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Skill macht ausschliesslich LOKALE Schritte ueber parametrisierte Skripte in scripts/: SSH-Key, minimaler ~/.ssh/config-Eintrag, drei Pflicht-Autostarts (gehaerteter noVNC-Tunnel lokal 6080, gehaerteter Cockpit-Tunnel lokal 3847, Mutagen-Daemon + Sync-Session ki-os fuer ~/KI-OS) sowie die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag). Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt. Alle drei Autostarts sind Pflicht-Bestandteile, keine Auswahl. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab). Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
+description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Skill macht ausschliesslich LOKALE Schritte ueber parametrisierte Skripte in scripts/: SSH-Key, minimaler ~/.ssh/config-Eintrag, Pflicht-Autostarts (tunnel-Modus: gehaerteter noVNC-Tunnel lokal 6080 + gehaerteter Cockpit-Tunnel lokal 3847 + Mutagen; gateway-Modus: nur Mutagen — noVNC/Cockpit laufen ueber die oeffentlichen Gateway-URLs der VM mit Firmen-Login) sowie die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag). Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt; den Zugangs-Modus (tunnel|gateway) liest der Skill von der VM. Auf gateway-VMs ist der Skill das OPTIONALE Power-User-Paket (Datei-Sync + Desktop-App) — Browser-Zugang funktioniert dort schon ohne lokales Setup. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab bzw. Gateway-URL). Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
 ---
 
 ## Was dieser Skill macht
@@ -30,6 +30,16 @@ im Chat nachbauen oder abwandeln; bei Problemen erklären die
 **Nicht-Ziele:** VM-seitiges Setup (Admin-Sache), lokale Hub-Klone (lokal
 gibt es nur die Mutagen-Kopie `~/KI-OS`), Browser-Logins (macht der User
 später selbst im noVNC-Tab).
+
+**Zwei VM-Modi** (liest der Skill in Schritt 6 von der VM — `ACCESS_MODE`):
+
+- **tunnel (Default):** wie unten beschrieben — drei Pflicht-Autostarts.
+- **gateway:** noVNC + Cockpit laufen über öffentliche Gateway-URLs der VM
+  („Mit Microsoft/Google anmelden") — der Skill ist dann das **optionale
+  Power-User-Paket**: SSH-Key + Mutagen-Sync + Desktop-App, **keine
+  Tunnel-Autostarts** (Schritt 7 entfällt; bei Bestands-Setups räumt
+  `setup-tunnels --remove` die alten Tunnel ab). Wer nur im Browser
+  arbeitet, braucht diesen Skill gar nicht.
 
 ---
 
@@ -61,11 +71,14 @@ Arbeitszugang ist die **Claude-Code-Desktop-App**; Fallbacks: claude.ai/code,
 - **SSH-Alias fest `ki-os-vm`** — wird nie abgefragt (jeder Mitarbeiter hat
   genau eine Firmen-VM). Alle Service-Namen (LaunchAgent-Labels, Unit-/
   Task-Namen) und die Desktop-App-Einträge leiten sich daraus ab.
-- **Drei Pflicht-Autostarts, keine Auswahl** — noVNC-Tunnel, Cockpit-Tunnel,
-  Mutagen-Sync werden immer eingerichtet. Backends pro OS: LaunchAgents
-  (macOS), systemd-User-Services (Linux), Windows: EIN gemeinsamer Scheduled
-  Task `ki-os-vm-watchdog` (Autor `Mitarbyte` + Beschreibung), der alle drei
-  Komponenten liveness-guarded am Leben hält.
+- **Drei Pflicht-Autostarts, keine Auswahl** (tunnel-Modus) — noVNC-Tunnel,
+  Cockpit-Tunnel, Mutagen-Sync werden immer eingerichtet. Backends pro OS:
+  LaunchAgents (macOS), systemd-User-Services (Linux), Windows: EIN
+  gemeinsamer Scheduled Task `ki-os-vm-watchdog` (Autor `Mitarbyte` +
+  Beschreibung), der alle drei Komponenten liveness-guarded am Leben hält.
+  **Im gateway-Modus ist nur der Mutagen-Autostart Pflicht** — die beiden
+  Tunnel entfallen (Windows: der Watchdog-Task entsteht in der
+  Mutagen-only-Variante).
 - **Tunnel laufen als eigene Prozesse, nicht in der SSH-Config** — die
   `~/.ssh/config` enthält KEINE Forward-Zeilen, kein ControlMaster
   (`references/ssh.md`).
@@ -142,16 +155,26 @@ bash "$SKILL_DIR/scripts/get-vm-values.sh"
 # Windows: get-vm-values.ps1
 ```
 
-Liefert `SSH_OK` + `COCKPIT_PORT=` / `NOVNC_PORT=` / `NOVNC_PASS=`. Die
-Werte für die nächsten Schritte merken; das **noVNC-Passwort dem User
-zeigen** (er gibt es später einmalig im noVNC-Tab ein — gern in den
-Passwort-Manager; nirgendwo hinschreiben/loggen).
+Liefert `SSH_OK` + `ACCESS_MODE=` + `COCKPIT_PORT=` / `NOVNC_PORT=` /
+`NOVNC_PASS=` (im gateway-Modus zusätzlich `GATEWAY_COCKPIT_URL=` /
+`GATEWAY_NOVNC_URL=`). Die Werte für die nächsten Schritte merken; das
+**noVNC-Passwort dem User zeigen** (er gibt es später einmalig im
+noVNC-Tab ein — gern in den Passwort-Manager; nirgendwo
+hinschreiben/loggen — im gateway-Modus ist es die zweite Schicht hinter
+dem Firmen-Login).
 
 - `SSH_FAIL` → Fehlerbild nachschlagen: `references/ssh.md` → Smoketest.
 - `NOVNC_PORT=MISSING` → Display-Stack noch nicht provisioniert — Admin
   kontaktieren, danach hier weitermachen.
+- `GATEWAY_COCKPIT_URL=MISSING` (gateway) → kein Gateway-Mapping für
+  diesen User — Admin kontaktieren (`ki-os-fleet vm gateway-grant`).
 
-### Schritt 7 — Beide Tunnel-Autostarts einrichten
+**`ACCESS_MODE=gateway` → Schritt 7 überspringen** (URLs merken; hatte
+der User früher Tunnel eingerichtet, stattdessen einmal
+`setup-tunnels.sh --remove` bzw. `setup-tunnels.ps1 -Remove` laufen
+lassen — baut die Tunnel-Autostarts ab, Mutagen/SSH bleiben).
+
+### Schritt 7 — Beide Tunnel-Autostarts einrichten (nur tunnel-Modus)
 
 ```
 bash "$SKILL_DIR/scripts/setup-tunnels.sh" --novnc-port <NOVNC_PORT> --cockpit-port <COCKPIT_PORT>
@@ -176,8 +199,9 @@ bash "$SKILL_DIR/scripts/setup-mutagen.sh" --vm-user <VM_USER>
 
 Installiert Mutagen (macOS: Homebrew; Linux: brew oder GitHub-Release;
 Windows: GitHub-Release-Zip mit Download-Retry), richtet den Daemon-Autostart
-ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7) und legt
-die Session `ki-os` an. `SESSION_EXISTS` ist okay (läuft schon);
+ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7; fehlt er —
+gateway-Modus ohne Tunnel — legt `setup-mutagen.ps1` ihn selbst in der
+Mutagen-only-Variante an) und legt die Session `ki-os` an. `SESSION_EXISTS` ist okay (läuft schon);
 weicht die Konfiguration ab (z.B. fehlende lokale Skill-Ansicht auf
 macOS/Linux), einmalig mit `--recreate`/`-Recreate` neu anlegen — Dateien
 bleiben erhalten. Richtet zusätzlich einen **Session-Watchdog** ein (macOS
@@ -209,17 +233,22 @@ Schritt wiederholen. Hintergrund + manueller Fallback:
 ### Schritt 10 — Verifikation
 
 ```
-bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER>
-# Windows: verify.ps1 -VmUser <VM_USER>
+bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER> --mode <ACCESS_MODE> \
+    [--gateway-cockpit-url <URL> --gateway-novnc-url <URL>]
+# Windows: verify.ps1 -VmUser <VM_USER> -Mode <ACCESS_MODE> `
+#     [-GatewayCockpitUrl <URL> -GatewayNovncUrl <URL>]
 ```
 
-Prüft SSH, beide Tunnel, Mutagen-Session, `~/KI-OS` und die
+Prüft SSH, die Zugangswege (tunnel: beide lokalen Tunnel; gateway: die zwei
+HTTPS-URLs — 302 zum IdP-Login = OK), Mutagen-Session, `~/KI-OS` und die
 Desktop-App-Einträge (OK/WARN/FAIL pro Komponente). Zusätzlich den User
 **aktiv testen lassen**:
 
-1. `http://localhost:6080/vnc.html?resize=scale` öffnen → „Connect" →
-   noVNC-Passwort aus Schritt 6 → VM-Desktop sichtbar (leer/grau ist okay,
-   solange kein Chrome läuft).
+1. tunnel: `http://localhost:6080/vnc.html?resize=scale` öffnen → „Connect"
+   → noVNC-Passwort aus Schritt 6 → VM-Desktop sichtbar (leer/grau ist okay,
+   solange kein Chrome läuft). — gateway: `<GATEWAY_NOVNC_URL>` öffnen →
+   „Mit Microsoft/Google anmelden" (Firmen-Login) → „Connect" →
+   noVNC-Passwort → VM-Desktop sichtbar.
 2. Desktop-App (nach Neustart): `ki-os-vm` / `KI-OS` wählen — es darf kein
    Trust-Prompt erscheinen.
 
@@ -232,7 +261,8 @@ Statustabelle zeigen (Komponente → Status, aus dem `verify`-Output), dann die
 nächsten Schritte:
 
 1. **Claude-Login — ZUERST (einmalig):** im noVNC-Browser
-   (`http://localhost:6080/vnc.html?resize=scale`) in **claude.ai** einloggen.
+   (tunnel: `http://localhost:6080/vnc.html?resize=scale`; gateway:
+   `<GATEWAY_NOVNC_URL>`) in **claude.ai** einloggen.
    Der einzige Claude-Auth-Schritt, den der User selbst macht — Voraussetzung
    für Desktop-App, Scheduler und Remote-Control. Die VM richtet daraus
    automatisch beides ein: den Full-Scope-OAuth-Login für
@@ -245,7 +275,9 @@ nächsten Schritte:
 2. **Arbeiten** — primär über die **Desktop-App** (Remote-Projekt `ki-os-vm`
    / `KI-OS`). Fallbacks: `claude.ai/code` im Browser · Terminal:
    `ssh ki-os-vm` → `cd ~/KI-OS && claude` · VS Code Remote-SSH:
-   `references/vscode-remote-ssh.md`.
+   `references/vscode-remote-ssh.md`. Im gateway-Modus zusätzlich immer:
+   Cockpit + noVNC direkt über die Gateway-URLs (Firmen-Login), von jedem
+   Gerät ohne dieses Setup.
 3. **Browser-Logins (einmalig):** im noVNC-Tab in die Zielsysteme einloggen —
    siehe „Browser-Logins & OAuth" unten.
 4. **Dateien & Obsidian:** `~/KI-OS` ist der lokale Spiegel — als
@@ -265,6 +297,12 @@ Bestands-Setups mit drei Einzel-Tasks (`ki-os-vm-{novnc,cockpit}-tunnel`,
 `mutagen-daemon`) auf den einen `ki-os-vm-watchdog`-Task (inhaltsbasierter
 Cleanup in `setup-tunnels.ps1`). Kein Sonderfall, nichts Spezielles zu tun —
 einfach normal durchlaufen lassen.
+
+**Wurde die VM inzwischen auf den gateway-Modus umgestellt** (Schritt 6
+meldet `ACCESS_MODE=gateway`), räumt der Re-Run die beiden
+Tunnel-Autostarts ab (`setup-tunnels.sh --remove` / `-Remove`) und der
+User arbeitet fortan über die Gateway-URLs; Mutagen + Desktop-App bleiben
+unverändert bestehen.
 
 ---
 

@@ -11,6 +11,11 @@ Claude-Code-Desktop-App. Die gesamte Mechanik liegt in fertigen,
 parametrisierten Skripten unter `scripts/` (bash für macOS/Linux, PowerShell
 für natives Windows) — der Skill orchestriert nur noch.
 
+**gateway-VMs:** Manche VMs stellen noVNC + Cockpit direkt im Browser bereit
+(URL + Firmen-Login mit Microsoft/Google — dein Admin hat dir dann URLs
+geschickt). Dort ist dieser Skill **optional** (Datei-Sync + Desktop-App,
+keine Tunnel) — den Modus erkennt er automatisch von der VM.
+
 ## Voraussetzungen
 
 - macOS, Linux oder Windows

@@ -76,11 +76,19 @@ if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
     Start-Sleep -Seconds 5
     Write-Host "OK: Daemon-Autostart via Scheduled Task $watchdog (setup-tunnels.ps1)"
 } else {
-    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen - Daemon fuer diese
-    # Session direkt starten; der Autostart entsteht mit dem Watchdog-Task.
-    Write-Host "WARN: Scheduled Task $watchdog fehlt - setup-tunnels.ps1 nachholen (uebernimmt auch den Mutagen-Daemon-Autostart)."
-    Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
-    Start-Sleep -Seconds 3
+    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen. Auf gateway-VMs ist
+    # das der Normalfall (keine Tunnel) - dann den Watchdog hier selbst in der
+    # Mutagen-only-Variante anlegen (setup-tunnels.ps1 -MutagenOnly). Auf
+    # tunnel-VMs bleibt es beim Hinweis, Schritt 7 nachzuholen.
+    $setupTunnels = Join-Path $PSScriptRoot 'setup-tunnels.ps1'
+    if (Test-Path $setupTunnels) {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupTunnels -MutagenOnly
+        Write-Host "OK: Watchdog-Task $watchdog (Mutagen-only) angelegt - auf tunnel-VMs setup-tunnels.ps1 mit Ports nachholen."
+    } else {
+        Write-Host "WARN: Scheduled Task $watchdog fehlt - setup-tunnels.ps1 nachholen (uebernimmt auch den Mutagen-Daemon-Autostart)."
+        Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
+        Start-Sleep -Seconds 3
+    }
 }
 
 # --- 3. Session ki-os -------------------------------------------------------------
