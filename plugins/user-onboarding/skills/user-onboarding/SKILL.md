@@ -195,6 +195,10 @@ Troubleshooting: `references/tunnels.md`.
 ```
 bash "$SKILL_DIR/scripts/setup-mutagen.sh" --vm-user <VM_USER>
 # Windows: setup-mutagen.ps1 -VmUser <VM_USER>
+# Windows im gateway-Modus zusätzlich -Gateway anhängen — nur dann darf
+# setup-mutagen den Watchdog selbst Mutagen-only anlegen (auf tunnel-VMs würde
+# das laufende Alt-Tunnel abräumen):
+#   setup-mutagen.ps1 -VmUser <VM_USER> -Gateway
 ```
 
 Installiert Mutagen (macOS: Homebrew; Linux: brew oder GitHub-Release;

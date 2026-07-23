@@ -90,6 +90,12 @@ UNIT
     "$MUTAGEN_BIN" daemon stop >/dev/null 2>&1 || true   # CLI-gestarteten Daemon abloesen
     systemctl --user daemon-reload
     systemctl --user enable --now mutagen-daemon.service
+    # Linger, damit Daemon + Watchdog-Timer NICHT beim Logout stoppen und erst
+    # beim naechsten Login wieder anlaufen. Im tunnel-Modus setzt das
+    # setup-tunnels.sh; im gateway-Modus laeuft der aber nicht -> hier absichern
+    # (idempotent, eigener User braucht i.d.R. kein root).
+    loginctl enable-linger "$(id -un)" >/dev/null 2>&1 \
+        || echo "WARN: loginctl enable-linger fehlgeschlagen — Sync stoppt evtl. beim Logout (einmalig: sudo loginctl enable-linger $(id -un))"
     echo "OK: Daemon-Autostart (systemd-User-Service mutagen-daemon.service)"
 fi
 

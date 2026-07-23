@@ -53,7 +53,7 @@ if ($isGateway) {
         } catch {
             if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
         }
-        if ($code -in @(302, 301, 401, 403)) { Write-Host "OK:   $($g.Label) $($g.Url) (HTTP $code -> IdP-Login)" }
+        if ($code -in @(302, 401, 403)) { Write-Host "OK:   $($g.Label) $($g.Url) (HTTP $code -> IdP-Login)" }
         elseif ($code -eq 200) { Write-Host "FAIL: $($g.Label) $($g.Url) liefert unauthentifiziert HTTP 200 - Admin SOFORT informieren"; $failed = $true }
         else { Write-Host "FAIL: $($g.Label) $($g.Url) (HTTP $code / keine Antwort)"; $failed = $true }
     }

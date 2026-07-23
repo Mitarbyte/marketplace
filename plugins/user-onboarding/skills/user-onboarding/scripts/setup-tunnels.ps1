@@ -21,7 +21,7 @@
 #   powershell ... -File setup-tunnels.ps1 -MutagenOnly   # frisches gateway-Setup ohne Tunnel
 #
 # -Remove und -MutagenOnly erzeugen denselben Endzustand: der Watchdog-Task
-# bleibt (bzw. entsteht), ueberwacht aber NUR noch den Mutagen-Daemon+Session —
+# bleibt (bzw. entsteht), ueberwacht aber NUR noch den Mutagen-Daemon+Session -
 # noVNC/Cockpit kommen im gateway-Modus direkt vom Browser-Gateway der VM.
 # =============================================================================
 param(
@@ -100,7 +100,7 @@ Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" -ErrorAction SilentlyCont
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 # --- Guard-Skript: startet nur, was fehlt -----------------------------------------
-# Im tunnelLess-Modus (gateway) enthaelt der Guard KEINE ssh-Tunnel-Bloecke —
+# Im tunnelLess-Modus (gateway) enthaelt der Guard KEINE ssh-Tunnel-Bloecke -
 # er ueberwacht nur noch Mutagen-Daemon + Session.
 $guard = Join-Path $binDir "$taskName.ps1"
 

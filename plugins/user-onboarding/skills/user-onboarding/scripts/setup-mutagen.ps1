@@ -21,7 +21,12 @@
 # =============================================================================
 param(
     [Parameter(Mandatory = $true)][string]$VmUser,
-    [switch]$Recreate
+    [switch]$Recreate,
+    # gateway-Modus: hier ist es normal, dass kein Tunnel-Watchdog existiert
+    # (Schritt 7 entfaellt) - dann darf setup-mutagen ihn selbst Mutagen-only
+    # anlegen. Auf tunnel-VMs (ohne den Switch) NICHT, sonst reisst der
+    # Mutagen-only-Task funktionierende Alt-Tunnel ab.
+    [switch]$Gateway
 )
 $ErrorActionPreference = 'Stop'
 
@@ -76,16 +81,27 @@ if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
     Start-Sleep -Seconds 5
     Write-Host "OK: Daemon-Autostart via Scheduled Task $watchdog (setup-tunnels.ps1)"
 } else {
-    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen. Auf gateway-VMs ist
-    # das der Normalfall (keine Tunnel) - dann den Watchdog hier selbst in der
-    # Mutagen-only-Variante anlegen (setup-tunnels.ps1 -MutagenOnly). Auf
-    # tunnel-VMs bleibt es beim Hinweis, Schritt 7 nachzuholen.
+    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen.
     $setupTunnels = Join-Path $PSScriptRoot 'setup-tunnels.ps1'
-    if (Test-Path $setupTunnels) {
+    if ($Gateway -and (Test-Path $setupTunnels)) {
+        # gateway-VM: kein Tunnel-Setup vorgesehen -> Watchdog hier selbst
+        # Mutagen-only anlegen. NUR im gateway-Modus: -MutagenOnly raeumt
+        # bestehende Tunnel-Tasks ab (auf tunnel-VMs = Alt-Tunnel zerstoert).
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupTunnels -MutagenOnly
-        Write-Host "OK: Watchdog-Task $watchdog (Mutagen-only) angelegt - auf tunnel-VMs setup-tunnels.ps1 mit Ports nachholen."
+        if ($LASTEXITCODE -ne 0) {
+            # Kind-Skript scheiterte (native Exit-Codes werfen unter Stop nicht) ->
+            # Daemon wenigstens fuer diese Session direkt starten statt falsches OK.
+            Write-Host "WARN: Watchdog-Anlage (Mutagen-only) fehlgeschlagen (Exit $LASTEXITCODE) - Daemon fuer diese Session direkt starten."
+            Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
+            Start-Sleep -Seconds 3
+        } else {
+            Write-Host "OK: Watchdog-Task $watchdog (Mutagen-only) angelegt."
+        }
     } else {
-        Write-Host "WARN: Scheduled Task $watchdog fehlt - setup-tunnels.ps1 nachholen (uebernimmt auch den Mutagen-Daemon-Autostart)."
+        # tunnel-VM ohne Watchdog (Schritt 7 nachzuholen) ODER setup-tunnels.ps1
+        # fehlt: NICHT -MutagenOnly aufrufen (raeumte Alt-Tunnel-Tasks ab) - nur
+        # den Daemon fuer diese Session sichern.
+        Write-Host "WARN: Scheduled Task $watchdog fehlt - setup-tunnels.ps1 (Schritt 7) nachholen (uebernimmt Tunnel + Mutagen-Daemon-Autostart)."
         Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
         Start-Sleep -Seconds 3
     }

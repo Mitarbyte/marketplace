@@ -27,8 +27,8 @@ echo "COCKPIT_PORT=${cp}"
 echo "NOVNC_PORT=${np:-MISSING}"
 echo "NOVNC_PASS=${pw:-MISSING}"
 if [ "${am:-tunnel}" = "gateway" ]; then
-    gc="$(grep '^GATEWAY_COCKPIT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2 || true)"
-    gn="$(grep '^GATEWAY_NOVNC_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2 || true)"
+    gc="$(grep '^GATEWAY_COCKPIT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
+    gn="$(grep '^GATEWAY_NOVNC_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     echo "GATEWAY_COCKPIT_URL=${gc:-MISSING}"
     echo "GATEWAY_NOVNC_URL=${gn:-MISSING}"
 fi
