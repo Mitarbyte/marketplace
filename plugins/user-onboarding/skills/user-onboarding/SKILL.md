@@ -253,9 +253,9 @@ Desktop-App-Einträge (OK/WARN/FAIL pro Komponente). Zusätzlich den User
 
 1. tunnel: `http://localhost:6080/vnc.html?resize=scale` öffnen → „Connect"
    → noVNC-Passwort aus Schritt 6 → VM-Desktop sichtbar (leer/grau ist okay,
-   solange kein Chrome läuft). — gateway: `<GATEWAY_COCKPIT_URL>` öffnen →
-   „Mit Microsoft/Google anmelden" (Firmen-Login) → Tab **VM-Desktop** →
-   verbindet automatisch, VM-Desktop sichtbar (kein Passwort).
+   solange kein Chrome läuft). — gateway: `<GATEWAY_NOVNC_URL>` öffnen →
+   „Mit Microsoft/Google anmelden" (Firmen-Login) → verbindet automatisch,
+   VM-Desktop sichtbar (**kein** Passwort).
 2. Desktop-App (nach Neustart): `ki-os-vm` / `KI-OS` wählen — es darf kein
    Trust-Prompt erscheinen.
 
@@ -269,7 +269,7 @@ nächsten Schritte:
 
 1. **Claude-Login — ZUERST (einmalig):** im noVNC-Browser
    (tunnel: `http://localhost:6080/vnc.html?resize=scale`; gateway:
-   `<GATEWAY_COCKPIT_URL>` → Tab **VM-Desktop**) in **claude.ai** einloggen.
+   `<GATEWAY_NOVNC_URL>`) in **claude.ai** einloggen.
    Der einzige Claude-Auth-Schritt, den der User selbst macht — Voraussetzung
    für Desktop-App, Scheduler und Remote-Control. Die VM richtet daraus
    automatisch beides ein: den Full-Scope-OAuth-Login für
