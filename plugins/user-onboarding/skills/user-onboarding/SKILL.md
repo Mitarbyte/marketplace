@@ -157,11 +157,14 @@ bash "$SKILL_DIR/scripts/get-vm-values.sh"
 
 Liefert `SSH_OK` + `ACCESS_MODE=` + `COCKPIT_PORT=` / `NOVNC_PORT=` /
 `NOVNC_PASS=` (im gateway-Modus zusätzlich `GATEWAY_COCKPIT_URL=` /
-`GATEWAY_NOVNC_URL=`). Die Werte für die nächsten Schritte merken; das
-**noVNC-Passwort dem User zeigen** (er gibt es später einmalig im
-noVNC-Tab ein — gern in den Passwort-Manager; nirgendwo
-hinschreiben/loggen — im gateway-Modus ist es die zweite Schicht hinter
-dem Firmen-Login).
+`GATEWAY_NOVNC_URL=`). Die Werte für die nächsten Schritte merken.
+
+- **tunnel:** das **noVNC-Passwort dem User zeigen** (er gibt es später
+  einmalig im noVNC-Tab ein — gern in den Passwort-Manager; nirgendwo
+  hinschreiben/loggen). Es ist dort die einzige Schicht hinter dem Tunnel.
+- **gateway:** `NOVNC_PASS=NOT_NEEDED` — es gibt **kein** VNC-Passwort
+  (x11vnc läuft mit `-nopw`, ADR § 5.6: Firmen-Login + Gateway-403
+  schützen bereits). Nicht nach einem fragen, keins übermitteln.
 
 - `SSH_FAIL` → Fehlerbild nachschlagen: `references/ssh.md` → Smoketest.
 - `NOVNC_PORT=MISSING` → Display-Stack noch nicht provisioniert — Admin
@@ -250,9 +253,9 @@ Desktop-App-Einträge (OK/WARN/FAIL pro Komponente). Zusätzlich den User
 
 1. tunnel: `http://localhost:6080/vnc.html?resize=scale` öffnen → „Connect"
    → noVNC-Passwort aus Schritt 6 → VM-Desktop sichtbar (leer/grau ist okay,
-   solange kein Chrome läuft). — gateway: `<GATEWAY_NOVNC_URL>` öffnen →
-   „Mit Microsoft/Google anmelden" (Firmen-Login) → „Connect" →
-   noVNC-Passwort → VM-Desktop sichtbar.
+   solange kein Chrome läuft). — gateway: `<GATEWAY_COCKPIT_URL>` öffnen →
+   „Mit Microsoft/Google anmelden" (Firmen-Login) → Tab **VM-Desktop** →
+   verbindet automatisch, VM-Desktop sichtbar (kein Passwort).
 2. Desktop-App (nach Neustart): `ki-os-vm` / `KI-OS` wählen — es darf kein
    Trust-Prompt erscheinen.
 
@@ -266,7 +269,7 @@ nächsten Schritte:
 
 1. **Claude-Login — ZUERST (einmalig):** im noVNC-Browser
    (tunnel: `http://localhost:6080/vnc.html?resize=scale`; gateway:
-   `<GATEWAY_NOVNC_URL>`) in **claude.ai** einloggen.
+   `<GATEWAY_COCKPIT_URL>` → Tab **VM-Desktop**) in **claude.ai** einloggen.
    Der einzige Claude-Auth-Schritt, den der User selbst macht — Voraussetzung
    für Desktop-App, Scheduler und Remote-Control. Die VM richtet daraus
    automatisch beides ein: den Full-Scope-OAuth-Login für
@@ -336,8 +339,9 @@ Alles läuft auf der VM:
   und Autostarts werden bewusst überschrieben/neu geladen, damit Konfig-Drift
   nicht unbemerkt bleibt. Der SSH-Key wird nie ungefragt ersetzt.
 - **Sicherheit:** Private Keys nie ausgeben oder loggen. Das noVNC-Passwort
-  nur dem User zeigen — nicht in Configs/Logs schreiben. API-Tokens werden in
-  diesem Skill nicht angefasst.
+  (nur tunnel-Modus) nur dem User zeigen — nicht in Configs/Logs schreiben; im
+  gateway-Modus gibt es keins (`NOVNC_PASS=NOT_NEEDED`, ADR § 5.6), also auch
+  nichts zu übermitteln. API-Tokens werden in diesem Skill nicht angefasst.
 - **Windows nativ:** Alle SSH-/Tunnel-Schritte nutzen den nativen
   Windows-OpenSSH (`C:\Windows\System32\OpenSSH\ssh.exe`); die Git-Bash-ssh
   nicht davor in den PATH stellen.

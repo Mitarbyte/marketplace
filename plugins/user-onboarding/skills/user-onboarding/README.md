@@ -36,7 +36,8 @@ keine Tunnel) — den Modus erkennt er automatisch von der VM.
 2. **Pause** — warten auf Admin-Bestätigung, dass dein VM-User komplett
    eingerichtet ist
 3. SSH-Smoketest + deine User-Werte holen (ein Roundtrip: Cockpit-Port,
-   noVNC-Port, noVNC-Passwort)
+   noVNC-Port, noVNC-Passwort — letzteres nur im tunnel-Modus; auf
+   gateway-VMs gibt es keins)
 4. **Pflicht-Autostart 1+2:** gehärtete SSH-Tunnel zu noVNC
    (`http://localhost:6080/vnc.html?resize=scale`) und Cockpit
    (`http://localhost:3847`)

@@ -2,15 +2,19 @@
 # =============================================================================
 # get-vm-values.sh — Smoketest + pro-User-Werte in EINEM SSH-Roundtrip
 #
-# Holt Cockpit-Port, noVNC-Port und noVNC-Passwort von der VM. Schlaegt die
-# Verbindung fehl, wird der SSH-Fehler ausgegeben (Diagnose: references/ssh.md).
+# Holt Cockpit-Port, noVNC-Port und (nur im tunnel-Modus) das noVNC-Passwort von
+# der VM. Schlaegt die Verbindung fehl, wird der SSH-Fehler ausgegeben
+# (Diagnose: references/ssh.md).
 #
 # Usage:  get-vm-values.sh
 #
 # Output-Marker:
 #   SSH_OK | SSH_FAIL: <fehler>
 #   ACCESS_MODE=<tunnel|gateway>
-#   COCKPIT_PORT=<n>  NOVNC_PORT=<n|MISSING>  NOVNC_PASS=<pass|MISSING>
+#   COCKPIT_PORT=<n>  NOVNC_PORT=<n|MISSING>
+#   NOVNC_PASS=<pass|MISSING|NOT_NEEDED>   (NOT_NEEDED im gateway-Modus:
+#          x11vnc laeuft dort mit -nopw, ADR § 5.6 — das Passwort wird bewusst
+#          nicht ausgelesen, damit es nirgends im Chat/Log landet)
 #   GATEWAY_COCKPIT_URL=<url|MISSING>  GATEWAY_NOVNC_URL=<url|MISSING>   (nur gateway)
 # =============================================================================
 set -uo pipefail
@@ -27,15 +31,20 @@ if [ -z "$cp" ]; then
     echo "WARN: mitarbyte-CLI nicht gefunden — Cockpit-Port aus UID abgeleitet."
 fi
 np="$(grep '^NOVNC_PORT=' ~/.config/ki-os/display.env 2>/dev/null | cut -d= -f2 || true)"
-pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
 echo "COCKPIT_PORT=${cp}"
 echo "NOVNC_PORT=${np:-MISSING}"
-echo "NOVNC_PASS=${pw:-MISSING}"
+# Passwort NUR im tunnel-Modus lesen. Im gateway-Modus laeuft x11vnc mit -nopw
+# (ADR § 5.6) — es gibt nichts einzugeben, und ein ungenutztes Secret soll
+# nicht durch Skill-Output/Logs wandern.
 if [ "${am:-tunnel}" = "gateway" ]; then
+    echo "NOVNC_PASS=NOT_NEEDED"
     gc="$(grep '^GATEWAY_COCKPIT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     gn="$(grep '^GATEWAY_NOVNC_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     echo "GATEWAY_COCKPIT_URL=${gc:-MISSING}"
     echo "GATEWAY_NOVNC_URL=${gn:-MISSING}"
+else
+    pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
+    echo "NOVNC_PASS=${pw:-MISSING}"
 fi
 REMOTE
 )"

@@ -1,9 +1,11 @@
 # noVNC- + Cockpit-Tunnel — Härtung, Hintergrund, Troubleshooting
 
 **Gilt nur für tunnel-VMs.** Auf gateway-VMs (`ACCESS_MODE=gateway` in
-Schritt 6) gibt es keine Tunnel — noVNC/Cockpit laufen über die
-Gateway-URLs mit Firmen-Login; Alt-Tunnel entfernt
-`setup-tunnels.sh --remove` / `setup-tunnels.ps1 -Remove`.
+Schritt 6) gibt es keine Tunnel — alles läuft über **eine** Cockpit-URL mit
+Firmen-Login, der VM-Desktop steckt dort im Tab „VM-Desktop" und **ohne
+VNC-Passwort** (x11vnc `-nopw`); Alt-Tunnel entfernt
+`setup-tunnels.sh --remove` / `setup-tunnels.ps1 -Remove`. Alles unten —
+inklusive noVNC-Passwort — betrifft nur den tunnel-Modus.
 
 Die beiden Pflicht-Autostarts richtet `scripts/setup-tunnels.sh` (macOS/Linux)
 bzw. `scripts/setup-tunnels.ps1` (Windows) ein — dieses Dokument erklärt das

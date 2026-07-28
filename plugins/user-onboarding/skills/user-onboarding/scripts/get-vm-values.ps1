@@ -1,14 +1,17 @@
 # =============================================================================
 # get-vm-values.ps1 - Smoketest + pro-User-Werte in EINEM SSH-Roundtrip (Windows)
 #
-# Holt Cockpit-Port, noVNC-Port und noVNC-Passwort von der VM. Schlaegt die
-# Verbindung fehl, wird der SSH-Fehler ausgegeben (Diagnose: references/ssh.md).
+# Holt Cockpit-Port, noVNC-Port und (nur im tunnel-Modus) das noVNC-Passwort von
+# der VM. Schlaegt die Verbindung fehl, wird der SSH-Fehler ausgegeben
+# (Diagnose: references/ssh.md).
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File get-vm-values.ps1
 #
 # Output-Marker: SSH_OK | SSH_FAIL, ACCESS_MODE=, COCKPIT_PORT= / NOVNC_PORT= /
-#                NOVNC_PASS=, GATEWAY_COCKPIT_URL= / GATEWAY_NOVNC_URL= (nur gateway)
+#                NOVNC_PASS= (NOT_NEEDED im gateway-Modus: x11vnc laeuft dort
+#                mit -nopw, ADR 5.6 - das Passwort wird bewusst nicht gelesen),
+#                GATEWAY_COCKPIT_URL= / GATEWAY_NOVNC_URL= (nur gateway)
 # =============================================================================
 $ErrorActionPreference = 'Continue'
 
@@ -22,15 +25,18 @@ if [ -z "$cp" ]; then
     echo "WARN: mitarbyte-CLI nicht gefunden - Cockpit-Port aus UID abgeleitet."
 fi
 np="$(grep '^NOVNC_PORT=' ~/.config/ki-os/display.env 2>/dev/null | cut -d= -f2 || true)"
-pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
 echo "COCKPIT_PORT=${cp}"
 echo "NOVNC_PORT=${np:-MISSING}"
-echo "NOVNC_PASS=${pw:-MISSING}"
+# Passwort NUR im tunnel-Modus lesen - im gateway-Modus laeuft x11vnc mit -nopw.
 if [ "${am:-tunnel}" = "gateway" ]; then
+    echo "NOVNC_PASS=NOT_NEEDED"
     gc="$(grep '^GATEWAY_COCKPIT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     gn="$(grep '^GATEWAY_NOVNC_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     echo "GATEWAY_COCKPIT_URL=${gc:-MISSING}"
     echo "GATEWAY_NOVNC_URL=${gn:-MISSING}"
+else
+    pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
+    echo "NOVNC_PASS=${pw:-MISSING}"
 fi
 '@ -replace "`r`n", "`n"
 
