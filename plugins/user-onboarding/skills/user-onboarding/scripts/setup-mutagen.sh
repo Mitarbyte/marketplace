@@ -8,17 +8,26 @@
 #
 # Ignore-Begruendung + Konflikt-Semantik: references/mutagen.md.
 #
-# Usage:  setup-mutagen.sh --vm-user <VM_USER> [--recreate]
+# Alles, was Mutagen VM-seitig anlegt, bekommt die Shared-Group `mitarbyte` +
+# group-schreibbare Modes (geteilter Bind-Mount `Workspaces`).
+#
+# Usage:  setup-mutagen.sh --vm-user <VM_USER> [--recreate] [--shared-group <NAME>]
 #
 # Output-Marker: SESSION_EXISTS | SESSION_CREATED | SESSION_RECREATED
 # =============================================================================
 set -euo pipefail
 
 VM_USER="" RECREATE=0
+# Shared-Group fuer den mit anderen Mitarbeitern geteilten Bind-Mount
+# `Workspaces`: alles, was Mutagen VM-seitig neu anlegt, bekommt diese Gruppe +
+# group-schreibbare Modes. --shared-group "" = aus (Single-User-VM).
+# Begruendung: references/mutagen.md -> "Shared-Group".
+SHARED_GROUP="mitarbyte"
 while [ $# -gt 0 ]; do
     case "$1" in
-        --vm-user)  VM_USER="$2"; shift 2 ;;
-        --recreate) RECREATE=1; shift ;;
+        --vm-user)      VM_USER="$2"; shift 2 ;;
+        --recreate)     RECREATE=1; shift ;;
+        --shared-group) SHARED_GROUP="$2"; shift 2 ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -104,7 +113,7 @@ create_session() {
     # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta. .claude/skills wird
     # auf macOS/Linux bewusst mitgesynct (relative Skill-Symlinks -> klickbare
     # Skill-Ansicht); Details: references/mutagen.md.
-    "$MUTAGEN_BIN" sync create \
+    set -- \
         --name=ki-os \
         --sync-mode=two-way-resolved \
         --ignore-vcs \
@@ -115,7 +124,18 @@ create_session() {
         --ignore=".cache" \
         --ignore="dist" \
         --ignore=".next" \
-        --ignore=".DS_Store" \
+        --ignore=".DS_Store"
+    # Shared-Group fuer den geteilten Bind-Mount `Workspaces`: Dateien, die
+    # Mutagen VM-seitig anlegt, muessen fuer die anderen Mitarbeiter der Gruppe
+    # les-/schreibbar sein - sonst laufen deren Agents in Permission-Fehler.
+    # Nur alpha (VM); lokale Modes bleiben Default.
+    if [ -n "$SHARED_GROUP" ]; then
+        set -- "$@" \
+            --default-group-alpha="$SHARED_GROUP" \
+            --default-file-mode-alpha=0660 \
+            --default-directory-mode-alpha=0770
+    fi
+    "$MUTAGEN_BIN" sync create "$@" \
         "ki-os-vm:/home/${VM_USER}/KI-OS" "$HOME/KI-OS"
 }
 
@@ -125,7 +145,25 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         create_session
         echo "SESSION_RECREATED: ki-os neu angelegt (Dateien bleiben erhalten)."
     else
-        echo "SESSION_EXISTS: ki-os laeuft bereits — bei abweichender Konfiguration mit --recreate neu anlegen."
+        echo "SESSION_EXISTS: ki-os laeuft bereits."
+        # Konfig-Drift AKTIV melden: Ignores/Group einer bestehenden Session sind
+        # unveraenderlich, ein blosser Re-Run heilt sie NICHT.
+        CFG="$("$MUTAGEN_BIN" sync list ki-os --long 2>&1 || true)"
+        DRIFT=""
+        if [ -n "$SHARED_GROUP" ] \
+           && ! printf '%s\n' "$CFG" | grep -qE "Default file/directory group:[[:space:]]*${SHARED_GROUP}\$"; then
+            DRIFT="${DRIFT}  - Shared-Group '${SHARED_GROUP}' auf alpha fehlt (geteilter Workspaces-Bind-Mount)\n"
+        fi
+        if [ -n "$DRIFT" ]; then
+            echo "DRIFT: die bestehende Session weicht vom Template ab:"
+            printf '%b' "$DRIFT"
+            echo "  -> einmalig mit --recreate neu anlegen (Dateien bleiben erhalten)."
+            echo "  -> VORHER pruefen, dass beide Seiten konvergiert sind ('mutagen sync list ki-os':"
+            echo "     gleiche Datei-/Verzeichniszahl auf alpha und beta) — sonst spuelt der frische"
+            echo "     Ancestor lokal-only Daten als Neuanlage auf die VM."
+        else
+            echo "OK: Session-Konfiguration entspricht dem Template."
+        fi
     fi
 else
     create_session

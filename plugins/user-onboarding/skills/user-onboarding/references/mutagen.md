@@ -16,10 +16,42 @@ den lokalen Ordner `~/KI-OS` (Windows: `%USERPROFILE%\KI-OS`):
   (Agent-Outputs) erscheinen lokal
 
 Transport ist die bestehende SSH-Verbindung (`ki-os-vm`-Alias aus
-`~/.ssh/config`) — kein extra Dienst, kein extra Account. Die
-`ServerAliveInterval 15`-Optionen im Alias sorgen dafür, dass Mutagen eine
-tote SSH-Session in ~45 s erkennt und reconnectet, statt bis zu 180 s in
-„Connecting…" zu hängen.
+`~/.ssh/config`) — kein extra Dienst, kein extra Account.
+
+> **Keepalives:** Mutagen setzt für seinen **eigenen** Agent-Transport eigene
+> Werte auf der Kommandozeile (`-oConnectTimeout=5 -oServerAliveInterval=10
+> -oServerAliveCountMax=1`) und **überstimmt damit den `ServerAliveInterval`
+> aus der `~/.ssh/config`**. Die `ServerAliveInterval 15` im Alias wirken auf
+> die **Tunnel** (`references/tunnels.md`), nicht auf Mutagen. Ein hängender
+> Sync ist deshalb **nie** mit „die ssh-config hat die falschen Keepalives"
+> erklärt — dort zuerst den Transport-Binary prüfen (nächster Abschnitt).
+
+### Windows: Mutagen muss den nativen OpenSSH benutzen
+
+Mutagen sucht sich sein `ssh` **selbst** und bevorzugt auf Windows die
+**Git-for-Windows-MSYS2-ssh** (`C:\Program Files\Git\usr\bin\ssh.exe`) — auch
+dann, wenn die **nicht** im `PATH` steht und `C:\Windows\System32\OpenSSH`
+davor liegt. Prüfen, welches Binary der Transport wirklich fährt:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" |
+    Where-Object { $_.CommandLine -match 'mutagen-agent' } |
+    Select-Object ProcessId, CommandLine
+```
+
+Steht dort `Git\usr\bin\ssh.exe`, ist der Transport auf der fragilen
+MSYS2-Pipe-Emulation: der `mutagen-agent` auf der VM stirbt, lokal bleibt die
+Session in `Applying changes` stehen, `mutagen sync pause` **antwortet nicht
+mehr** (Daemon-Goroutine blockiert) und VM-seitig hängt eine `<user>@notty`-
+sshd-Session **ohne** Agent-Child. Fix — Suchpfad voranstellen:
+
+```powershell
+[Environment]::SetEnvironmentVariable('MUTAGEN_SSH_PATH','C:\Windows\System32\OpenSSH','User')
+```
+
+`setup-mutagen.ps1` setzt das persistent (User-Scope), und der von
+`setup-tunnels.ps1` generierte Watchdog-Guard setzt es **im Guard-Prozess**,
+bevor er den Daemon startet — sonst erbt der Daemon die Variable nicht.
 
 ## Daemon-Autostart pro OS
 
@@ -61,11 +93,73 @@ erneut laufen lassen. Manuell prüfen: `mutagen sync list ki-os` ·
 Guard-Logs (macOS) `~/Library/Logs/ki-os-mutagen-watchdog*.log` ·
 (Linux) `journalctl --user -u ki-os-mutagen-watchdog`.
 
+> **Grenze des Watchdogs — nicht überschätzen.** `sync resume` heilt **nur**
+> `paused`/`halted`. Die zwei häufigsten Dauerzustände heilt er **nicht**:
+>
+> | Zustand | Ursache | Was wirklich hilft |
+> |---|---|---|
+> | `Applying changes` + `Transition problems: N` | Symlinks ohne Developer Mode (s.o.) | `--symlink-mode=ignore` (Session neu anlegen) |
+> | `Applying changes`, Daemon-CPU bewegt sich nicht, `sync pause` hängt | toter Agent-Transport (meist Git-Bash-ssh) | `MUTAGEN_SSH_PATH` + Daemon-Hard-Restart (Recovery unten) |
+>
+> In beiden Fällen läuft der Guard alle 2 min ins Leere: Er ruft `resume` auf
+> einer nicht-pausierten Session — ein No-op. Ein Watchdog-Task, der „läuft",
+> ist deshalb **kein** Beweis, dass der Sync gesund ist. Gesund heißt
+> ausschließlich: Status `Watching for changes` **ohne** Problems-Block.
+
 ## Session-Konfiguration
 
 **Endpoint-Reihenfolge ist bewusst:** Die VM ist **Alpha** (erstes Argument),
 der lokale Ordner ist **Beta**. Im Modus `two-way-resolved` gewinnt bei echten
 Konflikten automatisch Alpha — also die VM, auf der der Agent arbeitet.
+
+### Shared-Group `mitarbyte` (geteilter `Workspaces`-Bind-Mount)
+
+`~/KI-OS/Workspaces` ist auf der VM **kein normaler Ordner**, sondern ein
+**Bind-Mount**, der von mehreren Mitarbeitern geteilt wird — er zeigt bei allen
+auf dieselbe Quelle:
+
+```
+/home/<VM_USER>/KI-OS/Workspaces  ->  /home/<OWNER>/KI-OS/Workspaces
+```
+
+Die geteilten Verzeichnisse sind `drwxrws---` (setgid) mit Gruppe **`mitarbyte`**;
+jeder Mitarbeiter ist in dieser Gruppe. Dateien, die **Mutagen** dort VM-seitig
+anlegt, würden mit den Default-Modes `0600`/`0700` und der *primären* Gruppe des
+Users entstehen — die anderen Mitarbeiter könnten sie dann **nicht mehr lesen
+oder schreiben**, und deren Agents laufen in Permission-Fehler. Deshalb setzen
+`setup-mutagen.sh`/`.ps1` auf **alpha** (der VM) fest:
+
+| Flag | Wert | Wirkung |
+|---|---|---|
+| `--default-group-alpha` | `mitarbyte` | neue Dateien/Ordner gehören der geteilten Gruppe |
+| `--default-file-mode-alpha` | `0660` | Gruppe darf lesen **und** schreiben |
+| `--default-directory-mode-alpha` | `0770` | Gruppe darf betreten + anlegen |
+
+Nur `-alpha`: auf einer Windows-/macOS-**beta** sind POSIX-Modes bedeutungslos
+bzw. unerwünscht. Überschreibbar mit `--shared-group <NAME>` bzw.
+`-SharedGroup <NAME>`; `''` schaltet es für Single-User-VMs ab.
+
+**Warum das setgid-Bit allein nicht reicht** (sonst wäre
+`--default-group-alpha` redundant): Mutagen legt Dateien **nicht** direkt im
+Ziel-Verzeichnis an, sondern staged sie unter `~/.mutagen/staging`
+(`Stage mode: Mutagen Data Directory`) und **renamed** sie dann an ihren Platz.
+setgid-Gruppenvererbung greift aber nur beim *Anlegen* in einem Verzeichnis,
+nicht beim Rename hinein — die Datei behält die primäre Gruppe des Users.
+Deshalb muss die Gruppe explizit gesetzt werden.
+
+> **Reichweite der Modes — und was sie *nicht* öffnet:** Die Modes gelten für
+> **alles**, was Mutagen auf der VM neu anlegt, nicht nur für `Workspaces/` —
+> `~/KI-OS/.env` (heute `0600`) wird beim nächsten Sync-Schreibvorgang zu
+> `0660` mit Gruppe `mitarbyte`. **Erreichbar** wird die Datei damit für andere
+> Mitarbeiter trotzdem nicht: Home-Verzeichnisse sind `drwxr-x---` (Gruppe =
+> eigene User-Gruppe), fremde User können `/home/<user>` gar nicht betreten.
+> Wirksam wird die Gruppen-Freigabe genau dort, wo der Pfad bewusst geöffnet
+> ist — im ACL-freigegebenen `Workspaces`-Bind-Mount. Zwei Konsequenzen:
+> (1) Wer Secrets im Workspace hat, legt sie **nicht** unter `Workspaces/` ab
+> (oder nimmt sie in die Ignores — auf dem Laptop haben sie ohnehin nichts zu
+> suchen). (2) Wird ein Home-Verzeichnis später geöffnet (`chmod o+x`, ACL),
+> sind diese Dateien gruppen-**schreibbar** — dann vorher `--shared-group ''`
+> setzen und die Session neu anlegen.
 
 **Warum diese Ignores (Pflicht, nicht kürzen):**
 
@@ -85,12 +179,33 @@ Konflikten automatisch Alpha — also die VM, auf der der Agent arbeitet.
   `~/KI-OS/hub/Skills/…` auf → klickbare Skill-Ansicht. `.skill-profile`
   (ebenfalls gesynct) bleibt die Quelle, *welche* Skills aktiv sind. Der
   Default-Symlink-Modus (`portable`) toleriert relative In-Root-Links.
-- **Windows: `--ignore=".claude/skills"` bleibt stehen.** Symlinks brauchen
-  dort `SeCreateSymbolicLinkPrivilege` (Developer-Mode oder Admin); ohne das
-  wirft der Sync Fehler. *Welche* Skills aktiv sind, zeigt `.skill-profile`
-  und die Cockpit-Skill-Overview. **Opt-in:** Wer den Windows-Developer-Mode
-  aktiviert (Einstellungen → System → Für Entwickler), kann die Session ohne
-  dieses Ignore neu anlegen und bekommt dieselbe klickbare Ansicht.
+- **Windows: `--ignore=".claude/skills"` **und** `--symlink-mode=ignore`.**
+  Symlinks brauchen dort `SeCreateSymbolicLinkPrivilege` (Developer-Mode oder
+  Admin); ohne das scheitert **jeder** Symlink als *Transition problem*.
+  **Der Ignore allein reicht nicht** — der Workspace enthält Symlinks an zwei
+  Stellen:
+
+  | Ort | Anzahl (Beispiel-VM) | Ziele |
+  |---|---|---|
+  | `.claude/skills/*` | 83 | `../../hub/Skills/<cat>/<skill>` |
+  | `hub/Skills/*/*/scripts/*.py` | 54 | `../../../../lib/*.py` |
+
+  Alle relativ und *in-root*, also für Mutagen synchronisierbar — die zweite
+  Gruppe liegt außerhalb von `.claude/skills` und wird vom Ignore **nicht**
+  erfasst. `--symlink-mode=ignore` deckt beide ab; die Zieldateien liegen über
+  `hub/lib/` bzw. `hub/Skills/` lokal ohnehin vor. *Welche* Skills aktiv sind,
+  zeigt `.skill-profile` und die Cockpit-Skill-Overview.
+
+  **Warum das als „der Sync bleibt dauernd stehen" auffällt:** Mutagen retryt
+  fehlgeschlagene Transitions bei jedem Zyklus. Die Session erreicht deshalb
+  **nie** `Watching for changes`, sondern steht dauerhaft auf
+  `Applying changes` mit `Transition problems: <N>` — obwohl die Dateien
+  längst konvergiert sind. `mutagen sync list` verschluckt den Problems-Block
+  meist; `mutagen sync list ki-os --long` bzw. `sync monitor` zeigen ihn.
+
+  **Opt-in für die klickbare Skill-Ansicht:** Windows-Developer-Mode
+  aktivieren (Einstellungen → System → Für Entwickler), dann die Session ohne
+  `--symlink-mode=ignore` **und** ohne den `.claude/skills`-Ignore neu anlegen.
 
 **Ignore-Änderungen wirken nur beim Anlegen:** Eine bestehende Session
 übernimmt neue Ignores nicht — einmalig neu anlegen
@@ -121,10 +236,75 @@ touch ~/KI-OS/.sync-test && mutagen sync flush ki-os && \
     rm ~/KI-OS/.sync-test && mutagen sync flush ki-os
 ```
 
+## Recovery: festgefahrene Session ohne Neuanlage
+
+Für den Fall „steht auf `Applying changes`, `sync pause` hängt, Daemon-CPU
+bewegt sich nicht". **Reihenfolge einhalten** — und `terminate`/`--recreate`
+hier ausdrücklich **nicht** benutzen (dazu unten).
+
+```powershell
+# 1. Diagnose: bewegt sich der Daemon ueberhaupt?
+$p = Get-Process mutagen; $c = $p.CPU; Start-Sleep 10; $p.Refresh()
+"CPU-Delta in 10s: $([math]::Round($p.CPU - $c, 2))s"   # ~0 = blockiert
+
+# 2. Transport-Binary pruefen (s.o.) und ggf. MUTAGEN_SSH_PATH setzen
+[Environment]::SetEnvironmentVariable('MUTAGEN_SSH_PATH','C:\Windows\System32\OpenSSH','User')
+$env:MUTAGEN_SSH_PATH = 'C:\Windows\System32\OpenSSH'
+
+# 3. Haengende CLI-Aufrufe wegraeumen (ein blockierter `sync flush` bleibt sonst ewig stehen)
+Get-CimInstance Win32_Process -Filter "Name='mutagen.exe'" |
+    Where-Object { $_.CommandLine -match 'sync\s+(flush|monitor)' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+
+# 4. Daemon hart neu starten - der Ancestor liegt auf Platte und bleibt erhalten
+mutagen daemon stop; Get-Process mutagen -EA SilentlyContinue | Stop-Process -Force
+Start-Process -WindowStyle Hidden -FilePath "$env:USERPROFILE\.local\bin\mutagen.exe" -ArgumentList 'daemon','run'
+mutagen sync resume ki-os
+```
+
+Auf der VM zusätzlich die **verwaiste** sshd-Session des toten Transports
+abräumen — die mit `@notty` **ohne** `mutagen-agent`-Child. Die sshd-Prozesse
+der Tunnel (deutlich älter, mehrere Tage) dabei **nicht** anfassen:
+
+```bash
+ssh ki-os-vm 'ps -eo pid,etime,cmd | grep "sshd: $USER"'   # erst schauen
+ssh ki-os-vm 'ps -eo pid,cmd | grep "mutagen-agent"'       # welcher Agent lebt?
+```
+
+Ein **Daemon-Hard-Kill ist unkritisch**: `~/.mutagen/sessions/<id>` (Konfig) und
+`~/.mutagen/archives/<id>` (Ancestor) liegen auf Platte, der Daemon lädt sie beim
+Start wieder. `terminate`/`--recreate` dagegen **verwirft den Ancestor** — siehe
+nächster Abschnitt.
+
+## Warum `--recreate` bei Divergenz gefährlich ist
+
+Eine Neuanlage startet **ohne Ancestor**. Mutagen kann dann nicht mehr
+unterscheiden „lokal gelöscht, weil auf der VM gelöscht" von „lokal neu
+angelegt" — alles, was nur auf einer Seite liegt, wird als **Neuanlage** auf die
+andere gespült. Standen also z.B. 9 GB nur lokal, landen sie auf der VM.
+
+**Vor jedem `--recreate`/`-Recreate` prüfen, dass beide Seiten konvergiert
+sind:**
+
+```bash
+mutagen sync list ki-os     # alpha und beta: gleiche Verzeichnis-/Dateizahl
+```
+
+Ist die Session zwar wegen Transition problems festgefahren, aber die
+**Zahlen stimmen auf beiden Seiten überein**, ist die Neuanlage gefahrlos —
+die Symlink-Retries sind dann das Einzige, was fehlt. Weichen sie ab: erst
+unwedgen (Recovery oben) und konvergieren lassen, **dann** neu anlegen.
+`setup-mutagen.sh`/`.ps1` melden Konfig-Drift von sich aus (`DRIFT:`) und
+weisen genau darauf hin.
+
 ## Troubleshooting
 
 | Symptom | Lösung |
 |---------|---------|
+| Dauerhaft `Applying changes`, Zahlen auf beiden Seiten identisch, `Transition problems: N` | Symlinks ohne Developer Mode — `--symlink-mode=ignore` (Session neu anlegen) oder Developer Mode an. Der Watchdog heilt das **nicht** |
+| Dauerhaft `Applying changes`, Daemon-CPU-Delta ~0, `sync pause` hängt | Toter Agent-Transport → „Recovery" oben. Transport-Binary auf Git-Bash-ssh prüfen |
+| VM: `<user>@notty`-sshd-Session ohne `mutagen-agent`-Child | Verwaister Transport — Prozess killen, Daemon neu starten (Recovery oben) |
+| VM: Dateien für andere Mitarbeiter nicht lesbar/schreibbar (`Workspaces/`) | Shared-Group fehlt in der Session → `DRIFT:`-Meldung von `setup-mutagen`, mit `--recreate` neu anlegen (s. „Shared-Group") |
 | `mutagen: command not found` (Windows) | Neue PowerShell-Session öffnen (PATH-Update) oder `%USERPROFILE%\.local\bin\mutagen.exe` direkt aufrufen |
 | „Connecting…" dauerhaft | SSH testen: `ssh -o BatchMode=yes ki-os-vm true` — wenn das hängt, ist es ein SSH-/Netz-Problem |
 | „Conflicts" in `mutagen sync list` | `mutagen sync list ki-os --long` zeigt die Dateien; VM-Version gewinnt beim nächsten Sync — lokale Änderung vorher wegsichern, falls gebraucht |

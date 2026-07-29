@@ -208,15 +208,37 @@ Installiert Mutagen (macOS: Homebrew; Linux: brew oder GitHub-Release;
 Windows: GitHub-Release-Zip mit Download-Retry), richtet den Daemon-Autostart
 ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7; fehlt er —
 gateway-Modus ohne Tunnel — legt `setup-mutagen.ps1` ihn selbst in der
-Mutagen-only-Variante an) und legt die Session `ki-os` an. `SESSION_EXISTS` ist okay (läuft schon);
-weicht die Konfiguration ab (z.B. fehlende lokale Skill-Ansicht auf
-macOS/Linux), einmalig mit `--recreate`/`-Recreate` neu anlegen — Dateien
-bleiben erhalten. Richtet zusätzlich einen **Session-Watchdog** ein (macOS
+Mutagen-only-Variante an) und legt die Session `ki-os` an.
+
+Die Session bekommt VM-seitig (**alpha**) die Shared-Group **`mitarbyte`** plus
+`0660`/`0770` — `~/KI-OS/Workspaces` ist ein **mit anderen Mitarbeitern
+geteilter Bind-Mount**, ohne die Gruppe könnten die anderen Mutagen-Neuanlagen
+nicht lesen/schreiben. Abschaltbar/änderbar per `--shared-group <NAME>` bzw.
+`-SharedGroup <NAME>` (`''` = aus). **Auf Windows** kommt zusätzlich
+`--symlink-mode=ignore` dazu (der `.claude/skills`-Ignore allein reicht nicht,
+`hub/Skills` hat eigene Symlinks) und `MUTAGEN_SSH_PATH` wird auf den nativen
+Windows-OpenSSH gesetzt. Begründung zu allen drei: `references/mutagen.md`.
+
+`SESSION_EXISTS` ist okay (läuft schon). Meldet das Skript zusätzlich `DRIFT:`,
+weicht die bestehende Session vom Template ab (Ignores, Symlink-Mode und Group
+sind bei einer laufenden Session **unveränderlich**) → einmalig mit
+`--recreate`/`-Recreate` neu anlegen; Dateien bleiben erhalten. **Vorher
+zwingend prüfen**, dass `mutagen sync list ki-os` auf alpha **und** beta die
+gleiche Datei-/Verzeichniszahl zeigt — eine Neuanlage startet ohne Ancestor und
+spült sonst lokal-only Daten als Neuanlage auf die VM
+(`references/mutagen.md` → „Warum `--recreate` bei Divergenz gefährlich ist").
+
+Richtet zusätzlich einen **Session-Watchdog** ein (macOS
 LaunchAgent / Linux systemd-Timer, ~2 min; Windows deckt der
 `ki-os-vm-watchdog`-Task ab), der eine nach VM-Idle-Suspend in `paused`/`halted`
 gelaufene Session automatisch resumt — sonst kämen lokale Skill-Outputs nicht
-mehr an, obwohl die VM-Seite gesund ist. Ignore-Begründung + Konflikt-Semantik +
-Selbstheilung + Obsidian: `references/mutagen.md`. (Windows-Status: Mutagen ist die beschlossene
+mehr an, obwohl die VM-Seite gesund ist. **Der Watchdog heilt aber nur
+`paused`/`halted`** — eine Session, die dauerhaft auf `Applying changes` steht
+(Transition problems oder toter Agent-Transport), heilt er nicht; ein „laufender"
+Watchdog-Task ist also kein Gesundheitsnachweis. Gesund heißt ausschließlich
+`Watching for changes` ohne Problems-Block. Ignore-Begründung +
+Konflikt-Semantik + Selbstheilung + Recovery + Obsidian:
+`references/mutagen.md`. (Windows-Status: Mutagen ist die beschlossene
 Architektur, dort aber noch nicht im Kundenbetrieb verifiziert — bei
 Problemen an den Admin.)
 

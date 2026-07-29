@@ -13,15 +13,24 @@
 # (Symlinks brauchen SeCreateSymbolicLinkPrivilege).
 # Details: references/mutagen.md.
 #
+# Symlinks werden auf Windows komplett uebersprungen (--symlink-mode=ignore) und
+# alles, was Mutagen VM-seitig anlegt, bekommt die Shared-Group `mitarbyte` +
+# group-schreibbare Modes (geteilter Bind-Mount `Workspaces`).
+#
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File setup-mutagen.ps1 `
-#       -VmUser <VM_USER> [-Recreate]
+#       -VmUser <VM_USER> [-Recreate] [-Gateway] [-SharedGroup <NAME>|'']
 #
 # Output-Marker: SESSION_EXISTS | SESSION_CREATED | SESSION_RECREATED
 # =============================================================================
 param(
     [Parameter(Mandatory = $true)][string]$VmUser,
     [switch]$Recreate,
+    # Shared-Group fuer den Bind-Mount `Workspaces` (mit anderen Mitarbeitern
+    # geteilt): alles, was Mutagen VM-seitig neu anlegt, bekommt diese Gruppe +
+    # group-schreibbare Modes. Leerstring = aus (Single-User-VM).
+    # Begruendung: references/mutagen.md -> "Shared-Group".
+    [string]$SharedGroup = 'mitarbyte',
     # gateway-Modus: hier ist es normal, dass kein Tunnel-Watchdog existiert
     # (Schritt 7 entfaellt) - dann darf setup-mutagen ihn selbst Mutagen-only
     # anlegen. Auf tunnel-VMs (ohne den Switch) NICHT, sonst reisst der
@@ -33,6 +42,25 @@ $ErrorActionPreference = 'Stop'
 $binDir     = Join-Path $env:USERPROFILE '.local\bin'
 $mutagenExe = Join-Path $binDir 'mutagen.exe'
 New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+
+# --- 0. Transport auf Windows-OpenSSH festnageln --------------------------------
+# Mutagen sucht sich sein ssh SELBST und bevorzugt auf Windows die
+# Git-for-Windows-MSYS2-ssh (C:\Program Files\Git\usr\bin\ssh.exe) - auch dann,
+# wenn die NICHT im PATH steht und System32\OpenSSH davor liegt. Deren
+# Pipe-Emulation kann den Agent-Transport haengen lassen: der mutagen-agent auf
+# der VM stirbt, lokal bleibt die Session in "Applying changes" stehen und
+# `sync pause` antwortet nicht mehr (Daemon-Goroutine blockiert). MUTAGEN_SSH_PATH
+# stellt den Suchpfad voran -> nativer Windows-OpenSSH, wie im Skill vorgesehen.
+# Persistent (User-Scope) setzen, damit der vom Watchdog-Task gestartete Daemon
+# ihn ebenfalls erbt.
+$opensshDir = 'C:\Windows\System32\OpenSSH'
+if (Test-Path (Join-Path $opensshDir 'ssh.exe')) {
+    [Environment]::SetEnvironmentVariable('MUTAGEN_SSH_PATH', $opensshDir, 'User')
+    $env:MUTAGEN_SSH_PATH = $opensshDir
+    Write-Host "OK: MUTAGEN_SSH_PATH=$opensshDir (erzwingt Windows-OpenSSH statt Git-Bash-ssh)"
+} else {
+    Write-Host "WARN: $opensshDir\ssh.exe fehlt - check-prereqs.ps1 laufen lassen."
+}
 
 # --- 1. Installieren (mit Retry) -----------------------------------------------
 $mutagenCmd = Get-Command mutagen -ErrorAction SilentlyContinue
@@ -109,22 +137,45 @@ if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
 
 # --- 3. Session ki-os -------------------------------------------------------------
 function New-KiOsSession {
-    # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta. `.claude/skills`
-    # bleibt auf Windows im Ignore (Symlink-Privileg) - Details references/mutagen.md.
-    & $mutagenExe sync create `
-        --name=ki-os `
-        --sync-mode=two-way-resolved `
-        --ignore-vcs `
-        --ignore="node_modules" `
-        --ignore=".venv" `
-        --ignore="__pycache__" `
-        --ignore=".obsidian/workspace*" `
-        --ignore=".claude/skills" `
-        --ignore=".cache" `
-        --ignore="dist" `
-        --ignore=".next" `
-        --ignore=".DS_Store" `
-        "ki-os-vm:/home/$VmUser/KI-OS" "$env:USERPROFILE\KI-OS"
+    # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta.
+    $sshArgs = @(
+        'sync', 'create',
+        '--name=ki-os',
+        '--sync-mode=two-way-resolved',
+        # Symlinks auf Windows GAR NICHT anfassen. Der Ignore `.claude/skills`
+        # allein reicht nicht: der Workspace hat zusaetzlich ~54 relative
+        # Symlinks unter `hub/Skills/*/*/scripts/` (-> ../../../../lib/*.py).
+        # Ohne SeCreateSymbolicLinkPrivilege (Developer Mode) scheitert jeder
+        # davon als "Transition problem"; die Session retryt sie endlos und
+        # erreicht nie "Watching for changes" - fuer den User sieht das aus wie
+        # "der Sync bleibt dauernd stehen". Mit `ignore` werden sie uebersprungen;
+        # die Zieldateien liegen ueber `hub/lib/` lokal ohnehin vor.
+        # Opt-in fuer die klickbare Skill-Ansicht: Developer Mode an, dann ohne
+        # dieses Flag + ohne den .claude/skills-Ignore neu anlegen.
+        '--symlink-mode=ignore',
+        '--ignore-vcs',
+        '--ignore=node_modules',
+        '--ignore=.venv',
+        '--ignore=__pycache__',
+        '--ignore=.obsidian/workspace*',
+        '--ignore=.claude/skills',
+        '--ignore=.cache',
+        '--ignore=dist',
+        '--ignore=.next',
+        '--ignore=.DS_Store'
+    )
+    # Shared-Group fuer den geteilten Bind-Mount `Workspaces`: Dateien, die
+    # Mutagen VM-seitig anlegt, muessen fuer die anderen Mitarbeiter der Gruppe
+    # les-/schreibbar sein - sonst laufen deren Agents in Permission-Fehler.
+    # Nur alpha (VM); auf Windows-Beta sind POSIX-Modes bedeutungslos.
+    if ($SharedGroup) {
+        $sshArgs += "--default-group-alpha=$SharedGroup"
+        $sshArgs += '--default-file-mode-alpha=0660'
+        $sshArgs += '--default-directory-mode-alpha=0770'
+    }
+    $sshArgs += "ki-os-vm:/home/$VmUser/KI-OS"
+    $sshArgs += "$env:USERPROFILE\KI-OS"
+    & $mutagenExe @sshArgs
 }
 
 & $mutagenExe sync list ki-os 2>$null | Out-Null
@@ -134,7 +185,37 @@ if ($LASTEXITCODE -eq 0) {
         New-KiOsSession
         Write-Host 'SESSION_RECREATED: ki-os neu angelegt (Dateien bleiben erhalten).'
     } else {
-        Write-Host 'SESSION_EXISTS: ki-os laeuft bereits - bei abweichender Konfiguration mit -Recreate neu anlegen.'
+        Write-Host 'SESSION_EXISTS: ki-os laeuft bereits.'
+        # Konfig-Drift AKTIV melden: Ignores/Symlink-Mode/Group einer bestehenden
+        # Session sind unveraenderlich, ein blosser Re-Run heilt sie NICHT. Bleibt
+        # das unbemerkt, retryt die Session z.B. die 137 Skill-Symlinks endlos und
+        # steht dauerhaft auf "Applying changes" statt "Watching for changes".
+        $cfg = & $mutagenExe sync list ki-os --long 2>&1 | Out-String
+        $drift = @()
+        if ($cfg -notmatch 'Symbolic link mode:\s*Ignore')      { $drift += '--symlink-mode=ignore fehlt (Skill-Symlinks scheitern als Transition problems)' }
+        if ($cfg -notmatch '(?m)^\s+\.claude/skills\s*$')       { $drift += 'Ignore .claude/skills fehlt' }
+        if ($SharedGroup -and ($cfg -notmatch "Default file/directory group:\s*$([regex]::Escape($SharedGroup))")) {
+            $drift += "Shared-Group '$SharedGroup' auf alpha fehlt (geteilter Workspaces-Bind-Mount)"
+        }
+        if ($drift.Count -gt 0) {
+            Write-Host 'DRIFT: die bestehende Session weicht vom Template ab:'
+            $drift | ForEach-Object { Write-Host "  - $_" }
+            Write-Host '  -> einmalig mit -Recreate neu anlegen (Dateien bleiben erhalten).'
+            Write-Host '  -> VORHER pruefen, dass beide Seiten konvergiert sind (`mutagen sync list ki-os`:'
+            Write-Host '     gleiche Datei-/Verzeichniszahl auf alpha und beta) - sonst spuelt der frische'
+            Write-Host '     Ancestor lokal-only Daten als Neuanlage auf die VM.'
+            # Der dokumentierte Developer-Mode-Opt-in legt die Session BEWUSST ohne
+            # symlink-mode=ignore + ohne den .claude/skills-Ignore an (klickbare
+            # Skill-Ansicht). Ohne diesen Hinweis meldet das Skript ihm bei jedem
+            # Lauf "Drift" und schickt ihn in eine unnoetige Neuanlage.
+            if ($drift -match 'symlink|\.claude/skills') {
+                Write-Host '  -> Hinweis: Wenn du den Windows-Developer-Mode bewusst nutzt (klickbare'
+                Write-Host '     Skill-Ansicht, references/mutagen.md), sind die Symlink-Zeilen erwartet'
+                Write-Host '     und kein Fehler - dann hier nichts tun.'
+            }
+        } else {
+            Write-Host 'OK: Session-Konfiguration entspricht dem Template.'
+        }
     }
 } else {
     New-KiOsSession

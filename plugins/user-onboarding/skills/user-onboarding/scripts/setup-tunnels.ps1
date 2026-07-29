@@ -131,7 +131,16 @@ if ($tunnelLess) {
 # KI-OS-Watchdog - generiert von setup-tunnels.ps1, laeuft alle 2 Minuten.
 `$ErrorActionPreference = 'SilentlyContinue'
 
-$tunnelBlock# Mutagen-Daemon: no-op, bis setup-mutagen.ps1 gelaufen ist. Prozess-Check
+$tunnelBlock# Transport auf Windows-OpenSSH festnageln, BEVOR der Daemon startet: Mutagen
+# sucht sein ssh selbst und bevorzugt sonst die Git-for-Windows-MSYS2-ssh, deren
+# Pipe-Emulation den Agent-Transport haengen lassen kann (Session bleibt in
+# "Applying changes", 'sync pause' antwortet nicht mehr). Der Daemon erbt die
+# Variable nur, wenn sie hier im Guard-Prozess gesetzt ist.
+if (Test-Path 'C:\Windows\System32\OpenSSH\ssh.exe') {
+    `$env:MUTAGEN_SSH_PATH = 'C:\Windows\System32\OpenSSH'
+}
+
+# Mutagen-Daemon: no-op, bis setup-mutagen.ps1 gelaufen ist. Prozess-Check
 # spart Spawns; der Daemon-Lock macht selbst einen blinden Respawn leak-frei.
 `$mutagen = Join-Path `$env:USERPROFILE '.local\bin\mutagen.exe'
 if (-not (Test-Path `$mutagen)) { `$mutagen = (Get-Command mutagen).Source }
@@ -142,6 +151,10 @@ if (`$mutagen -and -not (Get-Process -Name mutagen)) {
 # Mutagen-Session: Der Daemon-Prozess allein garantiert keine laufende Session.
 # Eine nach langem VM-Idle-Suspend in paused/halted gelaufene Session heilt sich
 # nicht selbst -> resume. Idempotent (no-op auf 'Watching for changes').
+# GRENZE: resume heilt NUR paused/halted. Eine Session, die dauerhaft auf
+# 'Applying changes' steht, ist ein anderer Fall - i.d.R. Transition problems
+# (Symlinks ohne Developer Mode) oder ein toter Agent-Transport; resume ist dort
+# ein No-op. Diagnose + Recovery: references/mutagen.md -> Troubleshooting.
 if (`$mutagen -and (Get-Process -Name mutagen)) {
     `$syncState = & `$mutagen sync list ki-os 2>`$null | Out-String
     if (`$syncState -and (`$syncState -notmatch 'Watching for changes')) {
