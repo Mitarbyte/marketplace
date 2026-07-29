@@ -235,18 +235,31 @@ printf '%s\n' "$info" | grep -q 'Watching for changes' \
 # und der Ordner bleibt lokal KOMPLETT stehen — inkl. aller getrackten Dateien.
 # Eine einzige ignorierte Datei tief im Baum reicht dafuer. Ohne Eingriff
 # divergieren beide Seiten dauerhaft still.
-# Fix: genau die benannten Reste wegraeumen, dann fuehrt Mutagen die Loeschung
-# selbst aus. Bewusst NICHT der Ordner wird geloescht, sondern nur die Reste.
-# Nur Wegwerf-Artefakte (unsere Ignores ohne VCS). Ist .git betroffen, wird
-# NICHT angefasst, sondern gemeldet — ein lokaler Repo-Klon ist eine bewusste
-# Entscheidung des Users.
-# Sicherheitsnetz: verschieben statt loeschen (mv = Rename, auch bei
-# node_modules billig). Mutagen selbst loescht in diesem Fall haerter als wir:
-# lokale Neuanlagen im Baum nimmt es bei two-way-resolved kommentarlos mit.
+# Fix: den betroffenen Ordner KOMPLETT in einen lokalen Papierkorb verschieben.
+# Danach sind beide Seiten einig ("beidseitig weg") und der Konflikt ist erledigt.
+#
+# Warum komplett und nicht nur die Reste: Raeumt man nur die Reste weg, loescht
+# Mutagen den Rest des Baums selbst — und nimmt dabei auch Dateien mit, die es
+# NUR lokal gibt (bei two-way-resolved gewinnt alpha, ohne Rueckfrage, ohne
+# Sicherung). Real aufgetreten: in einem migrierten Ordner lag noch ein
+# SQL-Dump, den es auf der VM nirgends gab. Der Papierkorb ist die einzige
+# Variante, bei der garantiert nichts verloren geht (mv = Rename, also auch bei
+# node_modules billig).
+#
+# Nur wenn ALLE gemeldeten Reste Wegwerf-Artefakte sind (unsere Ignores ohne
+# VCS). Ist .git betroffen, wird NICHT angefasst, sondern gemeldet: dort steckt
+# in der Regel ein lokaler Repo-Klon, in dem der User aktiv arbeitet — der darf
+# ihm nicht unter den Haenden wegwandern.
 TRASH="${HOME}/.local/state/ki-os/sync-trash/$(date +%Y-%m-%d_%H%M%S)"
-LOCAL_ROOT="${HOME}/KI-OS"
-conf="$(mutagen sync list ki-os --long 2>/dev/null | sed -n '/^Conflicts:/,/^Status:/p')"
+full="$(mutagen sync list ki-os --long 2>/dev/null)"
+conf="$(printf '%s\n' "$full" | sed -n '/^Conflicts:/,/^Status:/p')"
 [ -n "$conf" ] || exit 0
+# Lokalen Sync-Ordner AUS DER SESSION lesen, nicht $HOME/KI-OS annehmen: der
+# Skill legt zwar ~/KI-OS an, aber Bestands-Setups haben ihn woanders (z.B.
+# ~/Desktop/KI-OS). Mit falscher Wurzel findet der Aufloeser nichts und tut
+# still nichts - der Bug faellt nicht auf, weil er wie "nichts zu tun" aussieht.
+LOCAL_ROOT="$(printf '%s\n' "$full" | awk '/^Beta:/{f=1;next} f && /URL:/{sub(/^[[:space:]]*URL:[[:space:]]*/,""); print; exit}')"
+[ -n "$LOCAL_ROOT" ] && [ -d "$LOCAL_ROOT" ] || LOCAL_ROOT="${HOME}/KI-OS"
 
 disposable() {
     case "/$1/" in
@@ -267,8 +280,10 @@ printf '%s\n' "$conf" | awk -v RS='' '{print; print "---BLOCK---"}' | {
 "
             continue
         fi
-        # Loescht alpha ein Verzeichnis/eine Datei in diesem Block?
-        printf '%s' "$block" | grep -qE '^[[:space:]]*\(alpha\).*-> <non-existent>\)$' || { block=""; continue; }
+        # Welchen Ordner hat alpha geloescht? (Nur Directory-Faelle: bei Dateien
+        # gibt es das Untracked-Problem nicht.)
+        target="$(printf '%s' "$block" | sed -n 's/^[[:space:]]*(alpha)[[:space:]]*\(.*\) (Directory -> <non-existent>)$/\1/p' | head -1)"
+        [ -n "$target" ] || { block=""; continue; }
         # Alle beta-Pfade dieses Blocks, die als ignorierter Rest gemeldet sind.
         # sed greedy bis zum letzten Klammerausdruck -> Pfade mit Leerzeichen ok.
         betas="$(printf '%s' "$block" | sed -n 's/^[[:space:]]*(beta)[[:space:]]*\(.*\) (<non-existent> -> Untracked content)$/\1/p')"
@@ -282,22 +297,19 @@ printf '%s\n' "$conf" | awk -v RS='' '{print; print "---BLOCK---"}' | {
 $betas
 EOF2
         [ "$allowed" -eq 1 ] || { block=""; continue; }
-        while IFS= read -r p; do
-            [ -n "$p" ] || continue
-            src="${LOCAL_ROOT}/${p}"
-            [ -e "$src" ] || continue
-            if [ "${KIOS_SYNC_RESOLVE_DRYRUN:-0}" = "1" ]; then
-                echo "DRYRUN: wuerde verschieben -> $p"
-                continue
-            fi
-            mkdir -p "${TRASH}/$(dirname "$p")" 2>/dev/null || true
-            if mv "$src" "${TRASH}/${p}" 2>/dev/null; then
-                echo "SYNC-FIX: ignorierten Rest weggeraeumt (VM-Loeschung war dadurch blockiert): $p"
-                : > "${TRASH}/.did"
-            fi
-        done <<EOF3
-$betas
-EOF3
+        src="${LOCAL_ROOT}/${target}"
+        [ -e "$src" ] || { block=""; continue; }
+        if [ "${KIOS_SYNC_RESOLVE_DRYRUN:-0}" = "1" ]; then
+            echo "DRYRUN: wuerde '${target}' komplett nach ${TRASH}/ verschieben (auf der VM geloescht, lokal durch ignorierte Reste blockiert)"
+            block=""; continue
+        fi
+        mkdir -p "${TRASH}/$(dirname "$target")" 2>/dev/null || true
+        if mv "$src" "${TRASH}/${target}" 2>/dev/null; then
+            echo "SYNC-FIX: '${target}' war auf der VM geloescht und lokal durch ignorierte Reste blockiert"
+            echo "          -> komplett gesichert nach ${TRASH}/${target}"
+            echo "          -> Sync ist jetzt konsistent. Papierkorb pruefen und bei Bedarf leeren."
+            : > "${TRASH}/.did"
+        fi
         block=""
     done
 }

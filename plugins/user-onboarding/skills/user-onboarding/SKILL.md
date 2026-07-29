@@ -238,9 +238,10 @@ gelaufene Session automatisch resumt — sonst kämen lokale Skill-Outputs nicht
 mehr an, obwohl die VM-Seite gesund ist. Derselbe Watchdog löst zusätzlich
 **blockierte VM-Löschungen** auf: räumt ein Agent auf der VM einen Ordner weg,
 bleibt er lokal komplett stehen, solange ignorierte Reste darin liegen (auf
-macOS legt der Finder überall `.DS_Store` ab) — der Watchdog räumt genau diese
-Reste in einen Papierkorb und Mutagen löscht dann durch; `.git` fasst er nie an,
-sondern meldet `SYNC-BLOCK:`. **Der Watchdog heilt aber nur
+macOS legt der Finder überall `.DS_Store` ab) — der Watchdog verschiebt den
+Ordner dann komplett nach `~/.local/state/ki-os/sync-trash/<zeitstempel>/`, womit
+beide Seiten wieder einig sind und **nichts** verloren geht (auch nicht, was nur
+lokal existierte); `.git` fasst er nie an, sondern meldet `SYNC-BLOCK:`. **Der Watchdog heilt aber nur
 `paused`/`halted`** — eine Session, die dauerhaft auf `Applying changes` steht
 (Transition problems oder toter Agent-Transport), heilt er nicht; ein „laufender"
 Watchdog-Task ist also kein Gesundheitsnachweis. Gesund heißt ausschließlich

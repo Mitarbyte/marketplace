@@ -284,7 +284,16 @@ function Test-Disposable([string]$p) {
     return $false
 }
 
+# Lokalen Sync-Ordner AUS DER SESSION lesen, nicht %USERPROFILE%\KI-OS annehmen:
+# der Skill legt ihn zwar dort an, Bestands-Setups haben ihn aber woanders. Mit
+# falscher Wurzel findet der Aufloeser nichts und tut still nichts - der Bug
+# faellt nicht auf, weil er wie "nichts zu tun" aussieht.
 $root = Join-Path $env:USERPROFILE 'KI-OS'
+$betaUrl = [regex]::Match($conf, '(?ms)^Beta:\r?\n.*?^\s+URL:\s*(.+?)\r?$')
+if ($betaUrl.Success) {
+    $cand = $betaUrl.Groups[1].Value.Trim()
+    if ($cand -and (Test-Path -LiteralPath $cand)) { $root = $cand }
+}
 $stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
 $trash = Join-Path $env:USERPROFILE ".local\state\ki-os\sync-trash\$stamp"
 $did = $false
@@ -292,7 +301,11 @@ $did = $false
 # Blockweise auswerten, damit ein .git in Block A nicht die Aufloesung von
 # Block B verhindert - und kein Block halb aufgeloest wird.
 foreach ($block in ($m.Groups[1].Value -split '\r?\n\s*\r?\n')) {
-    if ($block -notmatch '(?m)^\s*\(alpha\).*-> <non-existent>\)\s*$') { continue }
+    # Welchen Ordner hat alpha geloescht? (Nur Directory-Faelle: bei Dateien gibt
+    # es das Untracked-Problem nicht.)
+    $t = [regex]::Match($block, '(?m)^\s*\(alpha\)\s+(.*) \(Directory -> <non-existent>\)\s*$')
+    if (-not $t.Success) { continue }
+    $target = $t.Groups[1].Value
     $betas = @([regex]::Matches($block, '(?m)^\s*\(beta\)\s+(.*) \(<non-existent> -> Untracked content\)\s*$') |
               ForEach-Object { $_.Groups[1].Value })
     if ($betas.Count -eq 0) { continue }
@@ -301,16 +314,18 @@ foreach ($block in ($m.Groups[1].Value -split '\r?\n\s*\r?\n')) {
         $bad | ForEach-Object { Write-Output "SYNC-BLOCK: '$_' ist kein Wegwerf-Artefakt (z.B. .git) - bitte lokal selbst entscheiden." }
         continue
     }
-    foreach ($p in $betas) {
-        $src = Join-Path $root ($p -replace '/', '\')
-        if (-not (Test-Path -LiteralPath $src)) { continue }
-        $dst = Join-Path $trash ($p -replace '/', '\')
-        New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
-        Move-Item -LiteralPath $src -Destination $dst -Force
-        if (-not (Test-Path -LiteralPath $src)) {
-            Write-Output "SYNC-FIX: ignorierten Rest weggeraeumt (VM-Loeschung war dadurch blockiert): $p"
-            $did = $true
-        }
+    # Den Ordner KOMPLETT sichern, nicht nur die Reste: sonst loescht Mutagen den
+    # Rest selbst und nimmt dabei auch Dateien mit, die es nur lokal gibt.
+    $src = Join-Path $root ($target -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $src)) { continue }
+    $dst = Join-Path $trash ($target -replace '/', '\')
+    New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+    Move-Item -LiteralPath $src -Destination $dst -Force
+    if (-not (Test-Path -LiteralPath $src)) {
+        Write-Output "SYNC-FIX: '$target' war auf der VM geloescht und lokal durch ignorierte Reste blockiert"
+        Write-Output "          -> komplett gesichert nach $dst"
+        Write-Output "          -> Sync ist jetzt konsistent. Papierkorb pruefen und bei Bedarf leeren."
+        $did = $true
     }
 }
 # Flush anstossen, damit die nun unblockierte Loeschung sofort laeuft.

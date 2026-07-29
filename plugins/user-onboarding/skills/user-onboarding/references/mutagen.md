@@ -267,26 +267,32 @@ Finder in jeden angesehenen Ordner eine `.DS_Store` legt; dazu kommen `.git`,
 `node_modules`, `__pycache__`. Ohne Eingriff divergieren beide Seiten dauerhaft
 und **still** — der Status bleibt `Watching for changes`, es sieht gesund aus.
 
-**Automatische Auflösung (seit 2026-07-29).** Der 2-Min-Watchdog räumt genau die
-im Konflikt benannten Reste weg — danach führt Mutagen die Löschung selbst aus:
+**Automatische Auflösung (seit 2026-07-29).** Der 2-Min-Watchdog verschiebt den
+betroffenen Ordner **komplett** in einen lokalen Papierkorb. Danach sind beide
+Seiten einig („beidseitig weg"), der Konflikt ist erledigt:
 
 | | |
 |---|---|
-| Was wird angefasst | **nur** die benannten Wegwerf-Artefakte: `.DS_Store`, `Thumbs.db`, `node_modules`, `__pycache__`, `.venv`, `.cache`, `dist`, `.next` |
-| Was nicht | `.git` — ein lokaler Repo-Klon ist eine bewusste Entscheidung. Der Block wird dann **gar nicht** aufgelöst, sondern als `SYNC-BLOCK:` gemeldet |
-| Sicherheitsnetz | verschieben statt löschen, nach `~/.local/state/ki-os/sync-trash/<zeitstempel>/` |
-| Ordner löschen | macht **Mutagen**, nicht der Watchdog |
-| Logs | macOS `~/Library/Logs/ki-os-mutagen-watchdog.log` · Linux `journalctl --user -u ki-os-mutagen-watchdog` · Windows Aufruf über `ki-os-vm-watchdog` |
+| Was passiert | der Ordner wandert **ganz** nach `~/.local/state/ki-os/sync-trash/<zeitstempel>/` — nichts wird gelöscht |
+| Wann | nur wenn **alle** gemeldeten Reste Wegwerf-Artefakte sind: `.DS_Store`, `Thumbs.db`, `node_modules`, `__pycache__`, `.venv`, `.cache`, `dist`, `.next` |
+| Ausnahme | `.git` — dort steckt meist ein lokaler Repo-Klon, in dem gearbeitet wird. Der Block wird **nicht** angefasst, sondern als `SYNC-BLOCK:` gemeldet |
+| Logs | macOS `~/Library/Logs/ki-os-mutagen-watchdog.log` · Linux `journalctl --user -u ki-os-mutagen-watchdog` · Windows über `ki-os-vm-watchdog` |
 
 Trockenlauf (zeigt nur, was passieren würde):
 `KIOS_SYNC_RESOLVE_DRYRUN=1 ~/.local/bin/ki-os-mutagen-watchdog.sh`
 
-> **Warum das Wegräumen nicht riskanter ist als Mutagens eigenes Verhalten:**
-> Sobald die Reste weg sind, löscht Mutagen den Baum — und nimmt dabei auch
-> **lokale Neuanlagen** darin kommentarlos mit (bei `two-way-resolved` gewinnt
-> alpha; verifiziert 2026-07-29). Wer im Baum lokal etwas Wichtiges hat, das die
-> VM nicht kennt, muss es **vor** dem Aufräumen herausholen — nicht wegen des
-> Watchdogs, sondern wegen der Sync-Semantik.
+> **Warum der ganze Ordner und nicht nur die Reste** (der Grund ist real
+> aufgetreten, 2026-07-29): Räumt man nur die Reste weg, löscht Mutagen den Rest
+> des Baums selbst — und nimmt dabei auch Dateien mit, die es **nur lokal** gibt,
+> kommentarlos und ohne Sicherung (bei `two-way-resolved` gewinnt alpha). In
+> einem in den Hub migrierten Ordner lag noch ein SQL-Dump, den es auf der VM
+> nirgends gab; er wäre weg gewesen. Der Papierkorb ist die einzige Variante, bei
+> der garantiert nichts verloren geht — `mv` ist ein Rename, also auch bei
+> `node_modules` billig.
+>
+> Praktische Folge für dich: **im Papierkorb nachsehen**, bevor du ihn leerst.
+> Dort liegt der letzte lokale Stand des Ordners, inklusive dem, was die VM nie
+> gesehen hat.
 
 ## Obsidian
 
