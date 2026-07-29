@@ -112,32 +112,57 @@ Guard-Logs (macOS) `~/Library/Logs/ki-os-mutagen-watchdog*.log` ·
 der lokale Ordner ist **Beta**. Im Modus `two-way-resolved` gewinnt bei echten
 Konflikten automatisch Alpha — also die VM, auf der der Agent arbeitet.
 
-### Shared-Group `mitarbyte` (geteilter `Workspaces`-Bind-Mount)
+### Shared-Group (nur bei geteiltem `Workspaces`-Bind-Mount)
 
-`~/KI-OS/Workspaces` ist auf der VM **kein normaler Ordner**, sondern ein
-**Bind-Mount**, der von mehreren Mitarbeitern geteilt wird — er zeigt bei allen
-auf dieselbe Quelle:
+> **Das gilt nur für VMs, auf denen Mitarbeiter ihren `Workspaces`-Ordner
+> wirklich teilen** (Stand 2026-07-29: hvotto). Auf allen anderen VMs — auch
+> Multi-User-VMs ohne Sharing — wird **keine** Gruppen-Freigabe gesetzt. Die
+> Skripte **erkennen** das VM-seitig am setgid-Bit (unten), es muss niemand
+> etwas mitgeben oder wissen.
+
+`~/KI-OS/Workspaces` ist auf einer solchen VM **kein normaler Ordner**, sondern
+ein **Bind-Mount**, der von mehreren Mitarbeitern geteilt wird — er zeigt bei
+allen auf dieselbe Quelle:
 
 ```
 /home/<VM_USER>/KI-OS/Workspaces  ->  /home/<OWNER>/KI-OS/Workspaces
 ```
 
-Die geteilten Verzeichnisse sind `drwxrws---` (setgid) mit Gruppe **`mitarbyte`**;
-jeder Mitarbeiter ist in dieser Gruppe. Dateien, die **Mutagen** dort VM-seitig
-anlegt, würden mit den Default-Modes `0600`/`0700` und der *primären* Gruppe des
-Users entstehen — die anderen Mitarbeiter könnten sie dann **nicht mehr lesen
-oder schreiben**, und deren Agents laufen in Permission-Fehler. Deshalb setzen
-`setup-mutagen.sh`/`.ps1` auf **alpha** (der VM) fest:
+Die geteilten Verzeichnisse sind `drwxrws---` (setgid, Modus `2770`) mit der
+geteilten Gruppe (auf hvotto `mitarbyte`); jeder beteiligte Mitarbeiter ist in
+dieser Gruppe. Dateien, die **Mutagen** dort VM-seitig anlegt, würden mit den
+Default-Modes `0600`/`0700` und der *primären* Gruppe des Users entstehen — die
+anderen Mitarbeiter könnten sie dann **nicht mehr lesen oder schreiben**, und
+deren Agents laufen in Permission-Fehler. Deshalb setzen `setup-mutagen.sh`/`.ps1`
+auf **alpha** (der VM):
 
 | Flag | Wert | Wirkung |
 |---|---|---|
-| `--default-group-alpha` | `mitarbyte` | neue Dateien/Ordner gehören der geteilten Gruppe |
+| `--default-group-alpha` | erkannte Gruppe | neue Dateien/Ordner gehören der geteilten Gruppe |
 | `--default-file-mode-alpha` | `0660` | Gruppe darf lesen **und** schreiben |
 | `--default-directory-mode-alpha` | `0770` | Gruppe darf betreten + anlegen |
 
 Nur `-alpha`: auf einer Windows-/macOS-**beta** sind POSIX-Modes bedeutungslos
-bzw. unerwünscht. Überschreibbar mit `--shared-group <NAME>` bzw.
-`-SharedGroup <NAME>`; `''` schaltet es für Single-User-VMs ab.
+bzw. unerwünscht.
+
+**Wie erkannt wird (kein Default, keine Rückfrage).** Das setgid-Bit *ist* das
+Kennzeichen des geteilten Ordners — die Skripte fragen es einmal per SSH ab:
+
+```sh
+find $HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g
+```
+
+| Ergebnis | Bedeutung | Folge |
+|---|---|---|
+| Gruppenname (Exit 0) | geteilter Bind-Mount | Gruppe + `0660`/`0770` auf alpha |
+| leer (Exit 0) | Ordner da, aber nicht setgid | keine Gruppen-Freigabe |
+| Exit 1 | kein `Workspaces`-Ordner (Normalfall) | keine Gruppen-Freigabe |
+| Exit 255 | SSH nicht erreichbar | keine Freigabe **+ laute WARN** |
+
+Damit bekommt eine Single-User- oder eine Multi-User-VM **ohne** Sharing nie
+eine Gruppen-Freigabe, und auf einer Sharing-VM stimmt die Gruppe automatisch —
+auch wenn sie dort nicht `mitarbyte` heißt. Überstimmen geht per
+`--shared-group <NAME>` bzw. `-SharedGroup <NAME>`; `''` erzwingt aus.
 
 **Warum das setgid-Bit allein nicht reicht** (sonst wäre
 `--default-group-alpha` redundant): Mutagen legt Dateien **nicht** direkt im
@@ -147,7 +172,8 @@ setgid-Gruppenvererbung greift aber nur beim *Anlegen* in einem Verzeichnis,
 nicht beim Rename hinein — die Datei behält die primäre Gruppe des Users.
 Deshalb muss die Gruppe explizit gesetzt werden.
 
-> **Reichweite der Modes — und was sie *nicht* öffnet:** Die Modes gelten für
+> **Reichweite der Modes — und was sie *nicht* öffnet** (nur relevant, wenn
+> oben eine Gruppe erkannt wurde): Die Modes gelten für
 > **alles**, was Mutagen auf der VM neu anlegt, nicht nur für `Workspaces/` —
 > `~/KI-OS/.env` (heute `0600`) wird beim nächsten Sync-Schreibvorgang zu
 > `0660` mit Gruppe `mitarbyte`. **Erreichbar** wird die Datei damit für andere

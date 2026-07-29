@@ -210,11 +210,14 @@ ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7; fehlt er �
 gateway-Modus ohne Tunnel — legt `setup-mutagen.ps1` ihn selbst in der
 Mutagen-only-Variante an) und legt die Session `ki-os` an.
 
-Die Session bekommt VM-seitig (**alpha**) die Shared-Group **`mitarbyte`** plus
-`0660`/`0770` — `~/KI-OS/Workspaces` ist ein **mit anderen Mitarbeitern
-geteilter Bind-Mount**, ohne die Gruppe könnten die anderen Mutagen-Neuanlagen
-nicht lesen/schreiben. Abschaltbar/änderbar per `--shared-group <NAME>` bzw.
-`-SharedGroup <NAME>` (`''` = aus). **Auf Windows** kommt zusätzlich
+Teilst du deinen `~/KI-OS/Workspaces`-Ordner per Bind-Mount mit Kollegen, setzt
+das Skript VM-seitig (**alpha**) dessen Gruppe plus `0660`/`0770` — sonst könnten
+die anderen deine Mutagen-Neuanlagen nicht lesen/schreiben. Das **erkennt** das
+Skript selbst am setgid-Bit des Ordners (Meldung `OK: geteilter
+Workspaces-Ordner erkannt`); ohne geteilten Ordner passiert nichts. Nur wenn die
+Erkennung per SSH scheitert (`WARN:`) und du teilst, den Schritt mit
+`--shared-group <NAME>` bzw. `-SharedGroup <NAME>` wiederholen. **Auf Windows**
+kommt zusätzlich
 `--symlink-mode=ignore` dazu (der `.claude/skills`-Ignore allein reicht nicht,
 `hub/Skills` hat eigene Symlinks) und `MUTAGEN_SSH_PATH` wird auf den nativen
 Windows-OpenSSH gesetzt. Begründung zu allen drei: `references/mutagen.md`.

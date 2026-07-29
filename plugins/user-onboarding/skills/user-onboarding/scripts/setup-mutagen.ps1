@@ -13,9 +13,10 @@
 # (Symlinks brauchen SeCreateSymbolicLinkPrivilege).
 # Details: references/mutagen.md.
 #
-# Symlinks werden auf Windows komplett uebersprungen (--symlink-mode=ignore) und
-# alles, was Mutagen VM-seitig anlegt, bekommt die Shared-Group `mitarbyte` +
-# group-schreibbare Modes (geteilter Bind-Mount `Workspaces`).
+# Symlinks werden auf Windows komplett uebersprungen (--symlink-mode=ignore).
+# Teilt der User seinen `Workspaces`-Ordner per Bind-Mount mit Kollegen, bekommt
+# alles, was Mutagen VM-seitig anlegt, dessen Gruppe + group-schreibbare Modes.
+# Das wird VM-seitig ERKANNT (setgid-Bit), nicht angenommen.
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File setup-mutagen.ps1 `
@@ -26,11 +27,11 @@
 param(
     [Parameter(Mandatory = $true)][string]$VmUser,
     [switch]$Recreate,
-    # Shared-Group fuer den Bind-Mount `Workspaces` (mit anderen Mitarbeitern
-    # geteilt): alles, was Mutagen VM-seitig neu anlegt, bekommt diese Gruppe +
-    # group-schreibbare Modes. Leerstring = aus (Single-User-VM).
+    # Shared-Group fuer einen geteilten `Workspaces`-Bind-Mount. NICHT angeben =
+    # VM-seitig erkennen (setgid-Bit); explizit angeben ueberstimmt die
+    # Erkennung, '' erzwingt aus.
     # Begruendung: references/mutagen.md -> "Shared-Group".
-    [string]$SharedGroup = 'mitarbyte',
+    [string]$SharedGroup,
     # gateway-Modus: hier ist es normal, dass kein Tunnel-Watchdog existiert
     # (Schritt 7 entfaellt) - dann darf setup-mutagen ihn selbst Mutagen-only
     # anlegen. Auf tunnel-VMs (ohne den Switch) NICHT, sonst reisst der
@@ -60,6 +61,33 @@ if (Test-Path (Join-Path $opensshDir 'ssh.exe')) {
     Write-Host "OK: MUTAGEN_SSH_PATH=$opensshDir (erzwingt Windows-OpenSSH statt Git-Bash-ssh)"
 } else {
     Write-Host "WARN: $opensshDir\ssh.exe fehlt - check-prereqs.ps1 laufen lassen."
+}
+
+# --- 0b. Shared-Group VM-seitig erkennen ----------------------------------------
+# Ein geteilter `Workspaces`-Bind-Mount ist auf der VM als setgid-Verzeichnis
+# (drwxrws---, Modus 2770) mit der geteilten Gruppe angelegt - genau daran ist er
+# erkennbar. Deshalb wird NICHTS angenommen: kein geteilter Ordner -> keine
+# Gruppen-Freigabe (Normalfall). Grund fuer die explizite Gruppe (Mutagen staged
+# ausserhalb des Roots und renamed hinein, setgid vererbt dabei nicht):
+# references/mutagen.md.
+# Das Remote-Kommando steht bewusst ohne Quotes/Redirects/Semikolon da: als EIN
+# single-quoted Argument uebergeben interpretiert PowerShell weder $HOME noch das
+# 2> - und es ist identisch zur sh-Variante.
+# ssh-Exit-Codes: 0 = setgid-Treffer (Gruppe auf stdout), 1 = Ordner fehlt,
+# 255 = Transportfehler (dann laut warnen statt still "aus" annehmen).
+if (-not $PSBoundParameters.ContainsKey('SharedGroup')) {
+    $SharedGroup = ''
+    $remoteCmd = 'find $HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g'
+    $detected = (& ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm $remoteCmd 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -eq 255) {
+        Write-Host 'WARN: Shared-Group-Erkennung fehlgeschlagen (SSH nicht erreichbar).'
+        Write-Host '      Es wird KEINE Gruppen-Freigabe gesetzt. Teilst du deinen'
+        Write-Host '      Workspaces-Ordner mit Kollegen, den Schritt mit'
+        Write-Host '      -SharedGroup <NAME> wiederholen.'
+    } elseif ($detected) {
+        $SharedGroup = $detected
+        Write-Host "OK: geteilter Workspaces-Ordner erkannt - Shared-Group '$SharedGroup'."
+    }
 }
 
 # --- 1. Installieren (mit Retry) -----------------------------------------------

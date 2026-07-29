@@ -8,8 +8,9 @@
 #
 # Ignore-Begruendung + Konflikt-Semantik: references/mutagen.md.
 #
-# Alles, was Mutagen VM-seitig anlegt, bekommt die Shared-Group `mitarbyte` +
-# group-schreibbare Modes (geteilter Bind-Mount `Workspaces`).
+# Teilt der User seinen `Workspaces`-Ordner per Bind-Mount mit Kollegen, bekommt
+# alles, was Mutagen VM-seitig anlegt, dessen Gruppe + group-schreibbare Modes.
+# Das wird VM-seitig ERKANNT (setgid-Bit), nicht angenommen — Details unten.
 #
 # Usage:  setup-mutagen.sh --vm-user <VM_USER> [--recreate] [--shared-group <NAME>]
 #
@@ -18,22 +19,50 @@
 set -euo pipefail
 
 VM_USER="" RECREATE=0
-# Shared-Group fuer den mit anderen Mitarbeitern geteilten Bind-Mount
-# `Workspaces`: alles, was Mutagen VM-seitig neu anlegt, bekommt diese Gruppe +
-# group-schreibbare Modes. --shared-group "" = aus (Single-User-VM).
+# Shared-Group: leer = auto-detect (s. detect_shared_group). Nur ein explizites
+# --shared-group ueberstimmt die Erkennung ('' erzwingt aus).
 # Begruendung: references/mutagen.md -> "Shared-Group".
-SHARED_GROUP="mitarbyte"
+SHARED_GROUP="" SHARED_GROUP_SET=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --vm-user)      VM_USER="$2"; shift 2 ;;
         --recreate)     RECREATE=1; shift ;;
-        --shared-group) SHARED_GROUP="$2"; shift 2 ;;
+        --shared-group) SHARED_GROUP="$2"; SHARED_GROUP_SET=1; shift 2 ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
 [ -n "$VM_USER" ] || { echo "FAIL: --vm-user fehlt" >&2; exit 2; }
 
 OS="$(uname -s)"
+
+# --- Shared-Group VM-seitig erkennen ------------------------------------------
+# Ein geteilter `Workspaces`-Bind-Mount ist auf der VM als setgid-Verzeichnis
+# (drwxrws---, Modus 2770) mit der geteilten Gruppe angelegt — genau daran ist er
+# erkennbar. Deshalb wird NICHTS angenommen: kein geteilter Ordner -> keine
+# Gruppen-Freigabe (Normalfall, Single-User- und Multi-User-VMs ohne Sharing).
+# Der Grund fuer die explizite Gruppe (Mutagen staged ausserhalb des Roots und
+# renamed hinein, setgid vererbt dabei nicht): references/mutagen.md.
+# find-Exit-Codes: 0 = setgid-Treffer (Gruppe auf stdout), 1 = Ordner fehlt,
+# 255 = SSH-Transportfehler (dann laut warnen statt still "aus" annehmen).
+detect_shared_group() {
+    # Bewusst ohne Quotes/Redirects im Remote-Kommando: es muss durch die
+    # sh- UND die PowerShell-Variante identisch durchgehen.
+    ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm \
+        "find \$HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g" 2>/dev/null
+}
+
+if [ "$SHARED_GROUP_SET" -eq 0 ]; then
+    DETECTED="$(detect_shared_group)" && DETECT_RC=0 || DETECT_RC=$?
+    if [ "$DETECT_RC" -eq 255 ]; then
+        echo "WARN: Shared-Group-Erkennung fehlgeschlagen (SSH nicht erreichbar)."
+        echo "      Es wird KEINE Gruppen-Freigabe gesetzt. Teilst du deinen"
+        echo "      Workspaces-Ordner mit Kollegen, den Schritt mit"
+        echo "      --shared-group <NAME> wiederholen."
+    elif [ -n "$DETECTED" ]; then
+        SHARED_GROUP="$DETECTED"
+        echo "OK: geteilter Workspaces-Ordner erkannt — Shared-Group '${SHARED_GROUP}'."
+    fi
+fi
 
 # --- 1. Installieren ----------------------------------------------------------
 if ! command -v mutagen >/dev/null 2>&1; then
