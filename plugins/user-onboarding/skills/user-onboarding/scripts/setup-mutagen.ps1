@@ -250,4 +250,72 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "SESSION_CREATED: ki-os (VM:/home/$VmUser/KI-OS <-> $env:USERPROFILE\KI-OS)"
 }
 
+# --- 4. Aufloeser fuer blockierte VM-Loeschungen --------------------------------
+# Raeumt ein Agent auf der VM einen Ordner weg, loescht Mutagen ihn lokal NICHT,
+# solange darin ignorierte Dateien liegen (node_modules, __pycache__, .DS_Store -
+# letztere landen ueber den Sync auch auf Windows-Seiten). Es entsteht ein
+# Konflikt "(alpha) X (Directory -> <non-existent>)" + "(beta) X/y/... (
+# <non-existent> -> Untracked content)" und der Ordner bleibt lokal KOMPLETT
+# stehen, inkl. aller getrackten Dateien. Eine einzige ignorierte Datei tief im
+# Baum reicht. Ohne Eingriff divergieren beide Seiten dauerhaft still.
+# Der Aufloeser raeumt genau die benannten Reste weg (verschieben, nicht loeschen)
+# -> danach fuehrt Mutagen die Loeschung selbst aus. Aufgerufen wird er vom
+# 2-Min-Watchdog (ki-os-vm-watchdog aus setup-tunnels.ps1).
+# Begruendung + Grenzen: references/mutagen.md -> "Blockierte VM-Loeschungen".
+$resolver = Join-Path $binDir 'ki-os-sync-resolve.ps1'
+@'
+# ki-os-sync-resolve.ps1 - generiert von setup-mutagen.ps1.
+# Loest Mutagen-Konflikte auf, bei denen eine VM-seitige Loeschung lokal an
+# ignorierten Resten haengt. Details: user-onboarding/references/mutagen.md.
+$ErrorActionPreference = 'SilentlyContinue'
+$mutagen = Join-Path $env:USERPROFILE '.local\bin\mutagen.exe'
+if (-not (Test-Path $mutagen)) { $mutagen = (Get-Command mutagen).Source }
+if (-not $mutagen) { return }
+
+$conf = & $mutagen sync list ki-os --long 2>$null | Out-String
+$m = [regex]::Match($conf, '(?ms)^Conflicts:\r?\n(.*?)^Status:')
+if (-not $m.Success) { return }
+
+# Nur Wegwerf-Artefakte. .git fehlt hier ABSICHTLICH: ein lokaler Repo-Klon ist
+# eine bewusste Entscheidung des Users, die kein Automatismus wegraeumt.
+$disposable = @('.DS_Store', 'Thumbs.db', 'node_modules', '__pycache__', '.venv', '.cache', 'dist', '.next')
+function Test-Disposable([string]$p) {
+    foreach ($seg in ($p -split '[/\\]')) { if ($disposable -contains $seg) { return $true } }
+    return $false
+}
+
+$root = Join-Path $env:USERPROFILE 'KI-OS'
+$stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+$trash = Join-Path $env:USERPROFILE ".local\state\ki-os\sync-trash\$stamp"
+$did = $false
+
+# Blockweise auswerten, damit ein .git in Block A nicht die Aufloesung von
+# Block B verhindert - und kein Block halb aufgeloest wird.
+foreach ($block in ($m.Groups[1].Value -split '\r?\n\s*\r?\n')) {
+    if ($block -notmatch '(?m)^\s*\(alpha\).*-> <non-existent>\)\s*$') { continue }
+    $betas = @([regex]::Matches($block, '(?m)^\s*\(beta\)\s+(.*) \(<non-existent> -> Untracked content\)\s*$') |
+              ForEach-Object { $_.Groups[1].Value })
+    if ($betas.Count -eq 0) { continue }
+    $bad = @($betas | Where-Object { -not (Test-Disposable $_) })
+    if ($bad.Count -gt 0) {
+        $bad | ForEach-Object { Write-Output "SYNC-BLOCK: '$_' ist kein Wegwerf-Artefakt (z.B. .git) - bitte lokal selbst entscheiden." }
+        continue
+    }
+    foreach ($p in $betas) {
+        $src = Join-Path $root ($p -replace '/', '\')
+        if (-not (Test-Path -LiteralPath $src)) { continue }
+        $dst = Join-Path $trash ($p -replace '/', '\')
+        New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
+        Move-Item -LiteralPath $src -Destination $dst -Force
+        if (-not (Test-Path -LiteralPath $src)) {
+            Write-Output "SYNC-FIX: ignorierten Rest weggeraeumt (VM-Loeschung war dadurch blockiert): $p"
+            $did = $true
+        }
+    }
+}
+# Flush anstossen, damit die nun unblockierte Loeschung sofort laeuft.
+if ($did) { & $mutagen sync flush ki-os 2>$null | Out-Null }
+'@ | Set-Content -Path $resolver -Encoding ASCII
+Write-Host "OK: Sync-Aufloeser ($resolver) - laeuft im 2-Min-Watchdog"
+
 & $mutagenExe sync list ki-os

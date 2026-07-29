@@ -161,6 +161,15 @@ if (`$mutagen -and (Get-Process -Name mutagen)) {
         & `$mutagen sync resume ki-os 2>`$null
     }
 }
+
+# Blockierte VM-Loeschungen aufloesen: raeumt ein Agent auf der VM einen Ordner
+# weg, bleibt er lokal KOMPLETT stehen, solange darin ignorierte Reste liegen
+# (node_modules, __pycache__, .DS_Store) - Mutagen darf sie nicht mitloeschen und
+# meldet stattdessen einen Konflikt. Der Aufloeser raeumt genau diese Reste weg
+# (verschiebt sie in einen Papierkorb), danach loescht Mutagen selbst durch.
+# Angelegt von setup-mutagen.ps1; fehlt er, ist das ein No-op.
+`$resolver = Join-Path `$env:USERPROFILE '.local\bin\ki-os-sync-resolve.ps1'
+if (Test-Path `$resolver) { & `$resolver }
 "@ | Set-Content -Path $guard -Encoding ASCII
 
 # Unsichtbarer VBS-Launcher (wscript = GUI-Subsystem, kein Konsolen-Popup)

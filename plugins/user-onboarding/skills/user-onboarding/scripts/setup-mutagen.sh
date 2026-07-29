@@ -225,6 +225,86 @@ info="$(mutagen sync list ki-os 2>/dev/null)" || exit 0
 # auf laufender/scannender Session), heilt aber paused/halted.
 printf '%s\n' "$info" | grep -q 'Watching for changes' \
     || mutagen sync resume ki-os >/dev/null 2>&1 || true
+
+# --- Blockierte VM-Loeschungen aufloesen --------------------------------------
+# Raeumt ein Agent auf der VM einen Ordner weg, loescht Mutagen ihn lokal NICHT,
+# solange darin ignorierte Dateien liegen (.DS_Store legt der Finder in jeden
+# angesehenen Ordner!). Es entsteht ein Konflikt
+#     (alpha) X            (Directory -> <non-existent>)
+#     (beta)  X/y/.DS_Store (<non-existent> -> Untracked content)
+# und der Ordner bleibt lokal KOMPLETT stehen — inkl. aller getrackten Dateien.
+# Eine einzige ignorierte Datei tief im Baum reicht dafuer. Ohne Eingriff
+# divergieren beide Seiten dauerhaft still.
+# Fix: genau die benannten Reste wegraeumen, dann fuehrt Mutagen die Loeschung
+# selbst aus. Bewusst NICHT der Ordner wird geloescht, sondern nur die Reste.
+# Nur Wegwerf-Artefakte (unsere Ignores ohne VCS). Ist .git betroffen, wird
+# NICHT angefasst, sondern gemeldet — ein lokaler Repo-Klon ist eine bewusste
+# Entscheidung des Users.
+# Sicherheitsnetz: verschieben statt loeschen (mv = Rename, auch bei
+# node_modules billig). Mutagen selbst loescht in diesem Fall haerter als wir:
+# lokale Neuanlagen im Baum nimmt es bei two-way-resolved kommentarlos mit.
+TRASH="${HOME}/.local/state/ki-os/sync-trash/$(date +%Y-%m-%d_%H%M%S)"
+LOCAL_ROOT="${HOME}/KI-OS"
+conf="$(mutagen sync list ki-os --long 2>/dev/null | sed -n '/^Conflicts:/,/^Status:/p')"
+[ -n "$conf" ] || exit 0
+
+disposable() {
+    case "/$1/" in
+        */.DS_Store/*|*/Thumbs.db/*|*/node_modules/*|*/__pycache__/*) return 0 ;;
+        */.venv/*|*/.cache/*|*/dist/*|*/.next/*) return 0 ;;
+    esac
+    return 1
+}
+
+# Konflikt-Bloecke sind durch Leerzeilen getrennt: blockweise auswerten, damit
+# ein .git in Block A nicht die Aufloesung von Block B verhindert (und
+# umgekehrt kein Block halb aufgeloest wird).
+printf '%s\n' "$conf" | awk -v RS='' '{print; print "---BLOCK---"}' | {
+    block=""
+    while IFS= read -r line; do
+        if [ "$line" != "---BLOCK---" ]; then
+            block="${block}${line}
+"
+            continue
+        fi
+        # Loescht alpha ein Verzeichnis/eine Datei in diesem Block?
+        printf '%s' "$block" | grep -qE '^[[:space:]]*\(alpha\).*-> <non-existent>\)$' || { block=""; continue; }
+        # Alle beta-Pfade dieses Blocks, die als ignorierter Rest gemeldet sind.
+        # sed greedy bis zum letzten Klammerausdruck -> Pfade mit Leerzeichen ok.
+        betas="$(printf '%s' "$block" | sed -n 's/^[[:space:]]*(beta)[[:space:]]*\(.*\) (<non-existent> -> Untracked content)$/\1/p')"
+        [ -n "$betas" ] || { block=""; continue; }
+        # Nur aufloesen, wenn JEDER Rest ein Wegwerf-Artefakt ist.
+        allowed=1
+        while IFS= read -r p; do
+            [ -n "$p" ] || continue
+            disposable "$p" || { allowed=0; echo "SYNC-BLOCK: '$p' ist kein Wegwerf-Artefakt (z.B. .git) — bitte lokal selbst entscheiden."; }
+        done <<EOF2
+$betas
+EOF2
+        [ "$allowed" -eq 1 ] || { block=""; continue; }
+        while IFS= read -r p; do
+            [ -n "$p" ] || continue
+            src="${LOCAL_ROOT}/${p}"
+            [ -e "$src" ] || continue
+            if [ "${KIOS_SYNC_RESOLVE_DRYRUN:-0}" = "1" ]; then
+                echo "DRYRUN: wuerde verschieben -> $p"
+                continue
+            fi
+            mkdir -p "${TRASH}/$(dirname "$p")" 2>/dev/null || true
+            if mv "$src" "${TRASH}/${p}" 2>/dev/null; then
+                echo "SYNC-FIX: ignorierten Rest weggeraeumt (VM-Loeschung war dadurch blockiert): $p"
+                : > "${TRASH}/.did"
+            fi
+        done <<EOF3
+$betas
+EOF3
+        block=""
+    done
+}
+# Flush nur anstossen, wenn wirklich etwas aufgeloest wurde (die Loeschung laeuft
+# dann sofort statt erst beim naechsten Zyklus).
+[ -f "${TRASH}/.did" ] && { rm -f "${TRASH}/.did"; mutagen sync flush ki-os >/dev/null 2>&1 || true; }
+true
 GUARD_EOF
 chmod +x "$GUARD"
 

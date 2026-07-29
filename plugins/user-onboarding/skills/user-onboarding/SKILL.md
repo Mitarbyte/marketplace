@@ -235,7 +235,12 @@ Richtet zusätzlich einen **Session-Watchdog** ein (macOS
 LaunchAgent / Linux systemd-Timer, ~2 min; Windows deckt der
 `ki-os-vm-watchdog`-Task ab), der eine nach VM-Idle-Suspend in `paused`/`halted`
 gelaufene Session automatisch resumt — sonst kämen lokale Skill-Outputs nicht
-mehr an, obwohl die VM-Seite gesund ist. **Der Watchdog heilt aber nur
+mehr an, obwohl die VM-Seite gesund ist. Derselbe Watchdog löst zusätzlich
+**blockierte VM-Löschungen** auf: räumt ein Agent auf der VM einen Ordner weg,
+bleibt er lokal komplett stehen, solange ignorierte Reste darin liegen (auf
+macOS legt der Finder überall `.DS_Store` ab) — der Watchdog räumt genau diese
+Reste in einen Papierkorb und Mutagen löscht dann durch; `.git` fasst er nie an,
+sondern meldet `SYNC-BLOCK:`. **Der Watchdog heilt aber nur
 `paused`/`halted`** — eine Session, die dauerhaft auf `Applying changes` steht
 (Transition problems oder toter Agent-Transport), heilt er nicht; ein „laufender"
 Watchdog-Task ist also kein Gesundheitsnachweis. Gesund heißt ausschließlich

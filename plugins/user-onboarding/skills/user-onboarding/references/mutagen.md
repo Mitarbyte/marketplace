@@ -247,6 +247,47 @@ Dateien bleiben dabei erhalten.
 - Status: `mutagen sync list ki-os` · live: `mutagen sync monitor ki-os` ·
   sofort syncen: `mutagen sync flush ki-os`.
 
+## Blockierte VM-Löschungen (Agent räumt auf, lokal bleibt alles stehen)
+
+**Der wichtigste stille Divergenz-Fall.** Räumt ein Agent auf der VM einen
+Ordner weg (z.B. `op-customer/` in den Hub migriert), löscht Mutagen ihn lokal
+**nicht**, solange darin **ignorierte** Dateien liegen — es darf sie nicht
+mitlöschen, weil es sie nicht verwaltet. Ergebnis:
+
+```
+Conflicts:
+	(alpha) op-customer                     (Directory -> <non-existent>)
+	(beta)  op-customer/walter360/.DS_Store  (<non-existent> -> Untracked content)
+```
+
+Der Ordner bleibt lokal **komplett** stehen — **inklusive aller getrackten
+Dateien**, nicht nur der ignorierten Reste. **Eine einzige ignorierte Datei
+irgendwo tief im Baum reicht dafür.** Auf macOS ist das der Normalfall, weil der
+Finder in jeden angesehenen Ordner eine `.DS_Store` legt; dazu kommen `.git`,
+`node_modules`, `__pycache__`. Ohne Eingriff divergieren beide Seiten dauerhaft
+und **still** — der Status bleibt `Watching for changes`, es sieht gesund aus.
+
+**Automatische Auflösung (seit 2026-07-29).** Der 2-Min-Watchdog räumt genau die
+im Konflikt benannten Reste weg — danach führt Mutagen die Löschung selbst aus:
+
+| | |
+|---|---|
+| Was wird angefasst | **nur** die benannten Wegwerf-Artefakte: `.DS_Store`, `Thumbs.db`, `node_modules`, `__pycache__`, `.venv`, `.cache`, `dist`, `.next` |
+| Was nicht | `.git` — ein lokaler Repo-Klon ist eine bewusste Entscheidung. Der Block wird dann **gar nicht** aufgelöst, sondern als `SYNC-BLOCK:` gemeldet |
+| Sicherheitsnetz | verschieben statt löschen, nach `~/.local/state/ki-os/sync-trash/<zeitstempel>/` |
+| Ordner löschen | macht **Mutagen**, nicht der Watchdog |
+| Logs | macOS `~/Library/Logs/ki-os-mutagen-watchdog.log` · Linux `journalctl --user -u ki-os-mutagen-watchdog` · Windows Aufruf über `ki-os-vm-watchdog` |
+
+Trockenlauf (zeigt nur, was passieren würde):
+`KIOS_SYNC_RESOLVE_DRYRUN=1 ~/.local/bin/ki-os-mutagen-watchdog.sh`
+
+> **Warum das Wegräumen nicht riskanter ist als Mutagens eigenes Verhalten:**
+> Sobald die Reste weg sind, löscht Mutagen den Baum — und nimmt dabei auch
+> **lokale Neuanlagen** darin kommentarlos mit (bei `two-way-resolved` gewinnt
+> alpha; verifiziert 2026-07-29). Wer im Baum lokal etwas Wichtiges hat, das die
+> VM nicht kennt, muss es **vor** dem Aufräumen herausholen — nicht wegen des
+> Watchdogs, sondern wegen der Sync-Semantik.
+
 ## Obsidian
 
 Den Vault auf dem **lokalen** Ordner `~/KI-OS` öffnen (Obsidian → „Open
@@ -331,6 +372,7 @@ weisen genau darauf hin.
 | Dauerhaft `Applying changes`, Daemon-CPU-Delta ~0, `sync pause` hängt | Toter Agent-Transport → „Recovery" oben. Transport-Binary auf Git-Bash-ssh prüfen |
 | VM: `<user>@notty`-sshd-Session ohne `mutagen-agent`-Child | Verwaister Transport — Prozess killen, Daemon neu starten (Recovery oben) |
 | VM: Dateien für andere Mitarbeiter nicht lesbar/schreibbar (`Workspaces/`) | Shared-Group fehlt in der Session → `DRIFT:`-Meldung von `setup-mutagen`, mit `--recreate` neu anlegen (s. „Shared-Group") |
+| Ordner auf der VM gelöscht, liegt lokal noch komplett da (Status trotzdem `Watching for changes`) | Ignorierte Reste blockieren die Löschung → „Blockierte VM-Löschungen". Der Watchdog löst das binnen ~2 min selbst; `SYNC-BLOCK:` im Log heißt `.git` betroffen → selbst entscheiden |
 | `mutagen: command not found` (Windows) | Neue PowerShell-Session öffnen (PATH-Update) oder `%USERPROFILE%\.local\bin\mutagen.exe` direkt aufrufen |
 | „Connecting…" dauerhaft | SSH testen: `ssh -o BatchMode=yes ki-os-vm true` — wenn das hängt, ist es ein SSH-/Netz-Problem |
 | „Conflicts" in `mutagen sync list` | `mutagen sync list ki-os --long` zeigt die Dateien; VM-Version gewinnt beim nächsten Sync — lokale Änderung vorher wegsichern, falls gebraucht |
