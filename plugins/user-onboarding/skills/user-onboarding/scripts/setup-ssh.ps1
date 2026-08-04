@@ -19,6 +19,21 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# --- Native Kommandos mit ERWARTETEM stderr sicher aufrufen ---------------------
+# PowerShell 5.1 macht unter EAP='Stop' aus jeder stderr-Zeile eines nativen
+# Kommandos einen terminierenden NativeCommandError - auch bei `2>$null` und auch
+# wenn der Fall normal ist. Hier zweimal relevant: `ssh-keygen -y -P` bei einem
+# Key MIT Passphrase (dann bricht das Skript ab, statt die FAIL-Diagnose unten
+# auszugeben) und `icacls /remove` fuer SIDs, die auf dem System gar nicht
+# existieren (Normalfall). Gleiche Klasse wie der Abbruch in setup-mutagen.ps1
+# (Jobst/heimatwerft 2026-08-04).
+function Invoke-NativeQuiet {
+    param([Parameter(Mandatory = $true)][scriptblock]$Command)
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command } finally { $ErrorActionPreference = $prevEap }
+}
+
 $sshDir = Join-Path $env:USERPROFILE '.ssh'
 $key    = Join-Path $sshDir 'id_ed25519'
 $cfg    = Join-Path $sshDir 'config'
@@ -45,7 +60,7 @@ if ((Test-Path $key) -and (-not $NewKey)) {
 # Pflicht-Verifikation: Key MUSS ohne Passphrase nutzbar sein (faengt jede
 # Fehl-Quoting-Variante sofort ab statt spaeter als raetselhaftes
 # "Permission denied" beim Connect).
-$null = ssh-keygen -y -P $np -f $key 2>$null
+$null = Invoke-NativeQuiet { ssh-keygen -y -P $np -f $key 2>$null }
 if ($LASTEXITCODE -ne 0) {
     Write-Host "FAIL: Der Key hat NICHT die erwartete leere Passphrase (Quoting-Problem)."
     Write-Host "  Key loeschen und Skript erneut laufen lassen:"
@@ -95,7 +110,7 @@ Write-Host "CONFIG_WRITTEN: Host ki-os-vm -> $VmUser@$VmIp ($cfg)"
 foreach ($f in @($key, $cfg)) {
     icacls $f /inheritance:r | Out-Null
     icacls $f /grant:r "$($env:USERNAME):(F)" | Out-Null
-    icacls $f /remove "BUILTIN\Users" "Everyone" "NT AUTHORITY\Authenticated Users" 2>$null | Out-Null
+    Invoke-NativeQuiet { icacls $f /remove "BUILTIN\Users" "Everyone" "NT AUTHORITY\Authenticated Users" 2>$null } | Out-Null
 }
 Write-Host "OK: ACLs repariert (config + Private Key)."
 

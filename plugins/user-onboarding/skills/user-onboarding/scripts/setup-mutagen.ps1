@@ -40,6 +40,24 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# --- Native Kommandos mit ERWARTETEM stderr sicher aufrufen ---------------------
+# PowerShell 5.1 macht unter $ErrorActionPreference='Stop' aus JEDER stderr-Zeile
+# eines nativen Kommandos einen terminierenden NativeCommandError - auch dann,
+# wenn stderr per `2>$null` umgeleitet ist und der Fall voellig normal ist.
+# Beobachtet bei Jobst/heimatwerft 2026-08-04: `find ... /KI-OS/Workspaces` meldet
+# "No such file or directory" (= Normalfall: kein geteilter Bind-Mount) und das
+# GESAMTE Setup brach in Schritt 0b ab, bevor Mutagen ueberhaupt installiert war.
+# Dieselbe Falle: `mutagen daemon stop` ohne laufenden Daemon und
+# `mutagen sync list ki-os` ohne existierende Session (= jeder Erstlauf!).
+# Darum diese Aufrufe hier kapseln: Preference nur fuer den nativen Call senken,
+# danach zuverlaessig zuruecksetzen. $LASTEXITCODE bleibt dabei auswertbar.
+function Invoke-NativeQuiet {
+    param([Parameter(Mandatory = $true)][scriptblock]$Command)
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command } finally { $ErrorActionPreference = $prevEap }
+}
+
 $binDir     = Join-Path $env:USERPROFILE '.local\bin'
 $mutagenExe = Join-Path $binDir 'mutagen.exe'
 New-Item -ItemType Directory -Path $binDir -Force | Out-Null
@@ -78,7 +96,7 @@ if (Test-Path (Join-Path $opensshDir 'ssh.exe')) {
 if (-not $PSBoundParameters.ContainsKey('SharedGroup')) {
     $SharedGroup = ''
     $remoteCmd = 'find $HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g'
-    $detected = (& ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm $remoteCmd 2>$null | Out-String).Trim()
+    $detected = (Invoke-NativeQuiet { & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm $remoteCmd 2>$null } | Out-String).Trim()
     if ($LASTEXITCODE -eq 255) {
         Write-Host 'WARN: Shared-Group-Erkennung fehlgeschlagen (SSH nicht erreichbar).'
         Write-Host '      Es wird KEINE Gruppen-Freigabe gesetzt. Teilst du deinen'
@@ -129,7 +147,7 @@ Write-Host "OK: mutagen $mutagenVersion ($mutagenExe)"
 # Hier nur: evtl. sichtbar gestarteten Daemon abloesen, den frueheren
 # Einzel-Task mutagen-daemon aufraeumen, Watchdog anstossen.
 $watchdog = 'ki-os-vm-watchdog'
-& $mutagenExe daemon stop 2>$null
+Invoke-NativeQuiet { & $mutagenExe daemon stop 2>$null } | Out-Null
 if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
     Unregister-ScheduledTask -TaskName 'mutagen-daemon' -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $binDir 'mutagen-daemon-hidden.vbs') -ErrorAction SilentlyContinue
@@ -206,7 +224,7 @@ function New-KiOsSession {
     & $mutagenExe @sshArgs
 }
 
-& $mutagenExe sync list ki-os 2>$null | Out-Null
+Invoke-NativeQuiet { & $mutagenExe sync list ki-os 2>$null } | Out-Null
 if ($LASTEXITCODE -eq 0) {
     if ($Recreate) {
         & $mutagenExe sync terminate ki-os
