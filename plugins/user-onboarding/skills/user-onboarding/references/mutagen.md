@@ -196,6 +196,7 @@ Deshalb muss die Gruppe explizit gesetzt werden.
 | `.obsidian/workspace*` | Obsidian-Fenster-Layout ist gerätespezifisch — würde sonst zwischen VM/Laptop hin- und herflattern |
 | `.cache`, `dist`, `.next` | Build-/Browser-Caches |
 | `.DS_Store` | macOS-Finder-Artefakte nicht auf die VM tragen |
+| `/SharePoint` | Gehört dem VM-seitigen **Cloud-Sync** (onedrive-Client gegen eine SharePoint-Bibliothek). Ohne diesen Ignore hängen an denselben Bytes **drei** Sync-Engines mit zwei unabhängigen Konfliktmodellen: Mutagen (VM↔Client), onedrive (VM↔SharePoint) und der OneDrive-Client der Kollegen an derselben Bibliothek — eine lokale Änderung liefe Client → Mutagen → VM → onedrive → SharePoint → Kollegen-Client. Der Ordner ist über SharePoint ohnehin auf jedem Arbeitsplatz verfügbar (Explorer/Web/Mobile), eine zweite Kopie über Mutagen bringt nichts und erzeugt Konfliktkopien. **Root-verankert** (führender `/`), damit nicht zufällig gleichnamige Unterordner tiefer im Baum mit ausgeschlossen werden. Gilt auf jeder VM, unabhängig davon ob der Cloud-Sync dort aktiv ist (No-op ohne den Ordner) |
 
 **`.claude/skills` — macOS/Linux vs. Windows:**
 
@@ -391,3 +392,4 @@ weisen genau darauf hin.
 | Session kaputt/falsch konfiguriert | `--recreate`/`-Recreate` — Dateien bleiben erhalten |
 | Erst-Sync dauert lange | Normal bei großem Workspace — `mutagen sync monitor ki-os` zeigt Fortschritt |
 | Sync-Fehler wegen Symlinks (Windows) | `.claude/skills`-Ignore fehlt in der Session → mit `-Recreate` neu anlegen |
+| `KI-OS/SharePoint` erscheint lokal / Konfliktkopien im Cloud-Sync-Ordner | `/SharePoint`-Ignore fehlt in der Session (`DRIFT:`-Meldung) → mit `--recreate`/`-Recreate` neu anlegen. **Vorher** beide Seiten konvergieren lassen, sonst spült der frische Ancestor die 323 heruntergeladenen Dateien als Neuanlage hoch |
