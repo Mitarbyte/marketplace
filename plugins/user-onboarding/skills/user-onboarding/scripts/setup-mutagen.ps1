@@ -204,7 +204,7 @@ function New-KiOsSession {
         '--ignore=.venv',
         '--ignore=__pycache__',
         '--ignore=.obsidian/workspace*',
-        # `/SharePoint` (root-verankert, fuehrender Slash): gehoert dem VM-seitigen
+        # `/Objektgedaechtnis` (root-verankert, fuehrender Slash): gehoert dem VM-seitigen
         # Cloud-Sync (onedrive-Client gegen die SharePoint-Bibliothek) und darf
         # NICHT zusaetzlich durch Mutagen laufen — sonst haengen an denselben
         # Bytes drei Sync-Engines mit zwei unabhaengigen Konfliktmodellen
@@ -212,7 +212,7 @@ function New-KiOsSession {
         # Kollegen an derselben Bibliothek). Der Ordner liegt ueber SharePoint
         # ohnehin schon auf jedem Windows-Arbeitsplatz — hier waere er die
         # zweite, konkurrierende Kopie desselben Baums.
-        '--ignore=/SharePoint',
+        '--ignore=/Objektgedaechtnis',
         '--ignore=.claude/skills',
         '--ignore=.cache',
         '--ignore=dist',
@@ -249,7 +249,7 @@ if ($LASTEXITCODE -eq 0) {
         $drift = @()
         if ($cfg -notmatch 'Symbolic link mode:\s*Ignore')      { $drift += '--symlink-mode=ignore fehlt (Skill-Symlinks scheitern als Transition problems)' }
         if ($cfg -notmatch '(?m)^\s+\.claude/skills\s*$')       { $drift += 'Ignore .claude/skills fehlt' }
-        if ($cfg -notmatch '(?m)^\s+/SharePoint\s*$')           { $drift += "Ignore /SharePoint fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct)" }
+        if ($cfg -notmatch '(?m)^\s+/Objektgedaechtnis\s*$')           { $drift += "Ignore /Objektgedaechtnis fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct)" }
         if ($SharedGroup -and ($cfg -notmatch "Default file/directory group:\s*$([regex]::Escape($SharedGroup))")) {
             $drift += "Shared-Group '$SharedGroup' auf alpha fehlt (geteilter Workspaces-Bind-Mount)"
         }
