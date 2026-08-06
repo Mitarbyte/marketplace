@@ -143,7 +143,7 @@ create_session() {
     # auf macOS/Linux bewusst mitgesynct (relative Skill-Symlinks -> klickbare
     # Skill-Ansicht); Details: references/mutagen.md.
     #
-    # `/Objektgedaechtnis` (root-verankert, fuehrender Slash): dieser Ordner gehoert
+    # `/SharePoint` (root-verankert, fuehrender Slash): dieser Ordner gehoert
     # dem VM-seitigen Cloud-Sync (onedrive-Client, SharePoint-Bibliothek) und
     # darf NICHT zusaetzlich durch Mutagen laufen — sonst haengen an denselben
     # Bytes drei Sync-Engines mit zwei unabhaengigen Konfliktmodellen (Mutagen
@@ -160,7 +160,7 @@ create_session() {
         --ignore=".venv" \
         --ignore="__pycache__" \
         --ignore=".obsidian/workspace*" \
-        --ignore="/Objektgedaechtnis" \
+        --ignore="/SharePoint" \
         --ignore=".cache" \
         --ignore="dist" \
         --ignore=".next" \
@@ -190,12 +190,12 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         # unveraenderlich, ein blosser Re-Run heilt sie NICHT.
         CFG="$("$MUTAGEN_BIN" sync list ki-os --long 2>&1 || true)"
         DRIFT=""
-        # `/Objektgedaechtnis`-Ignore: fehlt er, laeuft der Cloud-Sync-Ordner doppelt
+        # `/SharePoint`-Ignore: fehlt er, laeuft der Cloud-Sync-Ordner doppelt
         # (Mutagen + onedrive). Das faellt sonst NICHT auf — der Sync sieht
         # gesund aus und produziert still Konfliktkopien. `sync list --long`
         # listet jeden Ignore auf einer eigenen, eingerueckten Zeile.
-        if ! printf '%s\n' "$CFG" | grep -qE '^[[:space:]]+/Objektgedaechtnis[[:space:]]*$'; then
-            DRIFT="${DRIFT}  - Ignore '/Objektgedaechtnis' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct)\n"
+        if ! printf '%s\n' "$CFG" | grep -qE '^[[:space:]]+/SharePoint[[:space:]]*$'; then
+            DRIFT="${DRIFT}  - Ignore '/SharePoint' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct)\n"
         fi
         if [ -n "$SHARED_GROUP" ] \
            && ! printf '%s\n' "$CFG" | grep -qE "Default file/directory group:[[:space:]]*${SHARED_GROUP}\$"; then
