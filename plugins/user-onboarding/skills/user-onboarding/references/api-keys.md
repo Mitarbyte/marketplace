@@ -59,31 +59,66 @@ claude auth login
 # bei Anthropic einloggen, angezeigten Code zurueck ins Terminal pasten.
 ```
 
-### Long-lived Token fuer headless/interaktive Sessions — laeuft AUTOMATISCH
+### Langzeit-Zugang (Long-lived Token) — EIN Handgriff im noVNC
 
 Damit deine **normalen** `claude`-Sessions (interaktiv im noVNC-Terminal,
-Scheduler/headless) ohne Re-Login laufen, brauchst du einen Long-lived,
-inference-only Token. **Du musst dafuer nichts tun ausser dich in claude.ai
-einloggen** (genau der Login, den du im noVNC-Browser ohnehin machst): die VM
-erzeugt den Token danach **selbst** und legt ihn sicher ab.
+Scheduler/headless) ohne monatlichen Re-Login laufen, brauchst du einen
+Long-lived, inference-only Token. Er gilt **~1 Jahr**.
 
-Im Hintergrund erkennt der Watcher `ki-os-relogin@<user>`, dass du eingeloggt
-bist, ruft `ki-os-setup-token` auf (automatisiert `claude setup-token` ueber den
-VM-Chrome, klickt den Consent selbst) und schreibt den Token nach
-`~/.config/ki-os/claude-token.env` (Mode 600). Das passiert **einmalig** je User;
-liegt schon ein Token da, bleibt alles unangetastet.
+**Warum das wichtig ist:** ohne ihn haengen deine geplanten Aufgaben am
+normalen OAuth-Login — und der laeuft **30 Tage nach deiner letzten
+interaktiven Anmeldung** ab (er verlaengert sich NICHT dadurch, dass die VM
+laeuft oder Jobs erfolgreich sind). Ist er weg, stehen die Jobs, bis du dich
+neu anmeldest.
 
-**Fuer `claude remote-control` zaehlt dieser Token NICHT** — Remote Control nutzt
-den Full-Scope-OAuth-Login (`claude auth login`, der bei Ablauf selbst-heilt).
-Beide entstehen aus demselben claude.ai-Login, sind aber getrennte Token-Typen.
+**Was du tust — einmal:**
+
+1. noVNC oeffnen (Cockpit → System, oder der Button „Langzeit-Zugang fehlt")
+2. Auf dem Desktop erscheinen ein Hinweisfenster und die Claude-Anmeldung
+3. Anmelden (falls gefragt) und das **Captcha** loesen
+4. Fertig — den Rest macht die VM: Token nach `~/.config/ki-os/claude-token.env`
+   (Mode 600), Hinweisfenster schliesst sich von selbst
+
+**Warum nicht vollautomatisch?** Bis Juli 2026 war es das. Seit claude.ai ein
+unsichtbares hCaptcha vor die OAuth-Bestaetigung schiebt, kann kein Skript den
+Schritt mehr abschliessen — das ist ja der Zweck eines Captchas. Die VM
+uebernimmt weiterhin alles davor und danach; sie braucht dich nur fuer diesen
+einen Klick, dafuer dann ein Jahr lang nicht mehr.
+
+Selbst anstossen (statt auf den Cockpit-Button zu warten):
+
+```bash
+ki-os-setup-token --assist    # im noVNC-Terminal auf der VM
+```
+
+Der Watcher `ki-os-relogin@<user>` startet das ausserdem von selbst, sobald du
+im noVNC bist und noch kein Token existiert.
+
+**Fuer `claude remote-control` zaehlt dieser Token NICHT** — Remote Control
+nutzt die **Geraete-Anmeldung** (Full-Scope-OAuth via `claude auth login`).
+Beide entstehen aus demselben claude.ai-Login, sind aber getrennte Token-Typen:
+die Geraete-Anmeldung (Desktop-App / claude.ai-Code-Zugriff auf die VM) bleibt
+am 30-Tage-Rhythmus, die geplanten Aufgaben nicht. Im Cockpit unter
+**System → „Anmeldung & Zugaenge"** siehst du beide nebeneinander — mit Konto
+und Ablaufdatum — und kannst die Geraete-Anmeldung dort auch **vor** dem
+Ablauf per Knopf erneuern („Jetzt neu anmelden").
 
 Die VM sourct `~/.config/ki-os/claude-token.env` automatisch aus `~/.profile`
 **und** `~/.bashrc` — `.profile` deckt Login-/headless-Sessions (Scheduler),
-`.bashrc` interaktive Terminals ab. Der Token (gueltig ~1 Jahr) landet
-ausschliesslich in dieser Datei, nie im Hub-Repo.
+`.bashrc` interaktive Terminals ab. Die Datei ist seit 08/2026 ein Symlink in
+den Konto-Store `~/.config/ki-os/accounts/<konto>/`; der Token landet
+ausschliesslich dort, nie im Hub-Repo.
 
-Manuell nachziehen/rotieren (selten noetig — z.B. wenn der Token mal ungueltig
-wird): auf der VM `ki-os-setup-token --force` (claude.ai-Session muss leben).
+**Mehrere Konten** (z.B. geplante Aufgaben auf einem eigenen Konto, damit sie
+sich das Session-Limit nicht mit deiner Desktop-Nutzung teilen): Cockpit →
+System → „Anmeldung & Zugaenge" → „Konto hinzufuegen" — der gefuehrte Ablauf
+meldet dich im VM-Chrome ab, du meldest dich mit dem neuen Konto an, den Rest
+macht die VM. **Wichtig:** danach im VM-Chrome wieder mit deinem Alltagskonto
+anmelden (die Abschlussmeldung erinnert dich daran).
+
+Rotieren (selten noetig — z.B. wenn der Token ungueltig wird):
+`ki-os-setup-token --force` bzw. `--assist`, wenn ein Captcha dazwischenkommt.
+Konten anzeigen/umschalten: `ki-os-setup-token list` / `switch <konto>`.
 
 ## Sicherheit
 
