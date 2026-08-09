@@ -1,13 +1,19 @@
 # =============================================================================
 # verify.ps1 - Abschluss-Verifikation aller Komponenten (natives Windows)
 #
-# Prueft: SSH, noVNC-Tunnel (6080), Cockpit-Tunnel (3847), Mutagen-Session,
-# Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL/WARN aus; Exit-Code 1,
-# wenn mindestens eine Pflicht-Komponente fehlschlaegt.
+# Prueft: SSH, noVNC-Tunnel (6080), Agent-Tunnel (Cockpit 3847 bzw. Hermes 9119),
+# Mutagen-Session, Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL/WARN aus;
+# Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File verify.ps1 -VmUser <VM_USER> `
-#       [-Mode tunnel|gateway] [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>]
+#       [-Mode tunnel|gateway] [-Engine claude|hermes]
+#       [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>] [-GatewayAgentUrl <url>]
+#
+# -Engine hermes: kein Cockpit und keine Claude-Desktop-App - geprueft werden das
+# Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und SSH/Mutagen. Die
+# Hermes-App verbindet sich mit URL + Session-Token, lokal gibt es keine
+# Registrierung zu pruefen.
 #
 # -Mode gateway (aus get-vm-values ACCESS_MODE): statt der lokalen Tunnel
 # werden die Gateway-URLs geprueft (302/401/403 = OK, Login kommt vom IdP).
@@ -15,12 +21,21 @@
 param(
     [Parameter(Mandatory = $true)][string]$VmUser,
     [string]$Mode = 'tunnel',
+    [ValidateSet('claude','hermes')][string]$Engine = 'claude',
     [string]$GatewayCockpitUrl = '',
-    [string]$GatewayNovncUrl = ''
+    [string]$GatewayNovncUrl = '',
+    [string]$GatewayAgentUrl = ''
 )
 $ErrorActionPreference = 'Continue'
 $failed = $false
 $isGateway = ($Mode -eq 'gateway')
+$isHermes  = ($Engine -eq 'hermes')
+# Haupt-Oberflaeche je Engine - EIN Ort, an dem der Unterschied steht.
+if ($isHermes) {
+    $mainLabel = 'Hermes-Dashboard'; $mainPort = 9119; $mainGwUrl = $GatewayAgentUrl
+} else {
+    $mainLabel = 'Cockpit';          $mainPort = 3847; $mainGwUrl = $GatewayCockpitUrl
+}
 
 # --- SSH ------------------------------------------------------------------------
 & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm true 2>$null
@@ -39,8 +54,8 @@ if ($isGateway) {
     # Gateway statt Tunnel: unauthentifiziert MUSS ein Redirect/Deny kommen
     # (302/401/403). 200 waere ein Auth-Bypass -> Admin alarmieren.
     foreach ($g in @(
-        @{ Label = 'Gateway Cockpit'; Url = $GatewayCockpitUrl },
-        @{ Label = 'Gateway noVNC';   Url = $GatewayNovncUrl }
+        @{ Label = "Gateway $mainLabel"; Url = $mainGwUrl },
+        @{ Label = 'Gateway noVNC';      Url = $GatewayNovncUrl }
     )) {
         if (-not $g.Url -or $g.Url -eq 'MISSING') {
             Write-Host "FAIL: $($g.Label)-URL fehlt (Admin: ki-os-fleet vm gateway-grant)"; $failed = $true
@@ -60,7 +75,7 @@ if ($isGateway) {
 } else {
     foreach ($t in @(
         @{ Label = 'noVNC-Tunnel  http://localhost:6080/vnc.html'; Url = 'http://localhost:6080/vnc.html'; Port = 6080 },
-        @{ Label = 'Cockpit-Tunnel http://localhost:3847';          Url = 'http://localhost:3847';          Port = 3847 }
+        @{ Label = "$mainLabel-Tunnel http://localhost:$mainPort"; Url = "http://localhost:$mainPort"; Port = $mainPort }
     )) {
         $listening = [bool](Get-NetTCPConnection -LocalPort $t.Port -State Listen -ErrorAction SilentlyContinue)
         $code = $null
@@ -90,6 +105,15 @@ if (Test-Path (Join-Path $env:USERPROFILE 'KI-OS')) { Write-Host 'OK:   Lokaler 
 else { Write-Host 'FAIL: Lokaler Workspace %USERPROFILE%\KI-OS fehlt'; $failed = $true }
 
 # --- Desktop-App -----------------------------------------------------------------------
+# Die Registrierung (ssh_configs.json + ~\.claude.json) ist ein CLAUDE-Artefakt.
+# Auf Hermes gibt es sie nicht: die Hermes-App wird mit URL + Session-Token
+# verbunden, lokal liegt nichts, was man pruefen koennte.
+if ($isHermes) {
+    Write-Host 'OK:   engine=hermes - keine Claude-Desktop-App-Registrierung zu pruefen'
+    Write-Host "      (Hermes-App: Remote gateway -> URL + Session-Token; Token beim Admin: ki-os-fleet vm hermes-token --user $VmUser)"
+    if ($failed) { exit 1 } else { exit 0 }
+}
+
 $cfgPath = Join-Path $env:APPDATA 'Claude\ssh_configs.json'
 if ((Test-Path $cfgPath) -and ((Get-Content -LiteralPath $cfgPath -Raw) -match '"ki-os-vm"')) {
     Write-Host 'OK:   Desktop-App ssh_configs.json (ki-os-vm)'

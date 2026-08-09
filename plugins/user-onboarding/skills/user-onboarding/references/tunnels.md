@@ -14,7 +14,15 @@ bzw. `scripts/setup-tunnels.ps1` (Windows) ein — dieses Dokument erklärt das
 | Tunnel | Lokal (fix, alle Mitarbeiter) | VM (pro User) | Zweck |
 |---|---|---|---|
 | noVNC | `6080` | `<NOVNC_PORT>` (Schema `6080 + UID − 1000`, aus `~/.config/ki-os/display.env`) | VM-Browser ansehen + bedienen: `http://localhost:6080/vnc.html?resize=scale` |
-| Cockpit | `3847` | `<COCKPIT_PORT>` (Schema `30000 + UID`, liefert `mitarbyte cockpit-port`) | Cockpit-Web-UI: `http://localhost:3847` |
+| Cockpit *(engine=claude)* | `3847` | `<COCKPIT_PORT>` (Schema `30000 + UID`, liefert `mitarbyte cockpit-port`) | Cockpit-Web-UI: `http://localhost:3847` |
+| Hermes-Dashboard *(engine=hermes)* | `9119` | `<AGENT_PORT>` (Schema `9119 + UID − 1000`) | Agenten-Oberfläche: `http://localhost:9119` — auch das Ziel der Hermes-Desktop-App („Remote gateway") |
+
+**Der zweite Tunnel hängt an der Engine der VM** (`ENGINE` aus
+`get-vm-values`): auf `hermes` gibt es kein Cockpit, dafür das Hermes-Dashboard.
+Lokal `9119` ist bewusst der Hermes-Default, den die Desktop-App selbst
+vorschlägt. `setup-tunnels` räumt beim Einrichten den Tunnel der jeweils
+*anderen* Engine ab — sonst bliebe nach einem Engine-Wechsel ein Tunnel auf
+einen VM-Port stehen, an dem nichts mehr lauscht.
 
 **Ports nicht verwechseln:** links steht immer der feste *lokale* Port, rechts
 der *VM-seitige, pro-User* Wert. Nur beim ersten User (UID 1000) ist der

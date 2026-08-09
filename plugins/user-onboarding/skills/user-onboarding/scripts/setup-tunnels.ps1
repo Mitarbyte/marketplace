@@ -2,7 +2,10 @@
 # setup-tunnels.ps1 - gehaertete SSH-Tunnel-Autostarts (natives Windows)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
-#   Cockpit: lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
+#   Zweiter Tunnel je Engine (docs/features/hermes/plan.md § 8):
+#     -Engine claude  Cockpit:        lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
+#     -Engine hermes  Hermes-Agent:   lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
+#   Lokal 9119 ist der Hermes-Default, den die Desktop-App selbst vorschlaegt.
 #
 # Muster: EIN liveness-guarded Scheduled Task `ki-os-vm-watchdog` (mit Autor +
 # Beschreibung, statt mehrerer anonym wirkender Einzel-Tasks) - sein
@@ -17,6 +20,7 @@
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File setup-tunnels.ps1 `
 #       -NovncPort <VM_PORT> -CockpitPort <VM_PORT>
+#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -AgentPort <n> -Engine hermes
 #   powershell ... -File setup-tunnels.ps1 -Remove        # gateway-Modus: Tunnel abbauen
 #   powershell ... -File setup-tunnels.ps1 -MutagenOnly   # frisches gateway-Setup ohne Tunnel
 #
@@ -27,14 +31,26 @@
 param(
     [int]$NovncPort = 0,
     [int]$CockpitPort = 0,
+    [int]$AgentPort = 0,
+    [ValidateSet('claude','hermes')][string]$Engine = 'claude',
     [switch]$Remove,
     [switch]$MutagenOnly
 )
 $ErrorActionPreference = 'Stop'
 
 $tunnelLess = [bool]($Remove -or $MutagenOnly)
-if (-not $tunnelLess -and ($NovncPort -lt 1 -or $CockpitPort -lt 1)) {
-    Write-Host "FAIL: -NovncPort/-CockpitPort fehlen (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."
+# Zweiter Tunnel: Label, lokaler Port und VM-Port haengen an der Engine.
+if ($Engine -eq 'hermes') {
+    $secondLabel = 'Hermes-Dashboard'; $secondLocal = 9119; $secondRemote = $AgentPort
+} else {
+    $secondLabel = 'Cockpit';          $secondLocal = 3847; $secondRemote = $CockpitPort
+}
+if (-not $tunnelLess -and ($NovncPort -lt 1 -or $secondRemote -lt 1)) {
+    if ($Engine -eq 'hermes') {
+        Write-Host "FAIL: -NovncPort/-AgentPort fehlen (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."
+    } else {
+        Write-Host "FAIL: -NovncPort/-CockpitPort fehlen (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."
+    }
     exit 2
 }
 
@@ -46,8 +62,8 @@ New-Item -ItemType Directory -Path $binDir -Force | Out-Null
 
 $taskName = 'ki-os-vm-watchdog'
 $tunnels = @(
-    @{ Label = 'noVNC';   LocalPort = 6080; RemotePort = $NovncPort },
-    @{ Label = 'Cockpit'; LocalPort = 3847; RemotePort = $CockpitPort }
+    @{ Label = 'noVNC';        LocalPort = 6080;         RemotePort = $NovncPort },
+    @{ Label = $secondLabel;   LocalPort = $secondLocal; RemotePort = $secondRemote }
 )
 
 # --- Cleanup (Self-Healing): EIN Scan ueber alle Tasks --------------------------
@@ -56,7 +72,11 @@ $tunnels = @(
 # .vbs/.ps1-Dateien) - faengt die frueheren Einzel-Tasks, beliebige Altlasten
 # und den Watchdog selbst (wird gleich frisch registriert). Separator-Klasse
 # [''",\s] matcht beide Arg-Formate ('-L 6080:...' und '-L','6080:...').
-$portAlt = ($tunnels | ForEach-Object { $_.LocalPort }) -join '|'
+# Cleanup-Ports: BEIDE moeglichen Zweit-Tunnel (3847 und 9119), nicht nur der
+# der aktuellen Engine. So raeumt derselbe Scan nach einem Engine-Wechsel den
+# Tunnel der alten Engine mit ab, statt ihn als Leiche auf einem toten VM-Port
+# weiterlaufen zu lassen.
+$portAlt = ((($tunnels | ForEach-Object { $_.LocalPort }) + @(3847, 9119)) | Sort-Object -Unique) -join '|'
 $taskPattern   = '-L[''",\s]+(' + $portAlt + '):127\.0\.0\.1:\d+|mutagen(\.exe)?[''"\s]+daemon\s+run'
 $orphanPattern = '-L\s*('       + $portAlt + '):127\.0\.0\.1:'
 $fileRx        = '([A-Za-z]:\\[^"'' ]+\.(?:vbs|ps1))'

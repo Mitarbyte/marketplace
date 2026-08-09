@@ -3,7 +3,11 @@
 # setup-tunnels.sh — beide gehaerteten SSH-Tunnel-Autostarts (macOS/Linux)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
-#   Cockpit: lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
+#   Zweiter Tunnel je Engine (docs/features/hermes/plan.md § 8):
+#     engine=claude  Cockpit:        lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
+#     engine=hermes  Hermes-Agent:   lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
+#   Lokal 9119 ist bewusst der Hermes-Default: die Desktop-App schlaegt
+#   127.0.0.1:9119 von selbst vor, der Mitarbeiter muss nichts umtippen.
 #
 # Backends: LaunchAgents (macOS, bash-Loop gegen launchd-Parken) bzw.
 # systemd-User-Services (Linux, StartLimitIntervalSec=0). Idempotent —
@@ -11,6 +15,7 @@
 # Begruendung: references/tunnels.md.
 #
 # Usage:  setup-tunnels.sh --novnc-port <VM_PORT> --cockpit-port <VM_PORT>
+#         setup-tunnels.sh --novnc-port <VM_PORT> --agent-port <VM_PORT> --engine hermes
 #         setup-tunnels.sh --remove
 #
 # --remove baut beide Tunnel-Autostarts idempotent ab (gateway-Modus: die VM
@@ -19,19 +24,33 @@
 # =============================================================================
 set -euo pipefail
 
-NOVNC_PORT="" COCKPIT_PORT="" REMOVE=0
+NOVNC_PORT="" COCKPIT_PORT="" AGENT_PORT="" ENGINE="claude" REMOVE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --novnc-port)   NOVNC_PORT="$2"; shift 2 ;;
         --cockpit-port) COCKPIT_PORT="$2"; shift 2 ;;
+        --agent-port)   AGENT_PORT="$2"; shift 2 ;;
+        --engine)       ENGINE="$2"; shift 2 ;;
         --remove)       REMOVE=1; shift ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
+case "$ENGINE" in claude|hermes) ;; *) echo "FAIL: --engine erlaubt nur claude|hermes" >&2; exit 2 ;; esac
+
+# Zweiter Tunnel: Name, lokaler Port, VM-Port und Verifikations-Pfad haengen an
+# der Engine. Alles Weitere (Backends, Haertung, --remove) ist identisch.
+if [ "$ENGINE" = "hermes" ]; then
+    SECOND_NAME="agent";   SECOND_LPORT=9119; SECOND_RPORT="$AGENT_PORT";   SECOND_LABEL="Hermes-Dashboard"
+else
+    SECOND_NAME="cockpit"; SECOND_LPORT=3847; SECOND_RPORT="$COCKPIT_PORT"; SECOND_LABEL="Cockpit"
+fi
 
 remove_macos_tunnels() {
     local name label plist
-    for name in novnc cockpit; do
+    # BEIDE moeglichen Zweit-Tunnel abraeumen, nicht nur den der aktuellen
+    # Engine: nach einem Engine-Wechsel liegt der andere sonst als Leiche herum
+    # und tunnelt auf einen Port, an dem nichts mehr lauscht.
+    for name in novnc cockpit agent; do
         label="com.$(id -un).ssh-tunnel.ki-os-vm-${name}"
         plist="$HOME/Library/LaunchAgents/${label}.plist"
         launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
@@ -42,7 +61,7 @@ remove_macos_tunnels() {
 
 remove_linux_tunnels() {
     local name unit
-    for name in novnc cockpit; do
+    for name in novnc cockpit agent; do
         unit="ki-os-vm-${name}-tunnel.service"
         systemctl --user disable --now "${unit}" 2>/dev/null || true
         [ -f "$HOME/.config/systemd/user/${unit}" ] \
@@ -50,6 +69,32 @@ remove_linux_tunnels() {
             || echo "OK: Unit ${unit} war nicht vorhanden"
     done
     systemctl --user daemon-reload 2>/dev/null || true
+}
+
+# Nach einem Engine-Wechsel ist der Tunnel der ALTEN Engine eine Leiche: er
+# tunnelt weiter auf einen Port, an dem nichts (mehr) lauscht, und belegt dabei
+# 3847 bzw. 9119 lokal. Beim Einrichten also gezielt entfernen.
+remove_stale_second_macos() {
+    local other label plist
+    other=cockpit; [ "$SECOND_NAME" = "cockpit" ] && other=agent
+    label="com.$(id -un).ssh-tunnel.ki-os-vm-${other}"
+    plist="$HOME/Library/LaunchAgents/${label}.plist"
+    if [ -f "$plist" ]; then
+        launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
+        rm -f "$plist"
+        echo "OK: alter ${other}-Tunnel entfernt (Engine-Wechsel)"
+    fi
+}
+remove_stale_second_linux() {
+    local other unit
+    other=cockpit; [ "$SECOND_NAME" = "cockpit" ] && other=agent
+    unit="ki-os-vm-${other}-tunnel.service"
+    if [ -f "$HOME/.config/systemd/user/${unit}" ]; then
+        systemctl --user disable --now "${unit}" 2>/dev/null || true
+        rm -f "$HOME/.config/systemd/user/${unit}"
+        systemctl --user daemon-reload 2>/dev/null || true
+        echo "OK: alter ${other}-Tunnel entfernt (Engine-Wechsel)"
+    fi
 }
 
 if [ "$REMOVE" = "1" ]; then
@@ -63,7 +108,14 @@ if [ "$REMOVE" = "1" ]; then
 fi
 
 [[ "$NOVNC_PORT"   =~ ^[0-9]+$ ]] || { echo "FAIL: --novnc-port fehlt/ungueltig" >&2; exit 2; }
-[[ "$COCKPIT_PORT" =~ ^[0-9]+$ ]] || { echo "FAIL: --cockpit-port fehlt/ungueltig" >&2; exit 2; }
+if ! [[ "$SECOND_RPORT" =~ ^[0-9]+$ ]]; then
+    if [ "$ENGINE" = "hermes" ]; then
+        echo "FAIL: --agent-port fehlt/ungueltig (engine=hermes)" >&2
+    else
+        echo "FAIL: --cockpit-port fehlt/ungueltig" >&2
+    fi
+    exit 2
+fi
 
 SSH_OPTS="-o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -o TCPKeepAlive=yes -o StrictHostKeyChecking=accept-new"
 
@@ -137,12 +189,14 @@ UNIT
 
 case "$(uname -s)" in
     Darwin)
-        setup_macos_tunnel novnc   6080 "$NOVNC_PORT"
-        setup_macos_tunnel cockpit 3847 "$COCKPIT_PORT"
+        remove_stale_second_macos
+        setup_macos_tunnel novnc 6080 "$NOVNC_PORT"
+        setup_macos_tunnel "$SECOND_NAME" "$SECOND_LPORT" "$SECOND_RPORT"
         ;;
     Linux)
-        setup_linux_tunnel novnc   6080 "$NOVNC_PORT"
-        setup_linux_tunnel cockpit 3847 "$COCKPIT_PORT"
+        remove_stale_second_linux
+        setup_linux_tunnel novnc 6080 "$NOVNC_PORT"
+        setup_linux_tunnel "$SECOND_NAME" "$SECOND_LPORT" "$SECOND_RPORT"
         # Linger: User-Services auch ohne aktive Login-Session
         if ! loginctl show-user "$USER" 2>/dev/null | grep -q '^Linger=yes'; then
             sudo -n loginctl enable-linger "$USER" 2>/dev/null \
@@ -155,7 +209,7 @@ esac
 
 # --- Kurz-Verifikation --------------------------------------------------------
 sleep 4
-for pair in "6080:/vnc.html:noVNC" "3847::Cockpit"; do
+for pair in "6080:/vnc.html:noVNC" "${SECOND_LPORT}::${SECOND_LABEL}"; do
     port="${pair%%:*}"; rest="${pair#*:}"; path="${rest%%:*}"; label="${rest#*:}"
     code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "http://localhost:${port}${path}" 2>/dev/null || true)"
     if [ "$code" = "200" ] || [ "${code:0:1}" = "3" ]; then

@@ -2,12 +2,19 @@
 # =============================================================================
 # verify.sh — Abschluss-Verifikation aller Komponenten (macOS/Linux)
 #
-# Prueft: SSH, noVNC-Tunnel (6080), Cockpit-Tunnel (3847), Mutagen-Session,
-# Desktop-App-Eintraege (macOS). Gibt pro Komponente OK/FAIL aus; Exit-Code 1,
-# wenn mindestens eine Pflicht-Komponente fehlschlaegt.
+# Prueft: SSH, noVNC-Tunnel (6080), Agent-Tunnel (Cockpit 3847 bzw. Hermes 9119),
+# Mutagen-Session, Desktop-App-Eintraege (macOS). Gibt pro Komponente OK/FAIL
+# aus; Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
 # Usage:  verify.sh --vm-user <VM_USER> [--mode tunnel|gateway]
+#                    [--engine claude|hermes]
 #                    [--gateway-cockpit-url <url>] [--gateway-novnc-url <url>]
+#                    [--gateway-agent-url <url>]
+#
+# --engine hermes: es gibt kein Cockpit und keine Claude-Desktop-App — geprueft
+# werden das Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und, statt der
+# ~/.claude.json-Eintraege, nur SSH/Mutagen (die Hermes-Desktop-App verbindet
+# sich ueber URL + Session-Token, es gibt keine lokale Registrierung zu pruefen).
 #
 # --mode gateway (aus get-vm-values ACCESS_MODE): statt der lokalen Tunnel
 # werden die beiden Gateway-URLs geprueft (302 zum IdP-Login = OK — der
@@ -15,16 +22,24 @@
 # =============================================================================
 set -uo pipefail
 
-VM_USER="" MODE="tunnel" GW_COCKPIT_URL="" GW_NOVNC_URL=""
+VM_USER="" MODE="tunnel" ENGINE="claude" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --vm-user)             VM_USER="$2"; shift 2 ;;
         --mode)                MODE="$2"; shift 2 ;;
+        --engine)              ENGINE="$2"; shift 2 ;;
         --gateway-cockpit-url) GW_COCKPIT_URL="$2"; shift 2 ;;
         --gateway-novnc-url)   GW_NOVNC_URL="$2"; shift 2 ;;
+        --gateway-agent-url)   GW_AGENT_URL="$2"; shift 2 ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
+# Haupt-Oberflaeche je Engine — EIN Ort, an dem der Unterschied steht.
+if [ "$ENGINE" = "hermes" ]; then
+    MAIN_LABEL="Hermes-Dashboard"; MAIN_LPORT=9119; MAIN_GW_URL="$GW_AGENT_URL"
+else
+    MAIN_LABEL="Cockpit";          MAIN_LPORT=3847; MAIN_GW_URL="$GW_COCKPIT_URL"
+fi
 [ -n "$VM_USER" ] || { echo "FAIL: --vm-user fehlt" >&2; exit 2; }
 
 RC=0
@@ -53,7 +68,7 @@ check "SSH-Verbindung (ki-os-vm)" ssh -o BatchMode=yes -o ConnectTimeout=10 ki-o
 if [ "$MODE" = "gateway" ]; then
     # Gateway-URLs statt Tunnel: unauthentifiziert MUSS ein Redirect zum
     # IdP-Login kommen (302). 200 waere ein Auth-Bypass → Admin alarmieren.
-    for pair in "Cockpit|${GW_COCKPIT_URL}" "noVNC|${GW_NOVNC_URL}"; do
+    for pair in "${MAIN_LABEL}|${MAIN_GW_URL}" "noVNC|${GW_NOVNC_URL}"; do
         label="${pair%%|*}"; url="${pair#*|}"
         if [ -z "$url" ] || [ "$url" = "MISSING" ]; then
             echo "FAIL: Gateway-${label}-URL fehlt (Admin: ki-os-fleet vm gateway-grant)"
@@ -69,7 +84,7 @@ if [ "$MODE" = "gateway" ]; then
     done
 else
     http_check "noVNC-Tunnel  http://localhost:6080/vnc.html" "http://localhost:6080/vnc.html"
-    http_check "Cockpit-Tunnel http://localhost:3847"          "http://localhost:3847"
+    http_check "${MAIN_LABEL}-Tunnel http://localhost:${MAIN_LPORT}" "http://localhost:${MAIN_LPORT}"
 fi
 
 if command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os 2>/dev/null | grep -qiE 'watching|scanning|staging|reconciling|saving|transitioning'; then
@@ -95,6 +110,16 @@ else
     else
         echo "WARN: Mutagen-Session-Watchdog-Timer nicht aktiv (setup-mutagen.sh erneut laufen lassen)"
     fi
+fi
+
+# Desktop-App-Registrierung ist ein CLAUDE-Artefakt (ssh_configs.json +
+# ~/.claude.json). Auf Hermes gibt es sie nicht: die Hermes-Desktop-App wird mit
+# URL + Session-Token verbunden, es liegt lokal nichts, was man pruefen koennte.
+if [ "$ENGINE" = "hermes" ]; then
+    echo "OK:   engine=hermes — keine Claude-Desktop-App-Registrierung zu pruefen"
+    echo "      (Hermes-App: Remote gateway → URL + Session-Token; Token beim Admin:"
+    echo "       ki-os-fleet vm hermes-token --user ${VM_USER})"
+    exit $RC
 fi
 
 if [ "$(uname -s)" = "Darwin" ]; then

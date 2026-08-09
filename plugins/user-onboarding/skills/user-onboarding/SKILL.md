@@ -1,6 +1,6 @@
 ---
 name: user-onboarding
-description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Skill macht ausschliesslich LOKALE Schritte ueber parametrisierte Skripte in scripts/: SSH-Key, minimaler ~/.ssh/config-Eintrag, Pflicht-Autostarts (tunnel-Modus: gehaerteter noVNC-Tunnel lokal 6080 + gehaerteter Cockpit-Tunnel lokal 3847 + Mutagen; gateway-Modus: nur Mutagen — noVNC/Cockpit laufen ueber die oeffentlichen Gateway-URLs der VM mit Firmen-Login) sowie die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag). Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt; den Zugangs-Modus (tunnel|gateway) liest der Skill von der VM. Auf gateway-VMs ist der Skill das OPTIONALE Power-User-Paket (Datei-Sync + Desktop-App) — Browser-Zugang funktioniert dort schon ohne lokales Setup. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab bzw. Gateway-URL). Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
+description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Skill macht ausschliesslich LOKALE Schritte ueber parametrisierte Skripte in scripts/: SSH-Key, minimaler ~/.ssh/config-Eintrag, Pflicht-Autostarts (tunnel-Modus: gehaerteter noVNC-Tunnel lokal 6080 + gehaerteter Tunnel zur Agenten-Oberflaeche — Cockpit lokal 3847 bzw. Hermes-Dashboard lokal 9119 je nach Engine der VM — + Mutagen; gateway-Modus: nur Mutagen, alles andere laeuft ueber die oeffentlichen Gateway-URLs der VM mit Firmen-Login) sowie auf engine=claude die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag); auf engine=hermes entfaellt sie, dort wird die Hermes-Desktop-App mit URL + Session-Token verbunden. Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt; Zugangs-Modus (tunnel|gateway) UND Engine (claude|hermes) liest der Skill von der VM. Auf gateway-VMs ist der Skill das OPTIONALE Power-User-Paket (Datei-Sync + Desktop-App) — Browser-Zugang funktioniert dort schon ohne lokales Setup. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab bzw. Gateway-URL). Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
 ---
 
 ## Was dieser Skill macht
@@ -13,12 +13,18 @@ ein, damit er auf seiner vom Admin angelegten VM produktiv arbeiten kann:
 2. **Pflicht-Autostart 1:** gehärteter SSH-Tunnel zum noVNC
    (lokal `6080` → VM `<NOVNC_PORT>`) — VM-Browser live unter
    `http://localhost:6080/vnc.html?resize=scale`
-3. **Pflicht-Autostart 2:** gehärteter SSH-Tunnel zum Cockpit
-   (lokal `3847` → VM `<COCKPIT_PORT>`) — `http://localhost:3847`
+3. **Pflicht-Autostart 2:** gehärteter SSH-Tunnel zur Agenten-Oberfläche —
+   je nach **Engine** der VM (`ENGINE` aus Schritt 6):
+   `claude` → Cockpit (lokal `3847` → VM `<COCKPIT_PORT>`),
+   `hermes` → Hermes-Dashboard (lokal `9119` → VM `<AGENT_PORT>`)
 4. **Pflicht-Autostart 3:** Mutagen-Daemon + Sync-Session `ki-os`
    (`VM:~/KI-OS` ↔ lokal `~/KI-OS`, two-way, VM gewinnt Konflikte)
-5. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows): SSH-Host in
-   `ssh_configs.json` + vertrauter Workspace in `~/.claude.json`
+5. Desktop-App vorkonfigurieren — **nur auf `engine=claude`**: SSH-Host in
+   `ssh_configs.json` + vertrauter Workspace in `~/.claude.json` (macOS/Windows).
+   Auf `engine=hermes` entfällt der Schritt: die **Hermes-Desktop-App**
+   verbindet sich mit URL + **Session-Token** (vom Admin:
+   `ki-os-fleet vm hermes-token --user <du>`), es gibt lokal nichts zu
+   registrieren.
 6. Verifikation aller Komponenten
 
 **Die gesamte Mechanik liegt in fertigen, parametrisierten Skripten unter
@@ -31,10 +37,23 @@ im Chat nachbauen oder abwandeln; bei Problemen erklären die
 gibt es nur die Mutagen-Kopie `~/KI-OS`), Browser-Logins (macht der User
 später selbst im noVNC-Tab).
 
-**Zwei VM-Modi** (liest der Skill in Schritt 6 von der VM — `ACCESS_MODE`):
+**Zwei Achsen, die der Skill in Schritt 6 von der VM liest** — `ACCESS_MODE`
+(wie du reinkommst) und `ENGINE` (welcher Agent drin läuft). Beide sind
+unabhängig; der Skill fragt nichts davon ab.
+
+**Engine** (`claude` | `hermes`, Default `claude`):
+
+- **claude:** Cockpit als Oberfläche (Scheduler, Token-Usage, Skills),
+  Claude-Code-Desktop-App als Arbeitszugang.
+- **hermes:** **kein Cockpit** — die Oberfläche ist das Hermes-Dashboard
+  (Scheduler, Sessions, Memory bringt Hermes selbst mit). Im tunnel-Modus wird
+  lokal `9119` getunnelt statt `3847`; Schritt 9 (Claude-Desktop-App) entfällt.
+  Hintergrund: [`docs/features/hermes/plan.md`](../../../docs/features/hermes/plan.md) § 8.
+
+**Zugangs-Modus:**
 
 - **tunnel (Default):** wie unten beschrieben — drei Pflicht-Autostarts.
-- **gateway:** noVNC + Cockpit laufen über öffentliche Gateway-URLs der VM
+- **gateway:** noVNC + Agenten-Oberfläche laufen über öffentliche Gateway-URLs der VM
   („Mit Microsoft/Google anmelden") — der Skill ist dann das **optionale
   Power-User-Paket**: SSH-Key + Mutagen-Sync + Desktop-App, **keine
   Tunnel-Autostarts** (Schritt 7 entfällt; bei Bestands-Setups räumt
@@ -48,8 +67,9 @@ später selbst im noVNC-Tab).
 Auf der VM läuft pro Mitarbeiter (vom Admin provisioniert): ein eigenes
 virtuelles Display mit **headed Chrome** (darin alle Browser-Logins, der
 Agent-Browser live sichtbar), **noVNC** auf `127.0.0.1:<NOVNC_PORT>`
-(passwortgeschützt), das **Cockpit** auf `127.0.0.1:<COCKPIT_PORT>`
-(Scheduler, Token-Usage, Skills) und der **Workspace**
+(passwortgeschützt), die **Agenten-Oberfläche** (engine=claude: Cockpit auf
+`127.0.0.1:<COCKPIT_PORT>` — Scheduler, Token-Usage, Skills; engine=hermes:
+Hermes-Dashboard auf `127.0.0.1:<AGENT_PORT>`) und der **Workspace**
 `/home/<VM_USER>/KI-OS` (normaler Ordner, Hub als Git-Klon unter `hub/`).
 
 Lokal richtet dieser Skill nur drei dauerhafte Verbindungen ein:
@@ -57,14 +77,16 @@ Lokal richtet dieser Skill nur drei dauerhafte Verbindungen ein:
 | Verbindung | Lokal | VM | Zweck |
 |---|---|---|---|
 | noVNC-Tunnel | `localhost:6080` | `127.0.0.1:<NOVNC_PORT>` | VM-Browser ansehen + bedienen |
-| Cockpit-Tunnel | `localhost:3847` | `127.0.0.1:<COCKPIT_PORT>` | Cockpit-Web-UI |
+| Cockpit-Tunnel *(engine=claude)* | `localhost:3847` | `127.0.0.1:<COCKPIT_PORT>` | Cockpit-Web-UI |
+| Agent-Tunnel *(engine=hermes)* | `localhost:9119` | `127.0.0.1:<AGENT_PORT>` | Hermes-Dashboard (auch für die Hermes-Desktop-App) |
 | Mutagen-Sync | `~/KI-OS` | `/home/<VM_USER>/KI-OS` | Workspace als lokaler Ordner (Obsidian, Finder/Explorer) |
 
 Die lokalen Ports sind für ALLE Mitarbeiter gleich (jeder hat seinen eigenen
 Laptop); nur die VM-seitigen Ports sind pro User verschieden. Primärer
-Arbeitszugang ist die **Claude-Code-Desktop-App**; Fallbacks: claude.ai/code,
-`ssh` + `claude` im Terminal, VS Code Remote-SSH
-(`references/vscode-remote-ssh.md`).
+Arbeitszugang auf **engine=claude** ist die Claude-Code-Desktop-App; Fallbacks:
+claude.ai/code, `ssh` + `claude` im Terminal, VS Code Remote-SSH
+(`references/vscode-remote-ssh.md`). Auf **engine=hermes** ist es das
+Hermes-Dashboard im Browser bzw. die Hermes-Desktop-App (Remote gateway).
 
 ## Konventionen
 
@@ -72,7 +94,8 @@ Arbeitszugang ist die **Claude-Code-Desktop-App**; Fallbacks: claude.ai/code,
   genau eine Firmen-VM). Alle Service-Namen (LaunchAgent-Labels, Unit-/
   Task-Namen) und die Desktop-App-Einträge leiten sich daraus ab.
 - **Drei Pflicht-Autostarts, keine Auswahl** (tunnel-Modus) — noVNC-Tunnel,
-  Cockpit-Tunnel, Mutagen-Sync werden immer eingerichtet. Backends pro OS:
+  Tunnel zur Agenten-Oberfläche (Cockpit bzw. Hermes-Dashboard), Mutagen-Sync
+  werden immer eingerichtet. Backends pro OS:
   LaunchAgents (macOS), systemd-User-Services (Linux), Windows: EIN
   gemeinsamer Scheduled Task `ki-os-vm-watchdog` (Autor `Mitarbyte` +
   Beschreibung), der alle drei Komponenten liveness-guarded am Leben hält.
@@ -181,7 +204,7 @@ bash "$SKILL_DIR/scripts/get-vm-values.sh"
 # Windows: get-vm-values.ps1
 ```
 
-Liefert `SSH_OK` + `ACCESS_MODE=` + `COCKPIT_PORT=` / `NOVNC_PORT=` /
+Liefert `SSH_OK` + `ACCESS_MODE=` + `ENGINE=` + `AGENT_PORT=` + `COCKPIT_PORT=` / `NOVNC_PORT=` /
 `NOVNC_PASS=` (im gateway-Modus zusätzlich `GATEWAY_COCKPIT_URL=` /
 `GATEWAY_NOVNC_URL=`). Die Werte für die nächsten Schritte merken.
 
@@ -206,8 +229,13 @@ lassen — baut die Tunnel-Autostarts ab, Mutagen/SSH bleiben).
 ### Schritt 7 — Beide Tunnel-Autostarts einrichten (nur tunnel-Modus)
 
 ```
+# engine=claude:
 bash "$SKILL_DIR/scripts/setup-tunnels.sh" --novnc-port <NOVNC_PORT> --cockpit-port <COCKPIT_PORT>
 # Windows: setup-tunnels.ps1 -NovncPort <NOVNC_PORT> -CockpitPort <COCKPIT_PORT>
+
+# engine=hermes (zweiter Tunnel geht auf das Hermes-Dashboard, lokal 9119):
+bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hermes --novnc-port <NOVNC_PORT> --agent-port <AGENT_PORT>
+# Windows: setup-tunnels.ps1 -Engine hermes -NovncPort <NOVNC_PORT> -AgentPort <AGENT_PORT>
 ```
 
 Ein Aufruf richtet **beide** gehärteten Tunnel ein (idempotent, Windows
@@ -277,7 +305,20 @@ Konflikt-Semantik + Selbstheilung + Recovery + Obsidian:
 Architektur, dort aber noch nicht im Kundenbetrieb verifiziert — bei
 Problemen an den Admin.)
 
-### Schritt 9 — Claude-Code-Desktop-App vorkonfigurieren
+### Schritt 9 — Desktop-App vorkonfigurieren
+
+**`ENGINE=hermes` → diesen Schritt überspringen.** Es gibt lokal nichts zu
+registrieren: die **Hermes-Desktop-App** wird beim ersten Start als „Remote
+gateway" verbunden — mit der URL und einem **Session-Token**. Beides liefert der
+Admin (`ki-os-fleet vm hermes-token --user <VM_USER>`):
+
+- `ACCESS_MODE=gateway` → die öffentliche `…-agent.…`-URL
+- `ACCESS_MODE=tunnel` → `http://127.0.0.1:9119` durch den Tunnel aus Schritt 7
+
+Dem User sagen: **Token wie ein Passwort behandeln** (er läuft nicht ab; bei
+Verdacht rotiert der Admin ihn, dann muss die App neu verbunden werden).
+
+Für `ENGINE=claude`:
 
 ```
 bash "$SKILL_DIR/scripts/register-desktop-app.sh" --vm-user <VM_USER>
@@ -298,9 +339,10 @@ Schritt wiederholen. Hintergrund + manueller Fallback:
 
 ```
 bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER> --mode <ACCESS_MODE> \
-    [--gateway-cockpit-url <URL> --gateway-novnc-url <URL>]
-# Windows: verify.ps1 -VmUser <VM_USER> -Mode <ACCESS_MODE> `
-#     [-GatewayCockpitUrl <URL> -GatewayNovncUrl <URL>]
+    --engine <ENGINE> \
+    [--gateway-cockpit-url <URL> --gateway-novnc-url <URL> --gateway-agent-url <URL>]
+# Windows: verify.ps1 -VmUser <VM_USER> -Mode <ACCESS_MODE> -Engine <ENGINE> `
+#     [-GatewayCockpitUrl <URL> -GatewayNovncUrl <URL> -GatewayAgentUrl <URL>]
 ```
 
 Prüft SSH, die Zugangswege (tunnel: beide lokalen Tunnel; gateway: die zwei
