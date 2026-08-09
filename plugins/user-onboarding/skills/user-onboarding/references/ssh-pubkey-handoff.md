@@ -1,10 +1,12 @@
-# SSH-Pubkey an Admin uebergeben
+# SSH-Pubkey an Admin uebergeben (Admin-Weg, Schritt 5)
 
-Schritt 4 des Skills generiert einen Ed25519-Pubkey lokal. Bevor du
-weitermachen kannst, muss der Admin diesen Key auf der VM hinterlegen.
-Diese Datei sammelt sinnvolle Uebergabe-Vorlagen — der Skill bietet sie
-in der Reihenfolge an, die zur User-Situation passt (Slack > Mail >
-Plain-Copy).
+Schritt 4 des Skills generiert einen Ed25519-Pubkey lokal. Diese Vorlagen
+gelten fuer den **Admin-Weg** aus Schritt 5 (tunnel-VMs oder unklarer
+Zugangs-Modus): der Admin hinterlegt den Key auf der VM. **Gateway-User
+brauchen diese Datei nicht** — sie fuegen den Key selbst im Cockpit ein
+(System-Tab → „SSH-Zugang", siehe SKILL.md Schritt 5). Der Skill bietet
+die Vorlagen in der Reihenfolge an, die zur User-Situation passt
+(Slack > Mail > Plain-Copy).
 
 ## Mail-Vorlage
 

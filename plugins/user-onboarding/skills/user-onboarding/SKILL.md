@@ -134,13 +134,39 @@ Key manuell wegsichern, dann `--new-key`/`-NewKey`). Ersetzt den
 `Host ki-os-vm`-Block idempotent durch die minimale Fassung und legt den
 Public Key in die Zwischenablage (`PUBKEY:`-Zeile).
 
-Dem User den Public Key zeigen und die Übergabe an den Admin anbieten —
-fertige Mail-/Slack-Vorlagen: `references/ssh-pubkey-handoff.md`.
+Dem User den Public Key zeigen (liegt jetzt auch in der Zwischenablage) —
+wie er auf die VM kommt, entscheidet Schritt 5.
 
-### Schritt 5 — Warten auf Admin-Freigabe
+### Schritt 5 — Key auf der VM hinterlegen (Self-Service oder Admin)
 
-Der Admin muss den Key hinterlegt und den User komplett eingerichtet haben
-(Workspace, Cockpit-Service, Display-Stack). `AskUserQuestion`:
+Der Pubkey muss in die `authorized_keys` des VM-Users. Es gibt zwei Wege;
+welcher gilt, verrät die Übergabe-Nachricht des Admins. `AskUserQuestion`:
+
+> „Hast du vom Admin eine **Cockpit-Adresse** bekommen
+> (`https://<name>-cockpit.…`, Login mit deinem Firmen-Konto)?"
+> Optionen: „Ja, habe ich" | „Nein / weiß nicht"
+
+**„Ja" → Self-Service (gateway-VM), kein Warten, kein Termin:**
+
+1. Cockpit-URL im Browser öffnen, mit dem **Firmen-Konto** anmelden.
+   (Funktioniert der Login, ist der User auf der VM bereits angelegt —
+   genau dafür steht das Gateway-Mapping.)
+2. Tab **System** → Karte **„SSH-Zugang"** → den Pubkey aus Schritt 4
+   einfügen (Zwischenablage; die Zeile beginnt mit `ssh-ed25519`) →
+   **„Key hinterlegen"**. Das Feld nimmt nur den öffentlichen Schlüssel —
+   niemals die private Key-Datei öffnen oder hochladen.
+3. Direkt weiter mit Schritt 6.
+
+Fehlt die Karte „SSH-Zugang" im System-Tab, ist das Cockpit der VM noch zu
+alt — dann den Admin-Weg unten nehmen und dem Admin nebenbei
+`ki-os-fleet update` ans Herz legen.
+
+**„Nein" → Admin-Weg (tunnel-VM oder unklar):**
+
+Übergabe an den Admin anbieten — fertige Mail-/Slack-Vorlagen:
+`references/ssh-pubkey-handoff.md`. Dann warten, bis der Admin den Key
+hinterlegt und den User eingerichtet hat (Workspace, Cockpit-Service,
+Display-Stack). `AskUserQuestion`:
 
 > „Hat dein Admin bestätigt, dass dein User auf der VM angelegt ist?"
 > Optionen: „Ja, kann's testen" | „Noch nicht — pausiere hier"
