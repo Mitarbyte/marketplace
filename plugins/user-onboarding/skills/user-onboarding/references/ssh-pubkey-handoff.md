@@ -1,12 +1,14 @@
 # SSH-Pubkey an Admin uebergeben (Admin-Weg, Schritt 5)
 
 Schritt 4 des Skills generiert einen Ed25519-Pubkey lokal. Diese Vorlagen
-gelten fuer den **Admin-Weg** aus Schritt 5 (tunnel-VMs oder unklarer
-Zugangs-Modus): der Admin hinterlegt den Key auf der VM. **Gateway-User
-brauchen diese Datei nicht** — sie fuegen den Key selbst im Cockpit ein
-(System-Tab → „SSH-Zugang", siehe SKILL.md Schritt 5). Der Skill bietet
-die Vorlagen in der Reihenfolge an, die zur User-Situation passt
-(Slack > Mail > Plain-Copy).
+gelten fuer den **Admin-Weg** aus Schritt 5 (tunnel-VMs, Hermes-VMs oder
+unklarer Zugangs-Modus): der Admin hinterlegt den Key auf der VM.
+**Gateway-User auf `engine=claude` brauchen diese Datei nicht** — sie
+fuegen den Key selbst im Cockpit ein (System-Tab → „SSH-Zugang", siehe
+SKILL.md Schritt 5). **Auf `engine=hermes` gibt es kein Cockpit** — dort
+ist der Admin-Weg dieser Datei auch fuer Gateway-User der Normalweg.
+Der Skill bietet die Vorlagen in der Reihenfolge an, die zur
+User-Situation passt (Slack > Mail > Plain-Copy).
 
 ## Mail-Vorlage
 
@@ -42,7 +44,8 @@ Hi! Pubkey fuer KI-OS-VM (User: <VM_USER>):
 
 Der Admin richtet mit dem Pubkey deinen User auf der VM komplett ein:
 Linux-User + SSH-Key, Workspace `/home/<VM_USER>/KI-OS` (1:1-Klon von
-einem bestehenden User), Cockpit-Service und Display-Stack (noVNC).
+einem bestehenden User), Display-Stack (noVNC) und die Engine-Dienste
+(engine=claude: Cockpit-Service; engine=hermes: Hermes-Dashboard).
 Du brauchst dafuer nichts zu tun — nur auf seine Bestaetigung warten.
 
 ## Verifikation auf User-Seite

@@ -165,11 +165,18 @@ wie er auf die VM kommt, entscheidet Schritt 5.
 Der Pubkey muss in die `authorized_keys` des VM-Users. Es gibt zwei Wege;
 welcher gilt, verrät die Übergabe-Nachricht des Admins. `AskUserQuestion`:
 
-> „Hast du vom Admin eine **Cockpit-Adresse** bekommen
-> (`https://<name>-cockpit.…`, Login mit deinem Firmen-Konto)?"
-> Optionen: „Ja, habe ich" | „Nein / weiß nicht"
+> „Was hast du vom Admin bekommen: eine **Cockpit-Adresse**
+> (`https://<name>-cockpit.…`, Login mit deinem Firmen-Konto), eine
+> **Agent-Adresse** (`https://<name>-agent.…`) oder keins von beidem?"
+> Optionen: „Cockpit-Adresse" | „Agent-Adresse" | „Nein / weiß nicht"
 
-**„Ja" → Self-Service (gateway-VM), kein Warten, kein Termin:**
+**„Agent-Adresse" → Admin-Weg (Hermes-VM):** Die VM fährt die
+Hermes-Engine — dort gibt es kein Cockpit und damit keinen Self-Service
+für den SSH-Key. Das ist kein Fehler deiner VM: der Admin hinterlegt den
+Key (Vorlagen: `references/ssh-pubkey-handoff.md`), danach wie beim
+„Nein"-Zweig unten weiter.
+
+**„Cockpit-Adresse" → Self-Service (gateway-VM, engine=claude), kein Warten:**
 
 1. Cockpit-URL im Browser öffnen, mit dem **Firmen-Konto** anmelden.
    (Funktioniert der Login, ist der User auf der VM bereits angelegt —
@@ -317,6 +324,8 @@ Admin (`ki-os-fleet vm hermes-token --user <VM_USER>`):
 
 Dem User sagen: **Token wie ein Passwort behandeln** (er läuft nicht ab; bei
 Verdacht rotiert der Admin ihn, dann muss die App neu verbunden werden).
+Details, Anfrage-Vorlage an den Admin + Troubleshooting:
+`references/hermes-desktop-app.md`.
 
 Für `ENGINE=claude`:
 
@@ -364,7 +373,26 @@ Bei FAILs: Troubleshooting-Tabellen in `references/tunnels.md`,
 ### Schritt 11 — Abschluss-Zusammenfassung
 
 Statustabelle zeigen (Komponente → Status, aus dem `verify`-Output), dann die
-nächsten Schritte:
+nächsten Schritte — **je nach `ENGINE` aus Schritt 6**:
+
+**Für `ENGINE=hermes`:**
+
+1. **Browser-Logins (einmalig):** im noVNC-Tab in die Zielsysteme einloggen —
+   siehe „Browser-Logins & OAuth" unten. Einen Claude-/Modell-Login gibt es
+   hier **nicht** — die Provider-Anmeldung hat der Admin bereits eingerichtet
+   (`hermes auth add`), du musst nichts tun.
+2. **Arbeiten** — über das **Agent-Dashboard** (tunnel:
+   `http://localhost:9119`; gateway: `<GATEWAY_AGENT_URL>`) oder die
+   **Hermes-Desktop-App** (URL + Session-Token vom Admin — Schritt 9 bzw.
+   `references/hermes-desktop-app.md`).
+3. **Geplante Aufgaben:** über den Scheduler im Dashboard bzw. `hermes cron`
+   auf der VM — nicht `mitarbyte scheduler` (Claude-only, die CLI sagt es
+   dir auch selbst).
+4. **Dateien & Obsidian:** `~/KI-OS` ist der lokale Spiegel — als
+   Obsidian-Vault öffnen, im Finder/Explorer nutzen; Änderungen syncen
+   automatisch.
+
+**Für `ENGINE=claude`:**
 
 1. **Claude-Login — ZUERST (einmalig):** im noVNC-Browser
    (tunnel: `http://localhost:6080/vnc.html?resize=scale`; gateway:
