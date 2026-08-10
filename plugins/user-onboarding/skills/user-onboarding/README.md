@@ -6,11 +6,8 @@ KI-OS-Workspace auf der Firmen-VM zu verbinden.
 
 Workspaces, Browser und Logins leben auf der VM — lokal richten wir nur den
 Zugriff ein: SSH-Key, minimale SSH-Config und drei Pflicht-Autostarts
-(noVNC-Tunnel, Agenten-Tunnel — Cockpit auf `engine=claude`, Hermes-Dashboard
-auf `engine=hermes` — und Mutagen-Sync) plus die Vorkonfiguration der
-Claude-Code-Desktop-App (nur `engine=claude`; auf hermes verbindet sich die
-Hermes-Desktop-App per URL + Session-Token). Engine und Zugangs-Modus liest
-der Skill von der VM. Die gesamte Mechanik liegt in fertigen,
+(noVNC-Tunnel, Cockpit-Tunnel, Mutagen-Sync) plus die Vorkonfiguration der
+Claude-Code-Desktop-App. Die gesamte Mechanik liegt in fertigen,
 parametrisierten Skripten unter `scripts/` (bash für macOS/Linux, PowerShell
 für natives Windows) — der Skill orchestriert nur noch.
 
@@ -38,21 +35,18 @@ keine Tunnel) — den Modus erkennt er automatisch von der VM.
    Public Key geht in die Zwischenablage, du schickst ihn an den Admin
 2. **Pause** — warten auf Admin-Bestätigung, dass dein VM-User komplett
    eingerichtet ist
-3. SSH-Smoketest + deine User-Werte holen (ein Roundtrip: Engine,
-   Cockpit-/Agent-Port, noVNC-Port, noVNC-Passwort — letzteres nur im
-   tunnel-Modus; auf gateway-VMs gibt es keins)
+3. SSH-Smoketest + deine User-Werte holen (ein Roundtrip: Cockpit-Port,
+   noVNC-Port, noVNC-Passwort — letzteres nur im tunnel-Modus; auf
+   gateway-VMs gibt es keins)
 4. **Pflicht-Autostart 1+2:** gehärtete SSH-Tunnel zu noVNC
-   (`http://localhost:6080/vnc.html?resize=scale`) und zur
-   Agenten-Oberfläche — Cockpit (`http://localhost:3847`) bzw. auf
-   `engine=hermes` Hermes-Dashboard (`http://localhost:9119`)
+   (`http://localhost:6080/vnc.html?resize=scale`) und Cockpit
+   (`http://localhost:3847`)
 5. **Pflicht-Autostart 3:** Mutagen-Sync — dein VM-Workspace als echter
    lokaler Ordner `~/KI-OS` (two-way, offline lesbar; dort auch den
    Obsidian-Vault öffnen)
-6. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows, nur
-   `engine=claude`): SSH-Host `ki-os-vm` + vertrauter Workspace — die VM
-   erscheint direkt im Remote-Projekt-Switcher. Auf `engine=hermes`
-   entfällt das — die Hermes-Desktop-App verbindet sich per URL +
-   Session-Token (`references/hermes-desktop-app.md`)
+6. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows): SSH-Host
+   `ki-os-vm` + vertrauter Workspace — die VM erscheint direkt im
+   Remote-Projekt-Switcher
 7. Verifikation aller Komponenten
 
 Autostart-Backends pro OS: LaunchAgents (macOS), systemd-User-Services
@@ -61,21 +55,10 @@ Lauf ist das Update.
 
 ## Danach: so arbeitest du
 
-`engine=claude`:
-
 - **Claude-Code-Desktop-App** (primär): Remote-Projekt `ki-os-vm` / `KI-OS`
 - **Browser:** `claude.ai/code` → eigene Remote-Session
 - **Terminal:** `ssh ki-os-vm` → `cd ~/KI-OS && claude`
 - **VS Code Remote-SSH** (Techniker): `references/vscode-remote-ssh.md`
-
-`engine=hermes`:
-
-- **Agent-Dashboard:** tunnel `http://localhost:9119`, gateway
-  `https://<user>-agent.…` — oder die **Hermes-Desktop-App**
-  (URL + Session-Token vom Admin, `references/hermes-desktop-app.md`)
-
-Beide Engines:
-
 - **Browser-Logins:** einmalig im noVNC-Tab in die Zielsysteme einloggen
 - **Dateien/Obsidian:** lokaler Ordner `~/KI-OS`
 
@@ -89,10 +72,7 @@ Beide Engines:
 - `references/tunnels.md` — Tunnel-Härtung (Warum) + Troubleshooting
 - `references/mutagen.md` — Sync-Semantik, Ignores, Troubleshooting
 - `references/ssh.md` — SSH-Details (BOM/ACL/Passphrase) + Fehlerbilder
-- `references/desktop-app.md` — Claude-Code-Desktop-App (nur engine=claude)
-- `references/hermes-desktop-app.md` — Hermes-Desktop-App: URL + Session-Token
-  (nur engine=hermes)
+- `references/desktop-app.md` — Desktop-App-Vorkonfiguration
 - `references/vscode-remote-ssh.md` — VS Code Remote-SSH
 - `references/ssh-pubkey-handoff.md` — Mail-/Slack-Vorlage für den Pubkey
-- `references/api-keys.md` — API-Keys/OAuth (beide Engines); ab
-  „Claude-Code-Auth" nur engine=claude
+- `references/api-keys.md` — Claude-Login/Token-Setup auf der VM

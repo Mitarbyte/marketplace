@@ -6,7 +6,7 @@
     {
       "name": "user-onboarding",
       "source": "./plugins/user-onboarding",
-      "description": "Lokales KI-OS-Onboarding für Mitarbeiter (SSH, noVNC-/Agenten-Tunnel, Mutagen).",
+      "description": "Lokales KI-OS-Onboarding für Mitarbeiter (SSH, noVNC/Cockpit-Tunnel, Mutagen).",
       "version": "2026.08.10"
     }
   ]

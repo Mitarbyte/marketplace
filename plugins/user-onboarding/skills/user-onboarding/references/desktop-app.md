@@ -1,9 +1,5 @@
 # Claude-Code-Desktop-App vorkonfigurieren — Hintergrund
 
-> **Gilt nur auf `engine=claude`.** Auf hermes gibt es keine lokale
-> App-Registrierung — die Hermes-Desktop-App verbindet sich per URL +
-> Session-Token: `hermes-desktop-app.md`.
-
 Die Einträge schreibt `scripts/register-desktop-app.sh` (macOS/Linux) bzw.
 `scripts/register-desktop-app.ps1` (Windows). Dieses Dokument erklärt, warum
 es **zwei** Dateien braucht, und liefert den manuellen Fallback.

@@ -1,8 +1,7 @@
-# noVNC- + Agenten-Tunnel (Cockpit bzw. Hermes-Dashboard) — Härtung + Troubleshooting
+# noVNC- + Cockpit-Tunnel — Härtung, Hintergrund, Troubleshooting
 
 **Gilt nur für tunnel-VMs.** Auf gateway-VMs (`ACCESS_MODE=gateway` in
-Schritt 6) gibt es keine Tunnel — Cockpit bzw. Agent-Dashboard und
-VM-Desktop laufen über ihre
+Schritt 6) gibt es keine Tunnel — Cockpit und VM-Desktop laufen über ihre
 HTTPS-URLs mit Firmen-Login und **ohne VNC-Passwort** (x11vnc `-nopw`,
 `autoconnect=true`); Alt-Tunnel entfernt `setup-tunnels.sh --remove` /
 `setup-tunnels.ps1 -Remove`. Alles unten — inklusive noVNC-Passwort —
@@ -35,8 +34,8 @@ noVNC-Passwort geschützt, aber das falsche Display).
 
 | OS | Backend | Artefakte |
 |----|---------|-----------|
-| macOS | LaunchAgents `com.<mac-user>.ssh-tunnel.ki-os-vm-{novnc,cockpit\|agent}` (zweiter Name je Engine) | `~/Library/LaunchAgents/*.plist`, Logs unter `~/Library/Logs/ssh-tunnel-ki-os-vm-*` |
-| Linux | systemd-User-Services `ki-os-vm-{novnc,cockpit\|agent}-tunnel.service` (zweiter Name je Engine) | `~/.config/systemd/user/*.service`, Logs via `journalctl --user -u <unit>` |
+| macOS | LaunchAgents `com.<mac-user>.ssh-tunnel.ki-os-vm-{novnc,cockpit}` | `~/Library/LaunchAgents/*.plist`, Logs unter `~/Library/Logs/ssh-tunnel-ki-os-vm-*` |
+| Linux | systemd-User-Services `ki-os-vm-{novnc,cockpit}-tunnel.service` | `~/.config/systemd/user/*.service`, Logs via `journalctl --user -u <unit>` |
 | Windows | EIN gemeinsamer Scheduled Task `ki-os-vm-watchdog` (Autor `Mitarbyte` + Beschreibung; deckt beide Tunnel **und** den Mutagen-Daemon ab) | Guard `ki-os-vm-watchdog.ps1` + VBS-Launcher unter `%USERPROFILE%\.local\bin\` |
 
 ## Warum diese Härtung (nicht vereinfachen!)
@@ -117,10 +116,6 @@ Get-NetTCPConnection -LocalPort 6080 -State Listen
 Start-ScheduledTask -TaskName ki-os-vm-watchdog
 ```
 
-Auf `engine=hermes` heißt der zweite Tunnel überall `…-agent` statt
-`…-cockpit` (lokal 9119 statt 3847) — Kommandos identisch, nur den Namen
-bzw. Port tauschen.
-
 ## Copy & Paste (noVNC-Clipboard)
 
 Copy & Paste läuft **nahtlos** über die System-Zwischenablage (lokal `Cmd/Strg+C`
@@ -141,9 +136,9 @@ Clipboard-Synchronisation) auf der VM; zusätzlich brückt der
 
 | Symptom | Lösung |
 |---------|---------|
-| Browser lädt `localhost:6080`/`3847` (hermes: `9119`) nicht | Backend prüfen (Kommandos oben); macOS: `kickstart -k`, Linux: `systemctl --user restart`, Windows: `Start-ScheduledTask`. Windows: solange irgendetwas auf dem Port lauscht, startet der Guard bewusst keinen neuen Tunnel |
+| Browser lädt `localhost:6080`/`3847` nicht | Backend prüfen (Kommandos oben); macOS: `kickstart -k`, Linux: `systemctl --user restart`, Windows: `Start-ScheduledTask`. Windows: solange irgendetwas auf dem Port lauscht, startet der Guard bewusst keinen neuen Tunnel |
 | Port lokal schon belegt | macOS: `lsof -nP -iTCP:6080` · Linux: `ss -tlnp \| grep 6080` · Windows: `Get-NetTCPConnection -LocalPort 6080 -State Listen` — fremden Prozess beenden |
-| Seite lädt, „Failed to connect to server" | Meist lokaler Tunnel tot + alte Seite aus dem Cache: Tunnel neu starten, Tab mit Strg+F5 neu laden. Sonst VM-Service down: `ssh ki-os-vm systemctl status ki-os-novnc@<VM_USER>` bzw. `mitarbyte-cockpit@<VM_USER>` (hermes: `hermes-dashboard` ist ein User-Service — Admin prüft per `ki-os-fleet vm doctor`) — Admin kontaktieren |
+| Seite lädt, „Failed to connect to server" | Meist lokaler Tunnel tot + alte Seite aus dem Cache: Tunnel neu starten, Tab mit Strg+F5 neu laden. Sonst VM-Service down: `ssh ki-os-vm systemctl status ki-os-novnc@<VM_USER>` bzw. `mitarbyte-cockpit@<VM_USER>` — Admin kontaktieren |
 | noVNC-Passwort wird abgelehnt | Frisch auslesen: `ssh ki-os-vm 'cat ~/.config/ki-os/vnc.pass'` — exakt eingeben (Groß/Klein) |
 | „channel … open failed" im Log | VM-seitiger Port falsch — Werte mit `scripts/get-vm-values.sh` neu holen und `setup-tunnels` erneut laufen lassen |
 | Copy & Paste geht nicht | (1) Chrome/Edge nutzen. (2) Clipboard-Berechtigung im Schloss-Symbol prüfen. (3) Erst ins noVNC-Bild klicken (Fokus). (4) Nach noVNC-Update einmal frisch laden. Kommt VM→lokal nichts an: `ssh ki-os-vm systemctl status ki-os-autocutsel@<VM_USER>` — Admin kontaktieren |

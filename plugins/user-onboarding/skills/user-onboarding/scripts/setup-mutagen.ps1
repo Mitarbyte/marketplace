@@ -119,7 +119,18 @@ if (-not (Test-Path $mutagenExe)) {
             $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/mutagen-io/mutagen/releases/latest' -TimeoutSec 30
             $url = ($rel.assets | Where-Object { $_.name -match 'windows_amd64.*\.zip$' -and $_.name -notmatch 'sidecar' })[0].browser_download_url
             $zip = Join-Path $env:TEMP 'mutagen.zip'
-            Invoke-WebRequest -Uri $url -OutFile $zip -TimeoutSec 300
+            # Invoke-WebRequest zeichnet ohne diese Zeile pro Chunk eine
+            # Fortschrittsanzeige - in einer NICHT-interaktiven Session (genau so
+            # laeuft das Skill) kostet dieses Rendering ein Vielfaches des
+            # Downloads: >10 min statt ~4 s, was wie ein Haenger aussieht.
+            # Beobachtet bei Marc/heimatwerft 2026-08-07.
+            $prevProgress = $ProgressPreference
+            $ProgressPreference = 'SilentlyContinue'
+            try {
+                Invoke-WebRequest -Uri $url -OutFile $zip -TimeoutSec 300
+            } finally {
+                $ProgressPreference = $prevProgress
+            }
             Expand-Archive -Path $zip -DestinationPath $binDir -Force
             Remove-Item $zip -ErrorAction SilentlyContinue
             $ok = $true

@@ -15,9 +15,7 @@ direkt auf der VM.
 4. Beim ersten Mal installiert VS Code automatisch das VS-Code-Server-Bundle
    auf der VM (30–60 s)
 5. Ordner öffnen: `~/KI-OS/` (z.B. `/home/alice/KI-OS`)
-6. Terminal in VS Code öffnen → `claude` (nur `engine=claude`; auf hermes
-   ist die Agenten-Oberfläche das Dashboard — VS Code bleibt für den
-   Datei-Zugriff trotzdem nützlich)
+6. Terminal in VS Code öffnen → `claude`
 
 ## Tipps
 

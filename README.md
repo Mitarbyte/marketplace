@@ -1,8 +1,7 @@
 # Mitarbyte KI-OS — user-onboarding
 
 Lokales Onboarding-Skill für Mitarbeiter: SSH-Key, gehärtete
-noVNC-/Agenten-Tunnel (Cockpit bzw. Hermes-Dashboard) und Mutagen-Sync
-zur Firmen-VM.
+noVNC-/Cockpit-Tunnel und Mutagen-Sync zur Firmen-VM.
 
 ## Installation — Desktop-App, Web & Terminal
 
