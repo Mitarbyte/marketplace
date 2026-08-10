@@ -2,7 +2,7 @@
 # setup-tunnels.ps1 - gehaertete SSH-Tunnel-Autostarts (natives Windows)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
-#   Zweiter Tunnel je Engine (docs/features/hermes/plan.md § 8):
+#   Zweiter Tunnel je Engine (docs/features/hermes/plan.md Abschnitt 8):
 #     -Engine claude  Cockpit:        lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
 #     -Engine hermes  Hermes-Agent:   lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
 #   Lokal 9119 ist der Hermes-Default, den die Desktop-App selbst vorschlaegt.
@@ -134,12 +134,12 @@ if (-not (Get-NetTCPConnection -LocalPort 6080 -State Listen)) {
         '-o','StrictHostKeyChecking=accept-new',
         '-L','6080:127.0.0.1:$NovncPort','ki-os-vm')
 }
-if (-not (Get-NetTCPConnection -LocalPort 3847 -State Listen)) {
+if (-not (Get-NetTCPConnection -LocalPort $secondLocal -State Listen)) {
     Start-Process -WindowStyle Hidden -FilePath '$sshExe' -ArgumentList @(
         '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=15',
         '-o','ServerAliveCountMax=3','-o','ConnectTimeout=10','-o','TCPKeepAlive=yes',
         '-o','StrictHostKeyChecking=accept-new',
-        '-L','3847:127.0.0.1:$CockpitPort','ki-os-vm')
+        '-L','$($secondLocal):127.0.0.1:$secondRemote','ki-os-vm')
 }
 
 "@
@@ -231,7 +231,7 @@ $principal = New-ScheduledTaskPrincipal `
 # NICHT ueber $task.RegistrationInfo.Author setzen: New-ScheduledTask liefert
 # RegistrationInfo=$null, die Zuweisung crasht dann auf PS 5.1 -- und weil der
 # Cleanup oben die Alt-Tasks schon entfernt hat, bliebe das Setup kaputt.
-$desc = 'Haelt die KI-OS-Verbindungen am Leben: noVNC-Tunnel (localhost:6080), Cockpit-Tunnel (localhost:3847) und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
+$desc = "Haelt die KI-OS-Verbindungen am Leben: noVNC-Tunnel (localhost:6080), $secondLabel-Tunnel (localhost:$secondLocal) und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task."
 if ($tunnelLess) {
     $desc = 'Haelt den KI-OS Mutagen-Sync am Leben (Daemon + Session ki-os). Keine Tunnel - noVNC/Cockpit laufen ueber das Browser-Gateway der VM. Prueft alle 2 Minuten. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
 }
@@ -282,7 +282,7 @@ if ($tunnelLess) {
     Write-Host "OK: Scheduled Task $taskName (nur Mutagen-Ueberwachung - keine Tunnel, gateway-Modus)"
     exit 0
 }
-Write-Host "OK: Scheduled Task $taskName (noVNC lokal 6080 -> VM $NovncPort, Cockpit lokal 3847 -> VM $CockpitPort, Mutagen-Daemon sobald installiert)"
+Write-Host "OK: Scheduled Task $taskName (noVNC lokal 6080 -> VM $NovncPort, $secondLabel lokal $secondLocal -> VM $secondRemote, Mutagen-Daemon sobald installiert)"
 
 # --- Kurz-Verifikation -----------------------------------------------------------
 Start-Sleep -Seconds 6
