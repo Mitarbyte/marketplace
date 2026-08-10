@@ -4,6 +4,10 @@ Nach abgeschlossenem Onboarding loggst du dich per `ssh ki-os-vm` ein
 (Default `ki-os-vm`) und befuellst — falls dein Hub das vorsieht — die
 `.env`-Datei in deinem Workspace mit den noetigen API-Keys.
 
+> **Engine-Hinweis:** Die Abschnitte „API-Keys" und „OAuth statt API-Key"
+> gelten fuer beide Engines (claude UND hermes). Ab „Claude-Code-Auth"
+> ist alles **nur engine=claude**.
+
 Pfad: `~/KI-OS/.env` (Workspace-Root auf der VM). Viele Hubs verwalten
 ihre MCP-Secrets zentral ueber den Admin — frag im Zweifel deinen Admin,
 ob und welche Keys du selbst eintragen musst.
@@ -43,6 +47,11 @@ Waehrenddessen den noVNC-Tab offen halten und den Login dort
 durchklicken.
 
 ## Claude-Code-Auth
+
+> **Gilt nur auf `engine=claude`.** Auf hermes gibt es keinen Claude-Login,
+> keine Token-Datei und kein `ki-os-setup-token` — die Modell-Anmeldung
+> (`hermes auth add <provider>`) macht der Admin einmalig; du musst hier
+> nichts tun.
 
 `claude` selbst loggt sich mit deinem persoenlichen Claude Max/Pro Account
 ein. **Long-lived Tokens** (`CLAUDE_CODE_OAUTH_TOKEN`) reichen NICHT fuer
