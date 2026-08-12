@@ -143,15 +143,23 @@ create_session() {
     # auf macOS/Linux bewusst mitgesynct (relative Skill-Symlinks -> klickbare
     # Skill-Ansicht); Details: references/mutagen.md.
     #
-    # `/SharePoint` (root-verankert, fuehrender Slash): dieser Ordner gehoert
-    # dem VM-seitigen Cloud-Sync (onedrive-Client, SharePoint-Bibliothek) und
-    # darf NICHT zusaetzlich durch Mutagen laufen — sonst haengen an denselben
-    # Bytes drei Sync-Engines mit zwei unabhaengigen Konfliktmodellen (Mutagen
-    # VM<->Client, onedrive VM<->SharePoint, OneDrive-Client der Kollegen an
-    # derselben Bibliothek). Der Ordner ist ueber SharePoint ohnehin schon auf
-    # jedem Arbeitsplatz. Root-verankert, damit nicht zufaellig gleichnamige
-    # Unterordner irgendwo im Baum mit ausgeschlossen werden.
-    # Details: docs/features/sharepoint-sync/cloudsync-runbook.md (Template).
+    # Cloud-Sync-Ordner (root-verankert, fuehrender Slash): diese Ordner
+    # gehoeren dem VM-seitigen Cloud-Sync und duerfen NICHT zusaetzlich durch
+    # Mutagen laufen — sonst haengen an denselben Bytes drei Sync-Engines mit
+    # zwei unabhaengigen Konfliktmodellen (Mutagen VM<->Client, Cloud-Client
+    # VM<->Cloud, Cloud-Client der Kollegen an derselben Bibliothek). Der
+    # Ordner liegt ueber die Cloud ohnehin schon auf jedem Arbeitsplatz.
+    # Root-verankert, damit nicht zufaellig gleichnamige Unterordner irgendwo
+    # im Baum mit ausgeschlossen werden.
+    #
+    # Drei Literale, weil der Ordnername Historie hat und nicht pro VM
+    # konfigurierbar sein soll:
+    #   /Ablage       — aktuelle Konvention, providerneutral (M365 wie Google)
+    #   /SharePoint   — Bestand (schleumer, live seit 2026-08-07, bleibt dort)
+    #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
+    # Jedes Literal ist ein No-op, solange der Ordner nicht existiert; sie
+    # kosten also nichts und sparen ein Migrationsfenster am Live-Sync.
+    # Details: docs/features/cloud-sync/cloudsync-runbook.md (Template).
     set -- \
         --name=ki-os \
         --sync-mode=two-way-resolved \
@@ -160,7 +168,9 @@ create_session() {
         --ignore=".venv" \
         --ignore="__pycache__" \
         --ignore=".obsidian/workspace*" \
+        --ignore="/Ablage" \
         --ignore="/SharePoint" \
+        --ignore="/Google Drive" \
         --ignore=".cache" \
         --ignore="dist" \
         --ignore=".next" \
@@ -190,13 +200,19 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         # unveraenderlich, ein blosser Re-Run heilt sie NICHT.
         CFG="$("$MUTAGEN_BIN" sync list ki-os --long 2>&1 || true)"
         DRIFT=""
-        # `/SharePoint`-Ignore: fehlt er, laeuft der Cloud-Sync-Ordner doppelt
-        # (Mutagen + onedrive). Das faellt sonst NICHT auf — der Sync sieht
+        # Cloud-Sync-Ignores: fehlt einer, laeuft der betroffene Ordner doppelt
+        # (Mutagen + Cloud-Client). Das faellt sonst NICHT auf — der Sync sieht
         # gesund aus und produziert still Konfliktkopien. `sync list --long`
         # listet jeden Ignore auf einer eigenen, eingerueckten Zeile.
-        if ! printf '%s\n' "$CFG" | grep -qE '^[[:space:]]+/SharePoint[[:space:]]*$'; then
-            DRIFT="${DRIFT}  - Ignore '/SharePoint' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct)\n"
-        fi
+        # Gemeldet wird jedes fehlende Literal einzeln: Sessions, die vor der
+        # Umbenennung auf 'Ablage' angelegt wurden, kennen nur '/SharePoint'.
+        # Das ist erst dann ein echter Ausfall, wenn der jeweilige Ordner auf
+        # der VM auch benutzt wird — deshalb Hinweis statt Alarm.
+        for _ign in "/Ablage" "/SharePoint" "/Google Drive"; do
+            if ! printf '%s\n' "$CFG" | grep -qE "^[[:space:]]+${_ign}[[:space:]]*\$"; then
+                DRIFT="${DRIFT}  - Ignore '${_ign}' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)\n"
+            fi
+        done
         if [ -n "$SHARED_GROUP" ] \
            && ! printf '%s\n' "$CFG" | grep -qE "Default file/directory group:[[:space:]]*${SHARED_GROUP}\$"; then
             DRIFT="${DRIFT}  - Shared-Group '${SHARED_GROUP}' auf alpha fehlt (geteilter Workspaces-Bind-Mount)\n"

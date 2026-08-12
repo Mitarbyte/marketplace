@@ -215,15 +215,23 @@ function New-KiOsSession {
         '--ignore=.venv',
         '--ignore=__pycache__',
         '--ignore=.obsidian/workspace*',
-        # `/SharePoint` (root-verankert, fuehrender Slash): gehoert dem VM-seitigen
-        # Cloud-Sync (onedrive-Client gegen die SharePoint-Bibliothek) und darf
-        # NICHT zusaetzlich durch Mutagen laufen — sonst haengen an denselben
-        # Bytes drei Sync-Engines mit zwei unabhaengigen Konfliktmodellen
-        # (Mutagen VM<->Client, onedrive VM<->SharePoint, OneDrive-Client der
-        # Kollegen an derselben Bibliothek). Der Ordner liegt ueber SharePoint
-        # ohnehin schon auf jedem Windows-Arbeitsplatz — hier waere er die
-        # zweite, konkurrierende Kopie desselben Baums.
+        # Cloud-Sync-Ordner (root-verankert, fuehrender Slash): gehoeren dem
+        # VM-seitigen Cloud-Sync und duerfen NICHT zusaetzlich durch Mutagen
+        # laufen — sonst haengen an denselben Bytes drei Sync-Engines mit zwei
+        # unabhaengigen Konfliktmodellen (Mutagen VM<->Client, Cloud-Client
+        # VM<->Cloud, Cloud-Client der Kollegen an derselben Bibliothek). Der
+        # Ordner liegt ueber die Cloud ohnehin schon auf jedem Windows-
+        # Arbeitsplatz — hier waere er die zweite, konkurrierende Kopie
+        # desselben Baums.
+        #
+        # Drei Literale (Ordnername hat Historie, ist fleet-weite Konvention):
+        #   /Ablage       — aktuelle Konvention, providerneutral
+        #   /SharePoint   — Bestand (schleumer, bleibt bewusst dort)
+        #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
+        # Jedes ist ein No-op, solange der Ordner nicht existiert.
+        '--ignore=/Ablage',
         '--ignore=/SharePoint',
+        '--ignore=/Google Drive',
         '--ignore=.claude/skills',
         '--ignore=.cache',
         '--ignore=dist',
@@ -260,7 +268,14 @@ if ($LASTEXITCODE -eq 0) {
         $drift = @()
         if ($cfg -notmatch 'Symbolic link mode:\s*Ignore')      { $drift += '--symlink-mode=ignore fehlt (Skill-Symlinks scheitern als Transition problems)' }
         if ($cfg -notmatch '(?m)^\s+\.claude/skills\s*$')       { $drift += 'Ignore .claude/skills fehlt' }
-        if ($cfg -notmatch '(?m)^\s+/SharePoint\s*$')           { $drift += "Ignore /SharePoint fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct)" }
+        # Jedes fehlende Cloud-Sync-Literal einzeln melden: Sessions von vor der
+        # Umbenennung auf 'Ablage' kennen nur '/SharePoint'. Echter Ausfall ist
+        # das erst, wenn der jeweilige Ordner auf der VM benutzt wird.
+        foreach ($ign in @('/Ablage', '/SharePoint', '/Google Drive')) {
+            if ($cfg -notmatch "(?m)^\s+$([regex]::Escape($ign))\s*$") {
+                $drift += "Ignore $ign fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)"
+            }
+        }
         if ($SharedGroup -and ($cfg -notmatch "Default file/directory group:\s*$([regex]::Escape($SharedGroup))")) {
             $drift += "Shared-Group '$SharedGroup' auf alpha fehlt (geteilter Workspaces-Bind-Mount)"
         }
