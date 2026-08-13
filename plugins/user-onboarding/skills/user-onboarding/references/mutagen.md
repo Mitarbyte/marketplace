@@ -106,6 +106,52 @@ Guard-Logs (macOS) `~/Library/Logs/ki-os-mutagen-watchdog*.log` ·
 > ist deshalb **kein** Beweis, dass der Sync gesund ist. Gesund heißt
 > ausschließlich: Status `Watching for changes` **ohne** Problems-Block.
 
+### macOS-TCC: warum der Watchdog eine eigene Shell braucht
+
+Der Skill legt den lokalen Sync-Ordner nach `~/KI-OS`. **Bestands-Setups** haben
+ihn oft woanders — typisch `~/Desktop/KI-OS`. Und `~/Desktop`, `~/Documents`,
+`~/Downloads` sind von macOS per **TCC** geschützt. Für einen LaunchAgent, der
+über `/bin/bash` läuft, heißt das:
+
+| Operation im geschützten Ordner | Ergebnis über `/bin/bash` |
+|---|---|
+| `stat` / `[ -e ]` | OK |
+| `mkdir` (selbst erzeugt) | OK |
+| `opendir` / `ls` | `Operation not permitted` |
+| `rename` fremd erzeugter Objekte (`mv`) | `Operation not permitted` |
+
+Genau das trifft die Auflösung blockierter VM-Löschungen (unten): Der Watchdog
+kommt bis zum `mv` und scheitert dort. Eine TCC-Freigabe für `/bin/bash` würde
+das lösen — aber damit hätte **jedes** bash-Skript auf dem Rechner Zugriff auf
+Desktop, Dokumente und Downloads.
+
+Deshalb läuft der Watchdog über eine **eigene Shell-Kopie**
+`~/.local/bin/ki-os-watchdog-shell`, die `setup-mutagen.sh` anlegt:
+
+```bash
+cp /bin/bash ~/.local/bin/ki-os-watchdog-shell
+codesign --force --sign - ~/.local/bin/ki-os-watchdog-shell   # PFLICHT
+```
+
+- Das **Ad-hoc-Signieren ist nicht optional**: `/bin/bash` ist ein
+  Apple-Platform-Binary, dessen Signatur nur am Originalpfad validiert. Eine
+  unsignierte Kopie killt der Kernel beim Start sofort (`Killed: 9`).
+- Mit der signierten Kopie gehen `opendir` **und** `rename` in
+  `~/Desktop/KI-OS` durch — verifiziert sowohl bei `launchctl bootstrap` als
+  auch bei Timer-Start durch launchd, **ohne** jede TCC-Freigabe. Ein
+  Platform-Binary bekommt im Agent-Kontext keine Attribution und damit hartes
+  Deny; die eigene Binary hat eine eigene Identität.
+- Die Kopie wird bei einem Re-Run **nicht** ersetzt, solange sie läuft: ein
+  neues Binary am selben Pfad invalidiert einen ggf. erteilten TCC-Grant.
+- Scheitert es trotzdem mit EPERM, meldet das Setup `TCC_GRANT_NEEDED` und
+  leitet die Freigabe an (Systemeinstellungen → Datenschutz & Sicherheit →
+  Festplattenvollzugriff → die **Watchdog-Shell**, nicht `/bin/bash`).
+  Dauerhafte Alternative: Sync-Ordner nach `~/KI-OS` umziehen.
+
+Gewarnt wird **nur bei nachgewiesenem** EPERM (Marker aus dem letzten
+Watchdog-Lauf), nicht vorsorglich anhand des Ordnerpfads — ein
+Systemeinstellungs-Eingriff auf Verdacht ist keine Diagnose.
+
 ## Session-Konfiguration
 
 **Endpoint-Reihenfolge ist bewusst:** Die VM ist **Alpha** (erstes Argument),
@@ -196,7 +242,7 @@ Deshalb muss die Gruppe explizit gesetzt werden.
 | `.obsidian/workspace*` | Obsidian-Fenster-Layout ist gerätespezifisch — würde sonst zwischen VM/Laptop hin- und herflattern |
 | `.cache`, `dist`, `.next` | Build-/Browser-Caches |
 | `.DS_Store` | macOS-Finder-Artefakte nicht auf die VM tragen |
-| `/Ablage`, `/SharePoint`, `/Google Drive` | Gehören dem VM-seitigen **Cloud-Sync** (Cloud-Client gegen eine SharePoint-Bibliothek bzw. ein Google Shared Drive). Ohne diese Ignores hängen an denselben Bytes **drei** Sync-Engines mit zwei unabhängigen Konfliktmodellen: Mutagen (VM↔Client), der Cloud-Client (VM↔Cloud) und der Cloud-Client der Kollegen an derselben Bibliothek — eine lokale Änderung liefe Client → Mutagen → VM → Cloud-Client → Cloud → Kollegen-Client. Der Ordner ist über die Cloud ohnehin auf jedem Arbeitsplatz verfügbar (Explorer/Web/Mobile), eine zweite Kopie über Mutagen bringt nichts und erzeugt Konfliktkopien. **Root-verankert** (führender `/`), damit nicht zufällig gleichnamige Unterordner tiefer im Baum mit ausgeschlossen werden. Gilt auf jeder VM, unabhängig davon ob der Cloud-Sync dort aktiv ist (No-op ohne den Ordner). Die Namen sind fleet-weite Konvention (Literale im Skript) und bewusst umlautfrei — macOS legt Dateinamen zerlegt (NFD) ab, Linux zusammengesetzt (NFC), ein Ignore mit `ä` kann auf einer Seite nicht matchen, und ein nicht greifender Ignore fällt erst durch Konfliktkopien auf. **Warum drei:** `Ablage` ist die aktuelle, providerneutrale Konvention; `SharePoint` ist Bestand (schleumer, live seit 2026-08-07, wird bewusst nicht migriert); `Google Drive` ist der Name, den Google Drive for Desktop selbst vergibt. Ein zusätzliches Literal kostet nichts und spart ein Migrationsfenster am Live-Sync. Dass der Ordner überhaupt *im* Sync-Baum liegt, ist entschieden, nicht zufällig: außerhalb bräuchte es diesen Ignore nicht, aber der Ordner wäre dann nicht im lokalen Vault — die Abwägung steht in `docs/features/cloud-sync/` |
+| `/Ablage`, `/SharePoint`, `/Sharepoint`, `/Google Drive` | Gehören dem VM-seitigen **Cloud-Sync** (Cloud-Client gegen eine SharePoint-Bibliothek bzw. ein Google Shared Drive). Ohne diese Ignores hängen an denselben Bytes **drei** Sync-Engines mit zwei unabhängigen Konfliktmodellen: Mutagen (VM↔Client), der Cloud-Client (VM↔Cloud) und der Cloud-Client der Kollegen an derselben Bibliothek — eine lokale Änderung liefe Client → Mutagen → VM → Cloud-Client → Cloud → Kollegen-Client. Der Ordner ist über die Cloud ohnehin auf jedem Arbeitsplatz verfügbar (Explorer/Web/Mobile), eine zweite Kopie über Mutagen bringt nichts und erzeugt Konfliktkopien. **Root-verankert** (führender `/`), damit nicht zufällig gleichnamige Unterordner tiefer im Baum mit ausgeschlossen werden. Gilt auf jeder VM, unabhängig davon ob der Cloud-Sync dort aktiv ist (No-op ohne den Ordner). Die Namen sind fleet-weite Konvention (Literale im Skript) und bewusst umlautfrei — macOS legt Dateinamen zerlegt (NFD) ab, Linux zusammengesetzt (NFC), ein Ignore mit `ä` kann auf einer Seite nicht matchen, und ein nicht greifender Ignore fällt erst durch Konfliktkopien auf. **Warum vier:** `Ablage` ist die aktuelle, providerneutrale Konvention; `SharePoint` ist Bestand (schleumer, live seit 2026-08-07, wird bewusst nicht migriert); `Sharepoint` ist dieselbe Schreibweise mit kleinem `p`, real vergeben — **Mutagen-Ignores sind case-sensitiv**, `/SharePoint` trifft `Sharepoint` also nicht (aufgefallen 2026-08-12: der Ordner lief unbemerkt doppelt); `Google Drive` ist der Name, den Google Drive for Desktop selbst vergibt. Ein zusätzliches Literal kostet nichts und spart ein Migrationsfenster am Live-Sync. Dass der Ordner überhaupt *im* Sync-Baum liegt, ist entschieden, nicht zufällig: außerhalb bräuchte es diesen Ignore nicht, aber der Ordner wäre dann nicht im lokalen Vault — die Abwägung steht in `docs/features/cloud-sync/` |
 
 **`.claude/skills` — macOS/Linux vs. Windows:**
 
@@ -282,6 +328,23 @@ Seiten einig („beidseitig weg"), der Konflikt ist erledigt:
 Trockenlauf (zeigt nur, was passieren würde):
 `KIOS_SYNC_RESOLVE_DRYRUN=1 ~/.local/bin/ki-os-mutagen-watchdog.sh`
 
+> **Wenn die Auflösung scheitert, sieht man es jetzt** (Lehre aus einem echten
+> Ausfall, 2026-08-04 bis 2026-08-12): Auf einem Setup mit Sync-Ordner unter
+> `~/Desktop` scheiterte das `mv` an TCC (s.o.) — der Fehler ging nach
+> `/dev/null`, das Log blieb **leer**, und weil der Papierkorb-Zielpfad *vor*
+> dem `mv` per `mkdir` entstand, wuchs alle 2 min ein weiterer leerer Ordner:
+> nach 8 Tagen **3708 leere Ordner**, während die 5 Konflikte unverändert
+> standen. Ein „laufender" Watchdog und ein leeres Log waren also beides kein
+> Gesundheitsnachweis. Seitdem gilt:
+>
+> - `mv`-Fehler werden erfasst und als `SYNC-FAIL:` gemeldet, EPERM zusätzlich
+>   mit TCC-Anleitung
+> - Meldungen erscheinen **nur bei Änderung** gegenüber dem letzten Lauf
+>   (`~/.local/state/ki-os/watchdog-issues.last`) — ein Dauerproblem flutet das
+>   Log sonst und verdeckt genau das, was neu ist
+> - leer gebliebene Papierkorb-Ordner werden am Ende jedes Laufs aufgeräumt
+>   (nur **vollständig leere** Verzeichnisse; echte Sicherungen bleiben)
+
 > **Warum der ganze Ordner und nicht nur die Reste** (der Grund ist real
 > aufgetreten, 2026-07-29): Räumt man nur die Reste weg, löscht Mutagen den Rest
 > des Baums selbst — und nimmt dabei auch Dateien mit, die es **nur lokal** gibt,
@@ -364,6 +427,14 @@ sind:**
 mutagen sync list ki-os     # alpha und beta: gleiche Verzeichnis-/Dateizahl
 ```
 
+**Die Endpunkte übernimmt die Neuanlage aus der bestehenden Session** (alpha-URL
+und beta-URL werden vor dem `terminate` ausgelesen), *nicht* aus der Konvention
+`ki-os-vm:/home/<user>/KI-OS` ↔ `~/KI-OS`. Das ist für Bestands-Setups
+entscheidend: Wer einen anderen SSH-Alias oder einen anderen lokalen Ordner hat
+(z.B. `~/Desktop/KI-OS`), bekäme sonst eine Neuanlage auf einen fremden Alias
+und einen fast leeren Ordner — bei terminierter, funktionierender Session. Sind
+die Endpunkte nicht lesbar, bricht das Skript ab und terminiert **nichts**.
+
 Ist die Session zwar wegen Transition problems festgefahren, aber die
 **Zahlen stimmen auf beiden Seiten überein**, ist die Neuanlage gefahrlos —
 die Symlink-Retries sind dann das Einzige, was fehlt. Weichen sie ab: erst
@@ -380,6 +451,7 @@ weisen genau darauf hin.
 | VM: `<user>@notty`-sshd-Session ohne `mutagen-agent`-Child | Verwaister Transport — Prozess killen, Daemon neu starten (Recovery oben) |
 | VM: Dateien für andere Mitarbeiter nicht lesbar/schreibbar (`Workspaces/`) | Shared-Group fehlt in der Session → `DRIFT:`-Meldung von `setup-mutagen`, mit `--recreate` neu anlegen (s. „Shared-Group") |
 | Ordner auf der VM gelöscht, liegt lokal noch komplett da (Status trotzdem `Watching for changes`) | Ignorierte Reste blockieren die Löschung → „Blockierte VM-Löschungen". Der Watchdog löst das binnen ~2 min selbst; `SYNC-BLOCK:` im Log heißt `.git` betroffen → selbst entscheiden |
+| `Transition problems: N` mit `unable to relocate staged file: file exists` bei Dateien mit Umlaut | **NFC/NFD-Duplikat auf der VM**: Linux erlaubt `Erstgespräch.md` zweimal — einmal NFC (`ä` = U+00E4), einmal NFD (`a`+U+0308). macOS/APFS ist normalisierungs-*insensitiv* und kann nur eine davon halten, die zweite scheitert dauerhaft. Sichtbar machen: `ssh ki-os-vm 'ls ~/KI-OS/<pfad> \| cat -v'` (NFC = `M-CM-$`, NFD = `aM-LM-^H`). Fix ist **VM-seitig und inhaltlich**: die beiden Dateien vergleichen und eine behalten (`mv`/`rm`). Bis dahin bleibt die Session um genau diese Dateien divergent — und damit ist auch kein `--recreate` gefahrlos |
 | `mutagen: command not found` (Windows) | Neue PowerShell-Session öffnen (PATH-Update) oder `%USERPROFILE%\.local\bin\mutagen.exe` direkt aufrufen |
 | „Connecting…" dauerhaft | SSH testen: `ssh -o BatchMode=yes ki-os-vm true` — wenn das hängt, ist es ein SSH-/Netz-Problem |
 | „Conflicts" in `mutagen sync list` | `mutagen sync list ki-os --long` zeigt die Dateien; VM-Version gewinnt beim nächsten Sync — lokale Änderung vorher wegsichern, falls gebraucht |

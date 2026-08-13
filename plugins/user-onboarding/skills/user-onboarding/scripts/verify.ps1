@@ -101,8 +101,46 @@ if ($mutagenCmd) {
 } else {
     Write-Host 'FAIL: mutagen nicht installiert (setup-mutagen.ps1)'; $failed = $true
 }
-if (Test-Path (Join-Path $env:USERPROFILE 'KI-OS')) { Write-Host 'OK:   Lokaler Workspace %USERPROFILE%\KI-OS vorhanden' }
-else { Write-Host 'FAIL: Lokaler Workspace %USERPROFILE%\KI-OS fehlt'; $failed = $true }
+
+# Stille Divergenz sichtbar machen: 'Watching for changes' ist NICHT gesund,
+# solange Konflikte oder Transition problems anliegen (Lesson 17 + Nachspiel).
+$syncLong = ''
+if ($mutagenCmd) { $syncLong = (& $mutagenCmd.Source sync list ki-os --long 2>$null) | Out-String }
+if ($syncLong) {
+    $c = [regex]::Match($syncLong, '(?m)^Conflicts:\s*(\d+)\s*$')
+    if ($syncLong -match '(?m)^Conflicts:') {
+        $n = if ($c.Success) { $c.Groups[1].Value } else { 'mehrere' }
+        Write-Host "WARN: Mutagen-Session hat Konflikte ($n) - 'mutagen sync list ki-os --long'."
+        Write-Host '      Meist eine VM-Loeschung, die lokal an ignorierten Resten haengt; der'
+        Write-Host '      Watchdog loest das binnen ~2 min selbst (references/mutagen.md).'
+    }
+    if ($syncLong -match 'Transition problems') {
+        Write-Host "WARN: Mutagen-Session hat Transition problems - 'mutagen sync list ki-os --long'."
+        Write-Host '      Der Watchdog heilt die NICHT (Symlinks, Unicode-Duplikate, toter Transport).'
+    }
+}
+
+# Lokalen Workspace-Pfad AUS DER SESSION lesen, nicht %USERPROFILE%\KI-OS
+# annehmen: Bestands-Setups haben ihn woanders, dann pruefte der Check einen
+# Ordner, der mit dem Sync nichts zu tun hat.
+$localRoot = Join-Path $env:USERPROFILE 'KI-OS'
+if ($syncLong) {
+    $b = [regex]::Match($syncLong, '(?ms)^Beta:\r?\n.*?^\s+URL:\s*(.+?)\r?$')
+    if ($b.Success -and $b.Groups[1].Value.Trim()) { $localRoot = $b.Groups[1].Value.Trim() }
+}
+if (Test-Path -LiteralPath $localRoot) { Write-Host "OK:   Lokaler Workspace $localRoot vorhanden" }
+else { Write-Host "FAIL: Lokaler Workspace $localRoot fehlt"; $failed = $true }
+
+# Meldet der Watchdog selbst ein Problem? Das ist der Unterschied zwischen
+# "laeuft" und "tut, was er soll" (Lesson 17, Nachspiel: ein blockierter
+# Aufloeser lief 8 Tage still ins Leere, weil keiner dieses Signal abfragte).
+$wdIssues = Join-Path $env:USERPROFILE '.local\state\ki-os\watchdog-issues.last'
+if ((Test-Path -LiteralPath $wdIssues) -and (Get-Item -LiteralPath $wdIssues).Length -gt 0) {
+    Write-Host 'WARN: Der Sync-Watchdog meldet ein offenes Problem:'
+    Get-Content -LiteralPath $wdIssues | ForEach-Object { Write-Host "      $_" }
+} else {
+    Write-Host 'OK:   Sync-Watchdog meldet keine offenen Probleme'
+}
 
 # --- Desktop-App -----------------------------------------------------------------------
 # Die Registrierung (ssh_configs.json + ~\.claude.json) ist ein CLAUDE-Artefakt.

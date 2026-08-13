@@ -291,6 +291,10 @@ zwingend prüfen**, dass `mutagen sync list ki-os` auf alpha **und** beta die
 gleiche Datei-/Verzeichniszahl zeigt — eine Neuanlage startet ohne Ancestor und
 spült sonst lokal-only Daten als Neuanlage auf die VM
 (`references/mutagen.md` → „Warum `--recreate` bei Divergenz gefährlich ist").
+Die **Endpunkte übernimmt die Neuanlage aus der laufenden Session** (nicht aus
+der Konvention) — Bestands-Setups mit anderem SSH-Alias oder anderem lokalen
+Ordner bleiben also intakt; sind die Endpunkte nicht lesbar, bricht das Skript
+ab und terminiert nichts.
 
 Richtet zusätzlich einen **Session-Watchdog** ein (macOS
 LaunchAgent / Linux systemd-Timer, ~2 min; Windows deckt der
@@ -355,9 +359,15 @@ bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER> --mode <ACCESS_MODE> \
 ```
 
 Prüft SSH, die Zugangswege (tunnel: beide lokalen Tunnel; gateway: die zwei
-HTTPS-URLs — 302 zum IdP-Login = OK), Mutagen-Session, `~/KI-OS` und die
-Desktop-App-Einträge (OK/WARN/FAIL pro Komponente). Zusätzlich den User
-**aktiv testen lassen**:
+HTTPS-URLs — 302 zum IdP-Login = OK), die Mutagen-Session, den lokalen
+Sync-Ordner und die Desktop-App-Einträge (OK/WARN/FAIL pro Komponente).
+
+Drei Dinge, die der Verify bewusst **zusätzlich** meldet, weil ein „laufender"
+Sync sie verdeckt: anliegende **Konflikte** und **Transition problems** (Status
+`Watching for changes` ist mit ihnen NICHT gesund) sowie **offene
+Watchdog-Meldungen** (`SYNC-FAIL`/`SYNC-BLOCK`). Den lokalen Ordner liest der
+Verify aus der Session, statt `~/KI-OS` anzunehmen — Bestands-Setups haben ihn
+woanders. Zusätzlich den User **aktiv testen lassen**:
 
 1. tunnel: `http://localhost:6080/vnc.html?resize=scale` öffnen → „Connect"
    → noVNC-Passwort aus Schritt 6 → VM-Desktop sichtbar (leer/grau ist okay,

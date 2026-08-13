@@ -87,7 +87,9 @@ else
     http_check "${MAIN_LABEL}-Tunnel http://localhost:${MAIN_LPORT}" "http://localhost:${MAIN_LPORT}"
 fi
 
-if command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os 2>/dev/null | grep -qiE 'watching|scanning|staging|reconciling|saving|transitioning'; then
+# grep ohne -q (liest bis EOF) statt 'grep -q': sonst dieselbe SIGPIPE-Falle wie
+# beim Watchdog-Check unten — unter pipefail wird ein Treffer zu "false".
+if command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os 2>/dev/null | grep -iE 'watching|scanning|staging|reconciling|saving|transitioning' >/dev/null; then
     echo "OK:   Mutagen-Session ki-os aktiv"
 elif command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os >/dev/null 2>&1; then
     echo "WARN: Mutagen-Session ki-os existiert, Status pruefen: mutagen sync list ki-os"
@@ -95,21 +97,72 @@ else
     echo "FAIL: Mutagen-Session ki-os fehlt"
     RC=1
 fi
-check "Lokaler Workspace ~/KI-OS vorhanden" test -e "$HOME/KI-OS"
+
+# Stille Divergenz sichtbar machen: 'Watching for changes' ist NICHT gesund,
+# solange Konflikte oder Transition problems anliegen (Lesson 17 + Nachspiel).
+# Der Status allein taugt nicht als Nachweis — genau daran ist ein Ausfall
+# 8 Tage unbemerkt geblieben.
+if command -v mutagen >/dev/null 2>&1; then
+    SYNC_LONG="$(mutagen sync list ki-os --long 2>/dev/null || true)"
+    if [ -n "$SYNC_LONG" ]; then
+        N_CONF="$(printf '%s\n' "$SYNC_LONG" | sed -n 's/^Conflicts:[[:space:]]*\([0-9]\{1,\}\)$/\1/p' | head -1)"
+        printf '%s\n' "$SYNC_LONG" | grep -q '^Conflicts:' && [ -z "$N_CONF" ] && N_CONF="mehrere"
+        if [ -n "$N_CONF" ]; then
+            echo "WARN: Mutagen-Session hat Konflikte (${N_CONF}) — 'mutagen sync list ki-os --long'."
+            echo "      Meist eine VM-Loeschung, die lokal an ignorierten Resten haengt; der"
+            echo "      Watchdog loest das binnen ~2 min selbst (references/mutagen.md)."
+        fi
+        if printf '%s\n' "$SYNC_LONG" | grep -q 'Transition problems'; then
+            echo "WARN: Mutagen-Session hat Transition problems — 'mutagen sync list ki-os --long'."
+            echo "      Der Watchdog heilt die NICHT (Symlinks, Unicode-Duplikate, toter Transport)."
+        fi
+    fi
+fi
+
+# Lokalen Workspace-Pfad AUS DER SESSION lesen, nicht ~/KI-OS annehmen:
+# Bestands-Setups haben ihn woanders (z.B. ~/Desktop/KI-OS), dann pruefte der
+# Check einen Ordner, der mit dem Sync nichts zu tun hat.
+LOCAL_ROOT=""
+if command -v mutagen >/dev/null 2>&1; then
+    LOCAL_ROOT="$(mutagen sync list ki-os --long 2>/dev/null \
+        | awk '/^Beta:/{f=1;next} f && /URL:/{sub(/^[[:space:]]*URL:[[:space:]]*/,""); print; exit}')"
+fi
+[ -n "$LOCAL_ROOT" ] || LOCAL_ROOT="$HOME/KI-OS"
+check "Lokaler Workspace ${LOCAL_ROOT} vorhanden" test -e "$LOCAL_ROOT"
 
 # Mutagen-Session-Watchdog (Selbstheilung bei paused/halted) — kein Pflicht-FAIL
 if [ "$(uname -s)" = "Darwin" ]; then
-    if launchctl list 2>/dev/null | grep -q 'ki-os-vm.mutagen-watchdog'; then
-        echo "OK:   Mutagen-Session-Watchdog (LaunchAgent geladen)"
-    else
-        echo "WARN: Mutagen-Session-Watchdog nicht geladen (setup-mutagen.sh erneut laufen lassen)"
-    fi
+    # Output erst in eine Variable, dann per case pruefen — NICHT
+    # 'launchctl list | grep -q'. Unter 'set -o pipefail' beendet sich grep -q
+    # beim ersten Treffer, launchctl stirbt an SIGPIPE (141) und pipefail macht
+    # daraus "false", OBWOHL es gematcht hat. Gemessen 2026-08-12: 9 von 10
+    # Laeufen meldeten faelschlich "nicht geladen" (Race, abhaengig davon wie
+    # viel launchctl noch schreiben will) — der Rat "setup-mutagen.sh erneut
+    # laufen lassen" ging also ins Leere, weil alles in Ordnung war.
+    WD_LIST="$(launchctl list 2>/dev/null || true)"
+    case "$WD_LIST" in
+        *ki-os-vm.mutagen-watchdog*)
+            echo "OK:   Mutagen-Session-Watchdog (LaunchAgent geladen)" ;;
+        *)
+            echo "WARN: Mutagen-Session-Watchdog nicht geladen (setup-mutagen.sh erneut laufen lassen)" ;;
+    esac
 else
     if systemctl --user is-enabled ki-os-mutagen-watchdog.timer >/dev/null 2>&1; then
         echo "OK:   Mutagen-Session-Watchdog (systemd-Timer aktiv)"
     else
         echo "WARN: Mutagen-Session-Watchdog-Timer nicht aktiv (setup-mutagen.sh erneut laufen lassen)"
     fi
+fi
+
+# Meldet der Watchdog selbst ein Problem? Das ist der Unterschied zwischen
+# "laeuft" und "tut, was er soll" — ein blockierter Aufloeser lief 8 Tage still
+# ins Leere, weil niemand dieses Signal abgefragt hat (Lesson 17, Nachspiel).
+WD_ISSUES="$HOME/.local/state/ki-os/watchdog-issues.last"
+if [ -s "$WD_ISSUES" ]; then
+    echo "WARN: Der Sync-Watchdog meldet ein offenes Problem:"
+    sed 's/^/      /' "$WD_ISSUES"
+else
+    echo "OK:   Sync-Watchdog meldet keine offenen Probleme"
 fi
 
 # Desktop-App-Registrierung ist ein CLAUDE-Artefakt (ssh_configs.json +

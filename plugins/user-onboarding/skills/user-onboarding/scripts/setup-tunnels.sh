@@ -198,7 +198,10 @@ case "$(uname -s)" in
         setup_linux_tunnel novnc 6080 "$NOVNC_PORT"
         setup_linux_tunnel "$SECOND_NAME" "$SECOND_LPORT" "$SECOND_RPORT"
         # Linger: User-Services auch ohne aktive Login-Session
-        if ! loginctl show-user "$USER" 2>/dev/null | grep -q '^Linger=yes'; then
+        # grep ohne -q (liest bis EOF): 'grep -q' beendet die Pipe frueh, loginctl
+        # stirbt an SIGPIPE und unter pipefail wird ein Treffer zu "false" — dann
+        # laeuft enable-linger unnoetig und meldet ggf. WARN, obwohl Linger steht.
+        if ! loginctl show-user "$USER" 2>/dev/null | grep '^Linger=yes' >/dev/null; then
             sudo -n loginctl enable-linger "$USER" 2>/dev/null \
                 || loginctl enable-linger "$USER" 2>/dev/null \
                 || echo "WARN: Linger nicht aktiviert — bitte manuell: sudo loginctl enable-linger $USER"

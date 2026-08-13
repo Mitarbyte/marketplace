@@ -12,6 +12,11 @@
 # alles, was Mutagen VM-seitig anlegt, dessen Gruppe + group-schreibbare Modes.
 # Das wird VM-seitig ERKANNT (setgid-Bit), nicht angenommen — Details unten.
 #
+# macOS-TCC: liegt der lokale Sync-Ordner in ~/Desktop, ~/Documents oder
+# ~/Downloads (Bestands-Setups), braucht der Session-Watchdog eine eigene,
+# freigegebene Shell — sonst kann er blockierte VM-Loeschungen nicht aufloesen
+# (Details in Abschnitt 4 + references/mutagen.md -> "macOS-TCC").
+#
 # Usage:  setup-mutagen.sh --vm-user <VM_USER> [--recreate] [--shared-group <NAME>]
 #
 # Output-Marker: SESSION_EXISTS | SESSION_CREATED | SESSION_RECREATED
@@ -139,6 +144,14 @@ fi
 
 # --- 3. Session ki-os ----------------------------------------------------------
 create_session() {
+    # Endpunkte: $1/$2 ueberschreiben die Konvention. Das ist fuer --recreate
+    # PFLICHT, nicht Komfort — ein Bestands-Setup kann einen anderen SSH-Alias und
+    # einen anderen lokalen Ordner haben (z.B. ~/Desktop/KI-OS). Wuerde die
+    # Neuanlage stur die Konvention nehmen, terminiert sie die funktionierende
+    # Session und legt eine neue auf einen fremden Alias + fast leeren Ordner an.
+    _alpha="${1:-ki-os-vm:/home/${VM_USER}/KI-OS}"
+    _beta="${2:-$HOME/KI-OS}"
+
     # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta. .claude/skills wird
     # auf macOS/Linux bewusst mitgesynct (relative Skill-Symlinks -> klickbare
     # Skill-Ansicht); Details: references/mutagen.md.
@@ -152,11 +165,16 @@ create_session() {
     # Root-verankert, damit nicht zufaellig gleichnamige Unterordner irgendwo
     # im Baum mit ausgeschlossen werden.
     #
-    # Drei Literale, weil der Ordnername Historie hat und nicht pro VM
+    # Vier Literale, weil der Ordnername Historie hat und nicht pro VM
     # konfigurierbar sein soll:
     #   /Ablage       — aktuelle Konvention, providerneutral (M365 wie Google)
     #   /SharePoint   — Bestand (schleumer, live seit 2026-08-07, bleibt dort)
+    #   /Sharepoint   — dieselbe Schreibweise mit kleinem p, real vergeben
     #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
+    # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft einen Ordner
+    # 'Sharepoint' nicht. Beide Schreibweisen zu listen ist der einzige Weg, das
+    # ohne Umbenennen am Live-Sync abzudecken (aufgefallen 2026-08-12: Ordner
+    # 'Sharepoint' lief unbemerkt doppelt, weil nur '/SharePoint' gelistet war).
     # Jedes Literal ist ein No-op, solange der Ordner nicht existiert; sie
     # kosten also nichts und sparen ein Migrationsfenster am Live-Sync.
     # Details: docs/features/cloud-sync/cloudsync-runbook.md (Template).
@@ -170,6 +188,7 @@ create_session() {
         --ignore=".obsidian/workspace*" \
         --ignore="/Ablage" \
         --ignore="/SharePoint" \
+        --ignore="/Sharepoint" \
         --ignore="/Google Drive" \
         --ignore=".cache" \
         --ignore="dist" \
@@ -185,15 +204,35 @@ create_session() {
             --default-file-mode-alpha=0660 \
             --default-directory-mode-alpha=0770
     fi
-    "$MUTAGEN_BIN" sync create "$@" \
-        "ki-os-vm:/home/${VM_USER}/KI-OS" "$HOME/KI-OS"
+    "$MUTAGEN_BIN" sync create "$@" "$_alpha" "$_beta"
+}
+
+# Endpunkte einer bestehenden Session auslesen (alpha-URL bzw. beta-URL).
+session_endpoint() {   # $1 = Alpha|Beta
+    "$MUTAGEN_BIN" sync list ki-os --long 2>/dev/null \
+        | awk -v sec="^$1:" '$0 ~ sec {f=1;next} f && /URL:/{sub(/^[[:space:]]*URL:[[:space:]]*/,""); print; exit}'
 }
 
 if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
     if [ "$RECREATE" -eq 1 ]; then
+        # Endpunkte VOR dem terminate sichern — danach sind sie nicht mehr lesbar.
+        OLD_ALPHA="$(session_endpoint Alpha)"
+        OLD_BETA="$(session_endpoint Beta)"
+        if [ -z "$OLD_ALPHA" ] || [ -z "$OLD_BETA" ]; then
+            echo "FAIL: Endpunkte der bestehenden Session nicht lesbar — es wird NICHTS" >&2
+            echo "      terminiert. Sonst entstuende eine Neuanlage auf geratenen" >&2
+            echo "      Endpunkten. Pruefen: mutagen sync list ki-os --long" >&2
+            exit 1
+        fi
+        DEF_ALPHA="ki-os-vm:/home/${VM_USER}/KI-OS"
+        if [ "$OLD_ALPHA" != "$DEF_ALPHA" ] || [ "$OLD_BETA" != "$HOME/KI-OS" ]; then
+            echo "OK: Endpunkte der bestehenden Session werden uebernommen (Bestands-Setup):"
+            echo "    alpha: ${OLD_ALPHA}"
+            echo "    beta:  ${OLD_BETA}"
+        fi
         "$MUTAGEN_BIN" sync terminate ki-os
-        create_session
-        echo "SESSION_RECREATED: ki-os neu angelegt (Dateien bleiben erhalten)."
+        create_session "$OLD_ALPHA" "$OLD_BETA"
+        echo "SESSION_RECREATED: ki-os neu angelegt (${OLD_ALPHA} <-> ${OLD_BETA}; Dateien bleiben erhalten)."
     else
         echo "SESSION_EXISTS: ki-os laeuft bereits."
         # Konfig-Drift AKTIV melden: Ignores/Group einer bestehenden Session sind
@@ -208,7 +247,7 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         # Umbenennung auf 'Ablage' angelegt wurden, kennen nur '/SharePoint'.
         # Das ist erst dann ein echter Ausfall, wenn der jeweilige Ordner auf
         # der VM auch benutzt wird — deshalb Hinweis statt Alarm.
-        for _ign in "/Ablage" "/SharePoint" "/Google Drive"; do
+        for _ign in "/Ablage" "/SharePoint" "/Sharepoint" "/Google Drive"; do
             if ! printf '%s\n' "$CFG" | grep -qE "^[[:space:]]+${_ign}[[:space:]]*\$"; then
                 DRIFT="${DRIFT}  - Ignore '${_ign}' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)\n"
             fi
@@ -284,10 +323,30 @@ printf '%s\n' "$info" | grep -q 'Watching for changes' \
 # VCS). Ist .git betroffen, wird NICHT angefasst, sondern gemeldet: dort steckt
 # in der Regel ein lokaler Repo-Klon, in dem der User aktiv arbeitet — der darf
 # ihm nicht unter den Haenden wegwandern.
-TRASH="${HOME}/.local/state/ki-os/sync-trash/$(date +%Y-%m-%d_%H%M%S)"
+STATE="${HOME}/.local/state/ki-os"
+TRASH_ROOT="${STATE}/sync-trash"
+TRASH="${TRASH_ROOT}/$(date +%Y-%m-%d_%H%M%S)"
+
+# Auffaelligkeiten (fehlgeschlagene Aufloesung, nicht anfassbare Reste) sammeln
+# und erst am Ende melden — und dort nur, wenn sie sich seit dem letzten Lauf
+# GEAENDERT haben. Der Watchdog laeuft alle 2 min; ein Dauerproblem wuerde das
+# Log sonst mit derselben Meldung fluten und dabei genau das verdecken, was neu
+# ist. Datei statt Variable, weil die Auswertung unten in einer Pipe-Subshell
+# laeuft (Variablen kaemen dort nicht heraus).
+ISSUES="${STATE}/watchdog-issues.tmp"
+ISSUES_LAST="${STATE}/watchdog-issues.last"
+mkdir -p "$STATE" 2>/dev/null || true
+: > "$ISSUES" 2>/dev/null || true
+note() { printf '%s\n' "$1" >> "$ISSUES" 2>/dev/null || true; }
+
 full="$(mutagen sync list ki-os --long 2>/dev/null)"
 conf="$(printf '%s\n' "$full" | sed -n '/^Conflicts:/,/^Status:/p')"
-[ -n "$conf" ] || exit 0
+if [ -z "$conf" ]; then
+    # Keine Konflikte = sauberer Zustand. Auch die Merkdatei zuruecksetzen, damit
+    # ein spaeter WIEDER auftretendes Problem erneut gemeldet wird.
+    rm -f "$ISSUES" "$ISSUES_LAST" 2>/dev/null || true
+    exit 0
+fi
 # Lokalen Sync-Ordner AUS DER SESSION lesen, nicht $HOME/KI-OS annehmen: der
 # Skill legt zwar ~/KI-OS an, aber Bestands-Setups haben ihn woanders (z.B.
 # ~/Desktop/KI-OS). Mit falscher Wurzel findet der Aufloeser nichts und tut
@@ -326,7 +385,7 @@ printf '%s\n' "$conf" | awk -v RS='' '{print; print "---BLOCK---"}' | {
         allowed=1
         while IFS= read -r p; do
             [ -n "$p" ] || continue
-            disposable "$p" || { allowed=0; echo "SYNC-BLOCK: '$p' ist kein Wegwerf-Artefakt (z.B. .git) — bitte lokal selbst entscheiden."; }
+            disposable "$p" || { allowed=0; note "SYNC-BLOCK: '$p' ist kein Wegwerf-Artefakt (z.B. .git) — bitte lokal selbst entscheiden."; }
         done <<EOF2
 $betas
 EOF2
@@ -338,11 +397,28 @@ EOF2
             block=""; continue
         fi
         mkdir -p "${TRASH}/$(dirname "$target")" 2>/dev/null || true
-        if mv "$src" "${TRASH}/${target}" 2>/dev/null; then
+        # mv-Fehler NICHT verschlucken: solange er nach /dev/null ging, sah ein
+        # dauerhaft blockierter Watchdog wie "nichts zu tun" aus (leeres Log) und
+        # hinterliess bei jedem Lauf nur den leeren Zielordner von mkdir.
+        if err="$(mv "$src" "${TRASH}/${target}" 2>&1)"; then
             echo "SYNC-FIX: '${target}' war auf der VM geloescht und lokal durch ignorierte Reste blockiert"
             echo "          -> komplett gesichert nach ${TRASH}/${target}"
             echo "          -> Sync ist jetzt konsistent. Papierkorb pruefen und bei Bedarf leeren."
             : > "${TRASH}/.did"
+        else
+            note "SYNC-FAIL: '${target}' konnte nicht in den Papierkorb verschoben werden."
+            note "           ${err}"
+            case "$err" in
+                *"Operation not permitted"*|*"not permitted"*)
+                    note "           -> Das ist macOS-TCC: der lokale Sync-Ordner liegt in einem"
+                    note "              geschuetzten Bereich (~/Desktop, ~/Documents, ~/Downloads) und"
+                    note "              der Watchdog laeuft als LaunchAgent. Freigabe erteilen:"
+                    note "              Systemeinstellungen -> Datenschutz & Sicherheit ->"
+                    note "              Festplattenvollzugriff -> ~/.local/bin/ki-os-watchdog-shell"
+                    note "              hinzufuegen und aktivieren (Cmd+Shift+G im Auswahldialog)."
+                    note "              Alternative: Sync-Ordner nach ~/KI-OS umziehen (/user-onboarding)."
+                    ;;
+            esac
         fi
         block=""
     done
@@ -350,6 +426,32 @@ EOF2
 # Flush nur anstossen, wenn wirklich etwas aufgeloest wurde (die Loeschung laeuft
 # dann sofort statt erst beim naechsten Zyklus).
 [ -f "${TRASH}/.did" ] && { rm -f "${TRASH}/.did"; mutagen sync flush ki-os >/dev/null 2>&1 || true; }
+
+# --- Leere Papierkorb-Ordner aufraeumen ---------------------------------------
+# Scheitert das mv, bleibt der per mkdir vorbereitete Zielpfad leer zurueck —
+# und weil der Watchdog alle 2 min laeuft, wird daraus bei einem Dauerproblem
+# ein Ordner-Regen (real aufgetreten: 3708 leere Ordner in 8 Tagen). Nur
+# VOLLSTAENDIG leere Verzeichnisse werden entfernt, echte Sicherungen bleiben
+# unangetastet. Mehrere Durchlaeufe, weil ein Parent erst dann als leer gilt,
+# wenn seine Kinder im vorherigen Durchlauf verschwunden sind.
+if [ -d "$TRASH_ROOT" ]; then
+    _i=0
+    while [ "$_i" -lt 8 ]; do
+        find "$TRASH_ROOT" -mindepth 1 -depth -type d -empty -delete 2>/dev/null || true
+        _i=$((_i + 1))
+    done
+fi
+
+# --- Auffaelligkeiten melden (nur bei Aenderung, s. oben) ---------------------
+if [ -s "$ISSUES" ]; then
+    if ! cmp -s "$ISSUES" "$ISSUES_LAST" 2>/dev/null; then
+        cat "$ISSUES"
+        cp "$ISSUES" "$ISSUES_LAST" 2>/dev/null || true
+    fi
+else
+    rm -f "$ISSUES_LAST" 2>/dev/null || true
+fi
+rm -f "$ISSUES" 2>/dev/null || true
 true
 GUARD_EOF
 chmod +x "$GUARD"
@@ -358,6 +460,39 @@ if [ "$OS" = "Darwin" ]; then
     WD_LABEL="com.$(id -un).ki-os-vm.mutagen-watchdog"
     WD_PLIST="$HOME/Library/LaunchAgents/${WD_LABEL}.plist"
     mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+
+    # --- Eigene Watchdog-Shell (macOS-TCC) ------------------------------------
+    # Ein LaunchAgent, der ueber /bin/bash laeuft, hat in ~/Desktop, ~/Documents
+    # und ~/Downloads KEINEN Zugriff auf fremd erzeugte Inhalte: stat und mkdir
+    # gehen durch, aber opendir und das rename fremder Objekte geben EPERM. Liegt
+    # der lokale Sync-Ordner dort (Bestands-Setups vor der ~/KI-OS-Konvention),
+    # kann der Watchdog blockierte VM-Loeschungen nicht aufloesen.
+    # Der Watchdog laeuft deshalb ueber eine EIGENE Kopie der Shell, die der User
+    # einmalig im Festplattenvollzugriff freigibt — statt /bin/bash global
+    # freizugeben, womit JEDES bash-Skript auf dem Rechner diese Rechte haette.
+    # Existiert die Kopie schon, wird sie NICHT ersetzt: ein neues Binary am
+    # selben Pfad invalidiert den erteilten TCC-Grant.
+    # Die Kopie MUSS ad-hoc neu signiert werden: /bin/bash ist ein Apple-Platform-
+    # Binary, dessen Signatur nur am Originalpfad validiert — eine unsignierte
+    # Kopie killt der Kernel beim Start sofort (SIGKILL, "Killed: 9").
+    WD_SHELL="$HOME/.local/bin/ki-os-watchdog-shell"
+    if [ ! -x "$WD_SHELL" ] || ! "$WD_SHELL" -c true 2>/dev/null; then
+        rm -f "$WD_SHELL" 2>/dev/null || true
+        if cp /bin/bash "$WD_SHELL" 2>/dev/null \
+           && chmod +x "$WD_SHELL" 2>/dev/null \
+           && codesign --force --sign - "$WD_SHELL" >/dev/null 2>&1 \
+           && "$WD_SHELL" -c true 2>/dev/null; then
+            echo "OK: Watchdog-Shell angelegt (${WD_SHELL}, ad-hoc signiert)"
+        else
+            rm -f "$WD_SHELL" 2>/dev/null || true
+            WD_SHELL="/bin/bash"
+            echo "WARN: eigene Watchdog-Shell nicht anlegbar — fallback /bin/bash."
+            echo "      In geschuetzten Ordnern (~/Desktop, ~/Documents, ~/Downloads) muesste"
+            echo "      dann /bin/bash selbst Festplattenvollzugriff bekommen — oder der"
+            echo "      Sync-Ordner nach ~/KI-OS umziehen."
+        fi
+    fi
+
     cat > "$WD_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -365,7 +500,7 @@ if [ "$OS" = "Darwin" ]; then
 <dict>
     <key>Label</key><string>${WD_LABEL}</string>
     <key>ProgramArguments</key>
-    <array><string>/bin/bash</string><string>${GUARD}</string></array>
+    <array><string>${WD_SHELL}</string><string>${GUARD}</string></array>
     <key>EnvironmentVariables</key>
     <dict><key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
     <key>RunAtLoad</key><true/>
@@ -376,10 +511,35 @@ if [ "$OS" = "Darwin" ]; then
 </dict>
 </plist>
 PLIST
+    ISSUES_LAST="$HOME/.local/state/ki-os/watchdog-issues.last"
+    rm -f "$ISSUES_LAST" 2>/dev/null || true
     launchctl bootout "gui/$(id -u)/${WD_LABEL}" 2>/dev/null || true
     launchctl bootstrap "gui/$(id -u)" "$WD_PLIST"
     launchctl enable "gui/$(id -u)/${WD_LABEL}" 2>/dev/null || true
-    echo "OK: Session-Watchdog (LaunchAgent ${WD_LABEL}, alle 120s)"
+    echo "OK: Session-Watchdog (LaunchAgent ${WD_LABEL}, alle 120s, Shell ${WD_SHELL})"
+
+    # --- Braucht der Watchdog doch eine TCC-Freigabe? -------------------------
+    # Die eigene, ad-hoc signierte Shell reicht in der Praxis aus: getestet mit
+    # Sync-Ordner unter ~/Desktop, sowohl bei bootstrap- als auch bei
+    # Timer-Start durch launchd — opendir und rename fremder Objekte gehen
+    # durch, wo /bin/bash EPERM bekommt. Deshalb wird hier NICHT praeventiv nach
+    # dem Ordnerpfad gewarnt (das schickte User grundlos in die
+    # Systemeinstellungen), sondern nur gemeldet, was nachgewiesen ist: ein
+    # tatsaechlich mit EPERM gescheiterter Watchdog-Lauf. Durch RunAtLoad laeuft
+    # er beim bootstrap sofort mit und legt watchdog-issues.last an.
+    _w=0
+    while [ "$_w" -lt 6 ] && [ ! -f "$ISSUES_LAST" ]; do sleep 1; _w=$((_w + 1)); done
+    if [ -f "$ISSUES_LAST" ] && grep -q "not permitted" "$ISSUES_LAST" 2>/dev/null; then
+        LOCAL_ROOT="$("$MUTAGEN_BIN" sync list ki-os --long 2>/dev/null \
+            | awk '/^Beta:/{f=1;next} f && /URL:/{sub(/^[[:space:]]*URL:[[:space:]]*/,""); print; exit}')"
+        echo "TCC_GRANT_NEEDED: der Watchdog ist an macOS-TCC gescheitert (EPERM in"
+        echo "  ${LOCAL_ROOT:-dem lokalen Sync-Ordner}). Einmalig freigeben:"
+        echo "    Systemeinstellungen -> Datenschutz & Sicherheit -> Festplattenvollzugriff"
+        echo "    -> '+' -> im Dialog Cmd+Shift+G -> ${WD_SHELL} -> Schalter aktivieren"
+        echo "  Der Sync selbst bleibt voll funktionsfaehig; es faellt nur die automatische"
+        echo "  Konflikt-Aufloesung aus (Details: ~/Library/Logs/ki-os-mutagen-watchdog.log)."
+        echo "  Dauerhafte Alternative: Sync-Ordner nach ~/KI-OS umziehen (nicht geschuetzt)."
+    fi
 else
     mkdir -p "$HOME/.config/systemd/user"
     cat > "$HOME/.config/systemd/user/ki-os-mutagen-watchdog.service" <<UNIT

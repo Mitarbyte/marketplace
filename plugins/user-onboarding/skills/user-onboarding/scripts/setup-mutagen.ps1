@@ -194,6 +194,15 @@ if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
 
 # --- 3. Session ki-os -------------------------------------------------------------
 function New-KiOsSession {
+    # Endpunkte: $Alpha/$Beta ueberschreiben die Konvention. Fuer -Recreate ist das
+    # PFLICHT, nicht Komfort - ein Bestands-Setup kann einen anderen SSH-Alias und
+    # einen anderen lokalen Ordner haben. Wuerde die Neuanlage stur die Konvention
+    # nehmen, terminiert sie die funktionierende Session und legt eine neue auf
+    # einen fremden Alias + fast leeren Ordner an.
+    param(
+        [string]$Alpha = "ki-os-vm:/home/$VmUser/KI-OS",
+        [string]$Beta  = "$env:USERPROFILE\KI-OS"
+    )
     # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta.
     $sshArgs = @(
         'sync', 'create',
@@ -224,13 +233,17 @@ function New-KiOsSession {
         # Arbeitsplatz — hier waere er die zweite, konkurrierende Kopie
         # desselben Baums.
         #
-        # Drei Literale (Ordnername hat Historie, ist fleet-weite Konvention):
+        # Vier Literale (Ordnername hat Historie, ist fleet-weite Konvention):
         #   /Ablage       — aktuelle Konvention, providerneutral
         #   /SharePoint   — Bestand (schleumer, bleibt bewusst dort)
+        #   /Sharepoint   — dieselbe Schreibweise mit kleinem p, real vergeben
         #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
+        # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft einen Ordner
+        # 'Sharepoint' nicht (aufgefallen 2026-08-12 - der lief unbemerkt doppelt).
         # Jedes ist ein No-op, solange der Ordner nicht existiert.
         '--ignore=/Ablage',
         '--ignore=/SharePoint',
+        '--ignore=/Sharepoint',
         '--ignore=/Google Drive',
         '--ignore=.claude/skills',
         '--ignore=.cache',
@@ -247,17 +260,37 @@ function New-KiOsSession {
         $sshArgs += '--default-file-mode-alpha=0660'
         $sshArgs += '--default-directory-mode-alpha=0770'
     }
-    $sshArgs += "ki-os-vm:/home/$VmUser/KI-OS"
-    $sshArgs += "$env:USERPROFILE\KI-OS"
+    $sshArgs += $Alpha
+    $sshArgs += $Beta
     & $mutagenExe @sshArgs
+}
+
+# Endpunkt einer bestehenden Session auslesen ('Alpha' oder 'Beta').
+function Get-KiOsEndpoint([string]$Section) {
+    $long = & $mutagenExe sync list ki-os --long 2>&1 | Out-String
+    $m = [regex]::Match($long, "(?ms)^${Section}:\r?\n.*?^\s+URL:\s*(.+?)\r?$")
+    if ($m.Success) { return $m.Groups[1].Value.Trim() }
+    return ''
 }
 
 Invoke-NativeQuiet { & $mutagenExe sync list ki-os 2>$null } | Out-Null
 if ($LASTEXITCODE -eq 0) {
     if ($Recreate) {
+        # Endpunkte VOR dem terminate sichern - danach sind sie nicht mehr lesbar.
+        $oldAlpha = Get-KiOsEndpoint 'Alpha'
+        $oldBeta  = Get-KiOsEndpoint 'Beta'
+        if (-not $oldAlpha -or -not $oldBeta) {
+            Write-Error 'FAIL: Endpunkte der bestehenden Session nicht lesbar - es wird NICHTS terminiert. Sonst entstuende eine Neuanlage auf geratenen Endpunkten. Pruefen: mutagen sync list ki-os --long'
+            exit 1
+        }
+        if ($oldAlpha -ne "ki-os-vm:/home/$VmUser/KI-OS" -or $oldBeta -ne "$env:USERPROFILE\KI-OS") {
+            Write-Host 'OK: Endpunkte der bestehenden Session werden uebernommen (Bestands-Setup):'
+            Write-Host "    alpha: $oldAlpha"
+            Write-Host "    beta:  $oldBeta"
+        }
         & $mutagenExe sync terminate ki-os
-        New-KiOsSession
-        Write-Host 'SESSION_RECREATED: ki-os neu angelegt (Dateien bleiben erhalten).'
+        New-KiOsSession -Alpha $oldAlpha -Beta $oldBeta
+        Write-Host "SESSION_RECREATED: ki-os neu angelegt ($oldAlpha <-> $oldBeta; Dateien bleiben erhalten)."
     } else {
         Write-Host 'SESSION_EXISTS: ki-os laeuft bereits.'
         # Konfig-Drift AKTIV melden: Ignores/Symlink-Mode/Group einer bestehenden
@@ -271,7 +304,7 @@ if ($LASTEXITCODE -eq 0) {
         # Jedes fehlende Cloud-Sync-Literal einzeln melden: Sessions von vor der
         # Umbenennung auf 'Ablage' kennen nur '/SharePoint'. Echter Ausfall ist
         # das erst, wenn der jeweilige Ordner auf der VM benutzt wird.
-        foreach ($ign in @('/Ablage', '/SharePoint', '/Google Drive')) {
+        foreach ($ign in @('/Ablage', '/SharePoint', '/Sharepoint', '/Google Drive')) {
             if ($cfg -notmatch "(?m)^\s+$([regex]::Escape($ign))\s*$") {
                 $drift += "Ignore $ign fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)"
             }
@@ -349,8 +382,17 @@ if ($betaUrl.Success) {
     if ($cand -and (Test-Path -LiteralPath $cand)) { $root = $cand }
 }
 $stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
-$trash = Join-Path $env:USERPROFILE ".local\state\ki-os\sync-trash\$stamp"
+$stateDir  = Join-Path $env:USERPROFILE '.local\state\ki-os'
+$trashRoot = Join-Path $stateDir 'sync-trash'
+$trash = Join-Path $trashRoot $stamp
 $did = $false
+
+# Auffaelligkeiten sammeln und erst am Ende melden - und dort nur, wenn sie sich
+# seit dem letzten Lauf GEAENDERT haben. Der Aufloeser laeuft alle 2 min; ein
+# Dauerproblem wuerde das Log sonst mit derselben Meldung fluten und dabei genau
+# das verdecken, was neu ist.
+$issues = @()
+$issuesLast = Join-Path $stateDir 'watchdog-issues.last'
 
 # Blockweise auswerten, damit ein .git in Block A nicht die Aufloesung von
 # Block B verhindert - und kein Block halb aufgeloest wird.
@@ -365,7 +407,7 @@ foreach ($block in ($m.Groups[1].Value -split '\r?\n\s*\r?\n')) {
     if ($betas.Count -eq 0) { continue }
     $bad = @($betas | Where-Object { -not (Test-Disposable $_) })
     if ($bad.Count -gt 0) {
-        $bad | ForEach-Object { Write-Output "SYNC-BLOCK: '$_' ist kein Wegwerf-Artefakt (z.B. .git) - bitte lokal selbst entscheiden." }
+        $bad | ForEach-Object { $issues += "SYNC-BLOCK: '$_' ist kein Wegwerf-Artefakt (z.B. .git) - bitte lokal selbst entscheiden." }
         continue
     }
     # Den Ordner KOMPLETT sichern, nicht nur die Reste: sonst loescht Mutagen den
@@ -374,16 +416,57 @@ foreach ($block in ($m.Groups[1].Value -split '\r?\n\s*\r?\n')) {
     if (-not (Test-Path -LiteralPath $src)) { continue }
     $dst = Join-Path $trash ($target -replace '/', '\')
     New-Item -ItemType Directory -Path (Split-Path -Parent $dst) -Force | Out-Null
-    Move-Item -LiteralPath $src -Destination $dst -Force
-    if (-not (Test-Path -LiteralPath $src)) {
+    # Move-Fehler NICHT verschlucken: solange er still war, sah ein dauerhaft
+    # blockierter Aufloeser wie "nichts zu tun" aus (leeres Log) und hinterliess
+    # bei jedem Lauf nur den leeren Zielordner von New-Item (auf macOS real
+    # aufgetreten: 3708 leere Ordner in 8 Tagen, s. references/mutagen.md).
+    $moveErr = $null
+    try   { Move-Item -LiteralPath $src -Destination $dst -Force -ErrorAction Stop }
+    catch { $moveErr = $_.Exception.Message }
+    if (-not $moveErr -and -not (Test-Path -LiteralPath $src)) {
         Write-Output "SYNC-FIX: '$target' war auf der VM geloescht und lokal durch ignorierte Reste blockiert"
         Write-Output "          -> komplett gesichert nach $dst"
         Write-Output "          -> Sync ist jetzt konsistent. Papierkorb pruefen und bei Bedarf leeren."
         $did = $true
+    } else {
+        $issues += "SYNC-FAIL: '$target' konnte nicht in den Papierkorb verschoben werden."
+        if ($moveErr) { $issues += "           $moveErr" }
+        $issues += "           -> Haeufigste Ursache auf Windows: eine Datei im Ordner ist von"
+        $issues += "              einem Prozess gesperrt (Editor, Explorer-Vorschau, Virenscanner)."
     }
 }
 # Flush anstossen, damit die nun unblockierte Loeschung sofort laeuft.
 if ($did) { & $mutagen sync flush ki-os 2>$null | Out-Null }
+
+# --- Leere Papierkorb-Ordner aufraeumen ---------------------------------------
+# Scheitert das Move, bleibt der per New-Item vorbereitete Zielpfad leer zurueck.
+# Nur VOLLSTAENDIG leere Verzeichnisse werden entfernt, echte Sicherungen bleiben.
+# Mehrere Durchlaeufe, weil ein Parent erst dann leer ist, wenn seine Kinder im
+# vorherigen Durchlauf verschwunden sind.
+if (Test-Path -LiteralPath $trashRoot) {
+    for ($i = 0; $i -lt 8; $i++) {
+        $empty = @(Get-ChildItem -LiteralPath $trashRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+                   Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue) })
+        if ($empty.Count -eq 0) { break }
+        $empty | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+# --- Auffaelligkeiten melden (nur bei Aenderung, s. oben) ---------------------
+if ($issues.Count -gt 0) {
+    $text = ($issues -join "`n")
+    $prev = ''
+    if (Test-Path -LiteralPath $issuesLast) { $prev = (Get-Content -LiteralPath $issuesLast -Raw -ErrorAction SilentlyContinue) }
+    if ($text -ne $prev) {
+        $issues | ForEach-Object { Write-Output $_ }
+        New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
+        Set-Content -LiteralPath $issuesLast -Value $text -Encoding ASCII
+    }
+} elseif (Test-Path -LiteralPath $issuesLast) {
+    # Problem weg -> Merkdatei zuruecksetzen, damit ein spaeteres Wiederauftreten
+    # erneut gemeldet wird.
+    Remove-Item -LiteralPath $issuesLast -Force -ErrorAction SilentlyContinue
+}
 '@ | Set-Content -Path $resolver -Encoding ASCII
 Write-Host "OK: Sync-Aufloeser ($resolver) - laeuft im 2-Min-Watchdog"
 
