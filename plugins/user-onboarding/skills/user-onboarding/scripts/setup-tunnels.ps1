@@ -23,10 +23,18 @@
 #   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -AgentPort <n> -Engine hermes
 #   powershell ... -File setup-tunnels.ps1 -Remove        # gateway-Modus: Tunnel abbauen
 #   powershell ... -File setup-tunnels.ps1 -MutagenOnly   # frisches gateway-Setup ohne Tunnel
+#   powershell ... -File setup-tunnels.ps1 -EnsureMutagen # additiv: Watchdog nur sicherstellen
 #
 # -Remove und -MutagenOnly erzeugen denselben Endzustand: der Watchdog-Task
 # bleibt (bzw. entsteht), ueberwacht aber NUR noch den Mutagen-Daemon+Session -
 # noVNC/Cockpit kommen im gateway-Modus direkt vom Browser-Gateway der VM.
+#
+# -EnsureMutagen (Aufrufer: setup-mutagen.ps1) ist die NICHT-destruktive
+# Variante fuer den Fall "Mutagen soll laufen, Tunnel-Setup ist (noch) nicht
+# dran": existiert der Watchdog-Task schon, wird er nur gestartet; fehlt er,
+# entsteht er Mutagen-only - aber OHNE den Cleanup-Scan und ohne Orphan-Kill,
+# damit auf tunnel-VMs funktionierende Alt-Tunnel-Tasks unangetastet bleiben.
+# Ein spaeterer voller Lauf (mit Ports) erweitert denselben Task um die Tunnel.
 # =============================================================================
 param(
     [int]$NovncPort = 0,
@@ -34,11 +42,12 @@ param(
     [int]$AgentPort = 0,
     [ValidateSet('claude','hermes')][string]$Engine = 'claude',
     [switch]$Remove,
-    [switch]$MutagenOnly
+    [switch]$MutagenOnly,
+    [switch]$EnsureMutagen
 )
 $ErrorActionPreference = 'Stop'
 
-$tunnelLess = [bool]($Remove -or $MutagenOnly)
+$tunnelLess = [bool]($Remove -or $MutagenOnly -or $EnsureMutagen)
 # Zweiter Tunnel: Label, lokaler Port und VM-Port haengen an der Engine.
 if ($Engine -eq 'hermes') {
     $secondLabel = 'Hermes-Dashboard'; $secondLocal = 9119; $secondRemote = $AgentPort
@@ -66,6 +75,16 @@ $tunnels = @(
     @{ Label = $secondLabel;   LocalPort = $secondLocal; RemotePort = $secondRemote }
 )
 
+# --- -EnsureMutagen: existierender Watchdog reicht, egal welche Variante --------
+# Ob der Task die volle Tunnel-Fassung oder die Mutagen-only-Fassung faehrt:
+# beide halten Daemon + Session am Leben. Nichts neu registrieren (das wuerde
+# eine Tunnel-Fassung auf Mutagen-only zurueckstufen), nur starten.
+if ($EnsureMutagen -and (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+    Start-ScheduledTask -TaskName $taskName
+    Write-Host "OK: Scheduled Task $taskName existiert bereits - gestartet, nichts veraendert."
+    exit 0
+}
+
 # --- Cleanup (Self-Healing): EIN Scan ueber alle Tasks --------------------------
 # Entfernt jeden Task, der einen ssh -L auf einen unserer lokalen Ports ODER
 # `mutagen daemon run` faehrt (egal wie benannt, inkl. der vom Task verlinkten
@@ -76,48 +95,57 @@ $tunnels = @(
 # der aktuellen Engine. So raeumt derselbe Scan nach einem Engine-Wechsel den
 # Tunnel der alten Engine mit ab, statt ihn als Leiche auf einem toten VM-Port
 # weiterlaufen zu lassen.
-$portAlt = ((($tunnels | ForEach-Object { $_.LocalPort }) + @(3847, 9119)) | Sort-Object -Unique) -join '|'
-$taskPattern   = '-L[''",\s]+(' + $portAlt + '):127\.0\.0\.1:\d+|mutagen(\.exe)?[''"\s]+daemon\s+run'
-$orphanPattern = '-L\s*('       + $portAlt + '):127\.0\.0\.1:'
-$fileRx        = '([A-Za-z]:\\[^"'' ]+\.(?:vbs|ps1))'
+# Im -EnsureMutagen-Modus entfaellt der KOMPLETTE Scan samt Orphan-Kill: der
+# Modus ist additiv und darf funktionierende Alt-Tunnel-Tasks nicht anfassen.
+# Einzige Ausnahme: der fruehere Einzel-Task 'mutagen-daemon' (rein Mutagen,
+# wird vom neuen Watchdog abgeloest - zwei Daemon-Keeper waeren nur Rauschen).
+if ($EnsureMutagen) {
+    Unregister-ScheduledTask -TaskName 'mutagen-daemon' -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $binDir 'mutagen-daemon-hidden.vbs') -ErrorAction SilentlyContinue
+} else {
+    $portAlt = ((($tunnels | ForEach-Object { $_.LocalPort }) + @(3847, 9119)) | Sort-Object -Unique) -join '|'
+    $taskPattern   = '-L[''",\s]+(' + $portAlt + '):127\.0\.0\.1:\d+|mutagen(\.exe)?[''"\s]+daemon\s+run'
+    $orphanPattern = '-L\s*('       + $portAlt + '):127\.0\.0\.1:'
+    $fileRx        = '([A-Za-z]:\\[^"'' ]+\.(?:vbs|ps1))'
 
-foreach ($t in (Get-ScheduledTask -ErrorAction SilentlyContinue)) {
-    $blob = ($t.Actions | ForEach-Object { "$($_.Execute) $($_.Arguments)" }) -join ' '
-    # Verlinkte Skripte REKURSIV einlesen (VBS-Launcher -> Guard-.ps1): der
-    # ssh -L steht erst in der zweiten Stufe. Besucht-Set gegen Zyklen.
-    $seen  = @{}
-    $queue = New-Object System.Collections.Queue
-    [regex]::Matches($blob, $fileRx) | ForEach-Object { $queue.Enqueue($_.Groups[1].Value) }
-    while ($queue.Count -gt 0) {
-        $p = $queue.Dequeue()
-        if ($seen.ContainsKey($p) -or -not (Test-Path $p)) { continue }
-        $seen[$p] = $true
-        $content = [string](Get-Content -Raw $p -ErrorAction SilentlyContinue)
-        $blob += ' ' + $content
-        [regex]::Matches($content, $fileRx) | ForEach-Object { $queue.Enqueue($_.Groups[1].Value) }
+    foreach ($t in (Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+        $blob = ($t.Actions | ForEach-Object { "$($_.Execute) $($_.Arguments)" }) -join ' '
+        # Verlinkte Skripte REKURSIV einlesen (VBS-Launcher -> Guard-.ps1): der
+        # ssh -L steht erst in der zweiten Stufe. Besucht-Set gegen Zyklen.
+        $seen  = @{}
+        $queue = New-Object System.Collections.Queue
+        [regex]::Matches($blob, $fileRx) | ForEach-Object { $queue.Enqueue($_.Groups[1].Value) }
+        while ($queue.Count -gt 0) {
+            $p = $queue.Dequeue()
+            if ($seen.ContainsKey($p) -or -not (Test-Path $p)) { continue }
+            $seen[$p] = $true
+            $content = [string](Get-Content -Raw $p -ErrorAction SilentlyContinue)
+            $blob += ' ' + $content
+            [regex]::Matches($content, $fileRx) | ForEach-Object { $queue.Enqueue($_.Groups[1].Value) }
+        }
+        if ($blob -match $taskPattern) {
+            Unregister-ScheduledTask -TaskName $t.TaskName -Confirm:$false -ErrorAction SilentlyContinue
+            Write-Host "CLEANUP: alter Task '$($t.TaskName)' entfernt."
+        }
     }
-    if ($blob -match $taskPattern) {
-        Unregister-ScheduledTask -TaskName $t.TaskName -Confirm:$false -ErrorAction SilentlyContinue
-        Write-Host "CLEANUP: alter Task '$($t.TaskName)' entfernt."
+
+    # Sicherheitsgurt zum Inhalts-Scan: die frueheren Einzel-Tasks zusaetzlich
+    # namensbasiert entfernen + deren Artefakte loeschen (Bestands-User).
+    foreach ($n in @('ki-os-vm-novnc-tunnel', 'ki-os-vm-cockpit-tunnel', 'mutagen-daemon')) {
+        Unregister-ScheduledTask -TaskName $n -Confirm:$false -ErrorAction SilentlyContinue
     }
-}
+    foreach ($f in @('ki-os-vm-novnc-tunnel.ps1', 'ki-os-vm-novnc-tunnel.vbs',
+                     'ki-os-vm-cockpit-tunnel.ps1', 'ki-os-vm-cockpit-tunnel.vbs',
+                     'mutagen-daemon-hidden.vbs')) {
+        Remove-Item (Join-Path $binDir $f) -ErrorAction SilentlyContinue
+    }
 
-# Sicherheitsgurt zum Inhalts-Scan: die frueheren Einzel-Tasks zusaetzlich
-# namensbasiert entfernen + deren Artefakte loeschen (Bestands-User).
-foreach ($n in @('ki-os-vm-novnc-tunnel', 'ki-os-vm-cockpit-tunnel', 'mutagen-daemon')) {
-    Unregister-ScheduledTask -TaskName $n -Confirm:$false -ErrorAction SilentlyContinue
+    # Verwaiste ssh-Tunnel auf genau diesen Ports beenden (Leak-Reste; Mutagen +
+    # interaktive SSH bleiben unberuehrt, da nach -L <localPort> gefiltert wird).
+    Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match $orphanPattern } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
-foreach ($f in @('ki-os-vm-novnc-tunnel.ps1', 'ki-os-vm-novnc-tunnel.vbs',
-                 'ki-os-vm-cockpit-tunnel.ps1', 'ki-os-vm-cockpit-tunnel.vbs',
-                 'mutagen-daemon-hidden.vbs')) {
-    Remove-Item (Join-Path $binDir $f) -ErrorAction SilentlyContinue
-}
-
-# Verwaiste ssh-Tunnel auf genau diesen Ports beenden (Leak-Reste; Mutagen +
-# interaktive SSH bleiben unberuehrt, da nach -L <localPort> gefiltert wird).
-Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -match $orphanPattern } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 # --- Guard-Skript: startet nur, was fehlt -----------------------------------------
 # Im tunnelLess-Modus (gateway) enthaelt der Guard KEINE ssh-Tunnel-Bloecke -
@@ -144,7 +172,7 @@ if (-not (Get-NetTCPConnection -LocalPort $secondLocal -State Listen)) {
 
 "@
 if ($tunnelLess) {
-    $tunnelBlock = "# gateway-Modus: keine Tunnel - noVNC/Cockpit kommen vom Browser-Gateway der VM.`r`n`r`n"
+    $tunnelBlock = "# Keine Tunnel in diesem Guard: gateway-Modus (noVNC/Cockpit kommen vom`r`n# Browser-Gateway der VM) oder Mutagen-only-Setup (Tunnel folgen ggf. per`r`n# setup-tunnels.ps1 mit Ports - der Lauf erweitert diesen Guard).`r`n`r`n"
 }
 
 @"
@@ -235,6 +263,9 @@ $desc = "Haelt die KI-OS-Verbindungen am Leben: noVNC-Tunnel (localhost:6080), $
 if ($tunnelLess) {
     $desc = 'Haelt den KI-OS Mutagen-Sync am Leben (Daemon + Session ki-os). Keine Tunnel - noVNC/Cockpit laufen ueber das Browser-Gateway der VM. Prueft alle 2 Minuten. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
 }
+if ($EnsureMutagen) {
+    $desc = 'Haelt den KI-OS Mutagen-Sync am Leben (Daemon + Session ki-os). Prueft alle 2 Minuten. Eingerichtet vom user-onboarding-Skill (Mutagen-only); ein voller setup-tunnels-Lauf erweitert diesen Task um die Tunnel.'
+}
 
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 Register-ScheduledTask `
@@ -278,6 +309,10 @@ try {
 }
 
 Start-ScheduledTask -TaskName $taskName
+if ($EnsureMutagen) {
+    Write-Host "OK: Scheduled Task $taskName (Mutagen-only) angelegt - ein spaeterer setup-tunnels-Lauf mit Ports erweitert ihn um die Tunnel."
+    exit 0
+}
 if ($tunnelLess) {
     Write-Host "OK: Scheduled Task $taskName (nur Mutagen-Ueberwachung - keine Tunnel, gateway-Modus)"
     exit 0

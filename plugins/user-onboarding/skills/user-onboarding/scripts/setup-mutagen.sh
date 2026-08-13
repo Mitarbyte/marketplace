@@ -17,14 +17,18 @@
 # freigegebene Shell — sonst kann er blockierte VM-Loeschungen nicht aufloesen
 # (Details in Abschnitt 4 + references/mutagen.md -> "macOS-TCC").
 #
-# Usage:  setup-mutagen.sh --vm-user <VM_USER> [--recreate] [--shared-group <NAME>]
+# Usage:  setup-mutagen.sh [--vm-user <VM_USER>] [--recreate] [--shared-group <NAME>]
+#
+# --vm-user ist optional: das Skript erkennt den VM-User per SSH selbst (im
+# selben Roundtrip wie die Shared-Group). Angeben nur, wenn SSH gerade nicht
+# erreichbar ist UND die Session neu angelegt werden muss.
 #
 # Output-Marker: SESSION_EXISTS | SESSION_CREATED | SESSION_RECREATED
 # =============================================================================
 set -euo pipefail
 
 VM_USER="" RECREATE=0
-# Shared-Group: leer = auto-detect (s. detect_shared_group). Nur ein explizites
+# Shared-Group: leer = auto-detect (s. VM-Erkennung unten). Nur ein explizites
 # --shared-group ueberstimmt die Erkennung ('' erzwingt aus).
 # Begruendung: references/mutagen.md -> "Shared-Group".
 SHARED_GROUP="" SHARED_GROUP_SET=0
@@ -36,36 +40,47 @@ while [ $# -gt 0 ]; do
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
-[ -n "$VM_USER" ] || { echo "FAIL: --vm-user fehlt" >&2; exit 2; }
 
 OS="$(uname -s)"
 
-# --- Shared-Group VM-seitig erkennen ------------------------------------------
-# Ein geteilter `Workspaces`-Bind-Mount ist auf der VM als setgid-Verzeichnis
-# (drwxrws---, Modus 2770) mit der geteilten Gruppe angelegt — genau daran ist er
-# erkennbar. Deshalb wird NICHTS angenommen: kein geteilter Ordner -> keine
-# Gruppen-Freigabe (Normalfall, Single-User- und Multi-User-VMs ohne Sharing).
-# Der Grund fuer die explizite Gruppe (Mutagen staged ausserhalb des Roots und
-# renamed hinein, setgid vererbt dabei nicht): references/mutagen.md.
-# find-Exit-Codes: 0 = setgid-Treffer (Gruppe auf stdout), 1 = Ordner fehlt,
-# 255 = SSH-Transportfehler (dann laut warnen statt still "aus" annehmen).
-detect_shared_group() {
+# --- VM-User + Shared-Group in EINEM SSH-Roundtrip erkennen ---------------------
+# VM-User: fuer den Default-Alpha-Endpunkt bei Neuanlage (bei bestehender
+# Session unnoetig — deshalb ist das Fehlen erst im Create-Pfad ein Fehler).
+# Shared-Group: ein geteilter `Workspaces`-Bind-Mount ist auf der VM als
+# setgid-Verzeichnis (drwxrws---, Modus 2770) mit der geteilten Gruppe
+# angelegt — genau daran ist er erkennbar. Deshalb wird NICHTS angenommen:
+# kein geteilter Ordner -> keine Gruppen-Freigabe (Normalfall, Single-User-
+# und Multi-User-VMs ohne Sharing). Der Grund fuer die explizite Gruppe
+# (Mutagen staged ausserhalb des Roots und renamed hinein, setgid vererbt
+# dabei nicht): references/mutagen.md.
+# Exit-Codes: 255 = SSH-Transportfehler (laut warnen statt still annehmen);
+# alles andere (auch 1 = Workspaces-Ordner fehlt) ist auswertbar — Zeile 1 ist
+# der VM-User, Zeile 2 (falls vorhanden) die setgid-Gruppe.
+detect_vm_values() {
     # Bewusst ohne Quotes/Redirects im Remote-Kommando: es muss durch die
     # sh- UND die PowerShell-Variante identisch durchgehen.
     ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm \
-        "find \$HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g" 2>/dev/null
+        "id -un && find \$HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g" 2>/dev/null
 }
 
-if [ "$SHARED_GROUP_SET" -eq 0 ]; then
-    DETECTED="$(detect_shared_group)" && DETECT_RC=0 || DETECT_RC=$?
+if [ -z "$VM_USER" ] || [ "$SHARED_GROUP_SET" -eq 0 ]; then
+    REMOTE_OUT="$(detect_vm_values)" && DETECT_RC=0 || DETECT_RC=$?
     if [ "$DETECT_RC" -eq 255 ]; then
-        echo "WARN: Shared-Group-Erkennung fehlgeschlagen (SSH nicht erreichbar)."
+        echo "WARN: VM-Erkennung fehlgeschlagen (SSH nicht erreichbar)."
         echo "      Es wird KEINE Gruppen-Freigabe gesetzt. Teilst du deinen"
         echo "      Workspaces-Ordner mit Kollegen, den Schritt mit"
         echo "      --shared-group <NAME> wiederholen."
-    elif [ -n "$DETECTED" ]; then
-        SHARED_GROUP="$DETECTED"
-        echo "OK: geteilter Workspaces-Ordner erkannt — Shared-Group '${SHARED_GROUP}'."
+    else
+        DETECTED_USER="$(printf '%s\n' "$REMOTE_OUT" | sed -n 1p)"
+        DETECTED_GROUP="$(printf '%s\n' "$REMOTE_OUT" | sed -n 2p)"
+        if [ -z "$VM_USER" ] && [ -n "$DETECTED_USER" ]; then
+            VM_USER="$DETECTED_USER"
+            echo "OK: VM-User '${VM_USER}' erkannt."
+        fi
+        if [ "$SHARED_GROUP_SET" -eq 0 ] && [ -n "$DETECTED_GROUP" ]; then
+            SHARED_GROUP="$DETECTED_GROUP"
+            echo "OK: geteilter Workspaces-Ordner erkannt — Shared-Group '${SHARED_GROUP}'."
+        fi
     fi
 fi
 
@@ -268,6 +283,14 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         fi
     fi
 else
+    # Nur die NEUANLAGE braucht den VM-User (Default-Alpha-Endpunkt) — erst
+    # hier ist sein Fehlen ein Fehler, nicht schon beim Start.
+    [ -n "$VM_USER" ] || {
+        echo "FAIL: VM-User unbekannt — SSH-Erkennung fehlgeschlagen und --vm-user" >&2
+        echo "      nicht angegeben. Neuanlage braucht den VM-Pfad: erst SSH fixen" >&2
+        echo "      (ssh ki-os-vm) oder --vm-user <NAME> mitgeben." >&2
+        exit 1
+    }
     create_session
     echo "SESSION_CREATED: ki-os (VM:/home/${VM_USER}/KI-OS <-> ~/KI-OS)"
 fi

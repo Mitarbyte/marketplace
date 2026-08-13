@@ -1,6 +1,6 @@
 ---
 name: user-onboarding
-description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Skill macht ausschliesslich LOKALE Schritte ueber parametrisierte Skripte in scripts/: SSH-Key, minimaler ~/.ssh/config-Eintrag, Pflicht-Autostarts (tunnel-Modus: gehaerteter noVNC-Tunnel lokal 6080 + gehaerteter Tunnel zur Agenten-Oberflaeche — Cockpit lokal 3847 bzw. Hermes-Dashboard lokal 9119 je nach Engine der VM — + Mutagen; gateway-Modus: nur Mutagen, alles andere laeuft ueber die oeffentlichen Gateway-URLs der VM mit Firmen-Login) sowie auf engine=claude die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag); auf engine=hermes entfaellt sie, dort wird die Hermes-Desktop-App mit URL + Session-Token verbunden. Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt; Zugangs-Modus (tunnel|gateway) UND Engine (claude|hermes) liest der Skill von der VM. Auf gateway-VMs ist der Skill das OPTIONALE Power-User-Paket (Datei-Sync + Desktop-App) — Browser-Zugang funktioniert dort schon ohne lokales Setup. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab bzw. Gateway-URL). Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
+description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'vm-browser im browser ansehen', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'nur mutagen einrichten', 'sync reparieren', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Skill macht ausschliesslich LOKALE Schritte ueber parametrisierte Skripte in scripts/: SSH-Key, minimaler ~/.ssh/config-Eintrag, Pflicht-Autostarts (tunnel-Modus: gehaerteter noVNC-Tunnel lokal 6080 + gehaerteter Tunnel zur Agenten-Oberflaeche — Cockpit lokal 3847 bzw. Hermes-Dashboard lokal 9119 je nach Engine der VM — + Mutagen; gateway-Modus: nur Mutagen, alles andere laeuft ueber die oeffentlichen Gateway-URLs der VM mit Firmen-Login) sowie auf engine=claude die Desktop-App-Vorkonfiguration auf macOS/Windows (SSH-Host ki-os-vm in ssh_configs.json + ~/.claude.json-Workspace-Eintrag); auf engine=hermes entfaellt sie, dort wird die Hermes-Desktop-App mit URL + Session-Token verbunden. Der SSH-Alias ist fest ki-os-vm und wird nicht abgefragt; Zugangs-Modus (tunnel|gateway) UND Engine (claude|hermes) liest der Skill von der VM. Auf gateway-VMs ist der Skill das OPTIONALE Power-User-Paket (Datei-Sync + Desktop-App) — Browser-Zugang funktioniert dort schon ohne lokales Setup. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab bzw. Gateway-URL). Unterstuetzte Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
 ---
 
 ## Was dieser Skill macht
@@ -110,6 +110,36 @@ Hermes-Dashboard im Browser bzw. die Hermes-Desktop-App (Remote gateway).
   - macOS/Linux/WSL2: `bash "$SKILL_DIR/scripts/<name>.sh" <args>`
   - Windows nativ: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<SKILL_DIR>\scripts\<name>.ps1" <args>`
 - **Sprache:** Mit dem User Deutsch; Skripte/Configs sind englisch/ASCII.
+
+---
+
+## Schnellpfad: Nur Mutagen (Sync einrichten oder reparieren)
+
+Will der User **nur den Datei-Sync** (typisch: „nur mutagen", „Sync
+kaputt/reparieren", „KI-OS-Ordner lokal syncen", gateway-VM ohne
+Tunnel-Bedarf), NICHT den vollen Ablauf fahren. Einzige Voraussetzung ist ein
+funktionierender SSH-Zugang: `ssh -o BatchMode=yes -o ConnectTimeout=10
+ki-os-vm true` → Exit 0. Schlägt das fehl, fehlt das SSH-Setup → Schritte 3–5
+zuerst, dann hierher zurück.
+
+```
+bash "$SKILL_DIR/scripts/setup-mutagen.sh"
+# Windows: setup-mutagen.ps1
+```
+
+Keine Argumente, keine Rückfragen nötig: VM-User **und** Shared-Group erkennt
+das Skript selbst in EINEM SSH-Roundtrip (`--vm-user`/`-VmUser` nur mitgeben,
+wenn SSH gerade down ist und die Session neu angelegt werden muss). Unter
+Windows richtet das Skript den Daemon-Autostart auch ohne Schritt 7 selbst
+ein: fehlt der `ki-os-vm-watchdog`-Task, entsteht er **additiv Mutagen-only**
+(`setup-tunnels.ps1 -EnsureMutagen` — räumt nichts ab, Alt-Tunnel bleiben
+unangetastet; ein späterer voller Schritt-7-Lauf erweitert denselben Task um
+die Tunnel).
+
+Danach die Output-Marker wie in Schritt 8 auswerten (`SESSION_*`, `DRIFT:` →
+ggf. `--recreate` mit den dortigen Vorsichtsregeln) und kurz prüfen:
+`mutagen sync list ki-os` → `Watching for changes` ohne Problems-Block =
+gesund. Schritte 7 und 9–10 entfallen in diesem Pfad komplett.
 
 ---
 
@@ -248,8 +278,10 @@ bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hermes --novnc-port <NOVNC_P
 Ein Aufruf richtet **beide** gehärteten Tunnel ein (idempotent, Windows
 zusätzlich self-healing: räumt alt/falsch benannte Tunnel-/Daemon-Tasks
 inhaltsbasiert weg). Unter Windows entsteht dabei EIN gemeinsamer Task
-`ki-os-vm-watchdog`, der auch den Mutagen-Daemon aus Schritt 8 mit überwacht —
-Reihenfolge 7 → 8 einhalten. Die Argumente sind die **VM-seitigen** Werte aus
+`ki-os-vm-watchdog`, der auch den Mutagen-Daemon aus Schritt 8 mit überwacht
+(Reihenfolge 7 → 8 ist der Normalweg, aber keine Pflicht mehr: läuft Schritt 8
+zuerst, legt er den Task selbst Mutagen-only an, und dieser Lauf erweitert ihn
+um die Tunnel). Die Argumente sind die **VM-seitigen** Werte aus
 Schritt 6 — nicht mit den festen lokalen Ports 6080/3847 verwechseln (falscher
 Wert tunnelt auf das Display eines anderen Users!). Härtungs-Hintergrund +
 Troubleshooting: `references/tunnels.md`.
@@ -259,17 +291,17 @@ Troubleshooting: `references/tunnels.md`.
 ```
 bash "$SKILL_DIR/scripts/setup-mutagen.sh" --vm-user <VM_USER>
 # Windows: setup-mutagen.ps1 -VmUser <VM_USER>
-# Windows im gateway-Modus zusätzlich -Gateway anhängen — nur dann darf
-# setup-mutagen den Watchdog selbst Mutagen-only anlegen (auf tunnel-VMs würde
-# das laufende Alt-Tunnel abräumen):
-#   setup-mutagen.ps1 -VmUser <VM_USER> -Gateway
+# --vm-user/-VmUser ist optional (das Skript erkennt den VM-User per SSH
+# selbst) — im vollen Ablauf mitgeben, der Wert liegt aus Schritt 3 ohnehin
+# vor. Ein früher nötiges -Gateway gibt es nicht mehr (wird ignoriert).
 ```
 
 Installiert Mutagen (macOS: Homebrew; Linux: brew oder GitHub-Release;
 Windows: GitHub-Release-Zip mit Download-Retry), richtet den Daemon-Autostart
-ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7; fehlt er —
-gateway-Modus ohne Tunnel — legt `setup-mutagen.ps1` ihn selbst in der
-Mutagen-only-Variante an) und legt die Session `ki-os` an.
+ein (Windows: übernimmt der `ki-os-vm-watchdog`-Task aus Schritt 7; fehlt er,
+legt `setup-mutagen.ps1` ihn selbst **additiv Mutagen-only** an —
+`setup-tunnels.ps1 -EnsureMutagen`, räumt nichts ab, gilt für gateway- wie
+tunnel-VMs) und legt die Session `ki-os` an.
 
 Teilst du deinen `~/KI-OS/Workspaces`-Ordner per Bind-Mount mit Kollegen, setzt
 das Skript VM-seitig (**alpha**) dessen Gruppe plus `0660`/`0770` — sonst könnten

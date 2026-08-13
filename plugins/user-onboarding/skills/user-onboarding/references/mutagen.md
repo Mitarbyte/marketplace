@@ -59,7 +59,7 @@ bevor er den Daemon startet — sonst erbt der Daemon die Variable nicht.
 |----|-------------|
 | macOS | `mutagen daemon register` (offizielle launchd-Integration) |
 | Linux | systemd-User-Service `mutagen-daemon.service` (+ Linger); `daemon register` unterstützt Linux nicht |
-| Windows | der gemeinsame Scheduled Task `ki-os-vm-watchdog` (angelegt von `setup-tunnels.ps1`, Schritt 7): sein 2-Min-Guard startet den Daemon unsichtbar (`wscript.exe`-Launcher, Fensterstil 0 — sonst poppt bei jedem Login ein Konsolenfenster mit Daemon-Logs auf), sobald mutagen installiert ist und kein `mutagen`-Prozess läuft |
+| Windows | der gemeinsame Scheduled Task `ki-os-vm-watchdog`: sein 2-Min-Guard startet den Daemon unsichtbar (`wscript.exe`-Launcher, Fensterstil 0 — sonst poppt bei jedem Login ein Konsolenfenster mit Daemon-Logs auf), sobald mutagen installiert ist und kein `mutagen`-Prozess läuft. Angelegt von `setup-tunnels.ps1` (Schritt 7, volle Fassung mit Tunneln) — fehlt er noch, legt `setup-mutagen.ps1` ihn selbst **additiv Mutagen-only** an (`setup-tunnels.ps1 -EnsureMutagen`, räumt nichts ab); ein späterer Schritt-7-Lauf erweitert denselben Task um die Tunnel |
 
 > **Windows-Detail:** Beim Daemon prüft der Watchdog-Guard `Get-Process
 > mutagen`; zusätzlich ist der **Daemon-Lock** der Backstop — `mutagen daemon
@@ -282,8 +282,8 @@ Deshalb muss die Gruppe explizit gesetzt werden.
 
 **Ignore-Änderungen wirken nur beim Anlegen:** Eine bestehende Session
 übernimmt neue Ignores nicht — einmalig neu anlegen
-(`scripts/setup-mutagen.sh --vm-user <u> --recreate` bzw. `-Recreate`).
-Dateien bleiben dabei erhalten.
+(`scripts/setup-mutagen.sh --recreate` bzw. `-Recreate`; den VM-User erkennt
+das Skript selbst). Dateien bleiben dabei erhalten.
 
 ## Konflikt-Semantik (dem User erklären)
 

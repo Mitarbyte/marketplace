@@ -7,10 +7,11 @@
 #
 # Kein offizielles winget-Paket -> GitHub-Release-Zip nach ~\.local\bin
 # (Download mit Retry). Der Daemon-Autostart laeuft NICHT ueber einen eigenen
-# Task, sondern ueber den gemeinsamen Watchdog-Task ki-os-vm-watchdog aus
-# setup-tunnels.ps1 (dessen 2-Min-Guard startet den Daemon unsichtbar, sobald
-# mutagen installiert ist). `.claude/skills` bleibt auf Windows im Ignore
-# (Symlinks brauchen SeCreateSymbolicLinkPrivilege).
+# Task, sondern ueber den gemeinsamen Watchdog-Task ki-os-vm-watchdog; fehlt
+# der noch, legt dieses Skript ihn selbst an (setup-tunnels.ps1 -EnsureMutagen,
+# additiv/Mutagen-only) - das Setup ist damit selbsttragend, keine
+# Reihenfolge-Abhaengigkeit zu Schritt 7. `.claude/skills` bleibt auf Windows
+# im Ignore (Symlinks brauchen SeCreateSymbolicLinkPrivilege).
 # Details: references/mutagen.md.
 #
 # Symlinks werden auf Windows komplett uebersprungen (--symlink-mode=ignore).
@@ -20,22 +21,27 @@
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File setup-mutagen.ps1 `
-#       -VmUser <VM_USER> [-Recreate] [-Gateway] [-SharedGroup <NAME>|'']
+#       [-VmUser <VM_USER>] [-Recreate] [-SharedGroup <NAME>|'']
+#
+# -VmUser ist optional: das Skript erkennt den VM-User per SSH selbst (im
+# selben Roundtrip wie die Shared-Group). Angeben nur, wenn SSH gerade nicht
+# erreichbar ist UND die Session neu angelegt werden muss.
 #
 # Output-Marker: SESSION_EXISTS | SESSION_CREATED | SESSION_RECREATED
 # =============================================================================
 param(
-    [Parameter(Mandatory = $true)][string]$VmUser,
+    [string]$VmUser = '',
     [switch]$Recreate,
     # Shared-Group fuer einen geteilten `Workspaces`-Bind-Mount. NICHT angeben =
     # VM-seitig erkennen (setgid-Bit); explizit angeben ueberstimmt die
     # Erkennung, '' erzwingt aus.
     # Begruendung: references/mutagen.md -> "Shared-Group".
     [string]$SharedGroup,
-    # gateway-Modus: hier ist es normal, dass kein Tunnel-Watchdog existiert
-    # (Schritt 7 entfaellt) - dann darf setup-mutagen ihn selbst Mutagen-only
-    # anlegen. Auf tunnel-VMs (ohne den Switch) NICHT, sonst reisst der
-    # Mutagen-only-Task funktionierende Alt-Tunnel ab.
+    # Deprecated seit 2026-08-13, wird ignoriert: der Daemon-Autostart laeuft
+    # jetzt in JEDEM Modus additiv ueber setup-tunnels.ps1 -EnsureMutagen
+    # (nicht-destruktiv, laesst Alt-Tunnel-Tasks stehen) - eine gateway-
+    # Sonderbehandlung ist damit ueberfluessig. Akzeptiert bleibt der Switch,
+    # damit bestehende Anleitungen/SKILL-Staende nicht brechen.
     [switch]$Gateway
 )
 $ErrorActionPreference = 'Stop'
@@ -81,30 +87,41 @@ if (Test-Path (Join-Path $opensshDir 'ssh.exe')) {
     Write-Host "WARN: $opensshDir\ssh.exe fehlt - check-prereqs.ps1 laufen lassen."
 }
 
-# --- 0b. Shared-Group VM-seitig erkennen ----------------------------------------
-# Ein geteilter `Workspaces`-Bind-Mount ist auf der VM als setgid-Verzeichnis
-# (drwxrws---, Modus 2770) mit der geteilten Gruppe angelegt - genau daran ist er
-# erkennbar. Deshalb wird NICHTS angenommen: kein geteilter Ordner -> keine
-# Gruppen-Freigabe (Normalfall). Grund fuer die explizite Gruppe (Mutagen staged
-# ausserhalb des Roots und renamed hinein, setgid vererbt dabei nicht):
-# references/mutagen.md.
-# Das Remote-Kommando steht bewusst ohne Quotes/Redirects/Semikolon da: als EIN
-# single-quoted Argument uebergeben interpretiert PowerShell weder $HOME noch das
-# 2> - und es ist identisch zur sh-Variante.
-# ssh-Exit-Codes: 0 = setgid-Treffer (Gruppe auf stdout), 1 = Ordner fehlt,
-# 255 = Transportfehler (dann laut warnen statt still "aus" annehmen).
-if (-not $PSBoundParameters.ContainsKey('SharedGroup')) {
-    $SharedGroup = ''
-    $remoteCmd = 'find $HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g'
-    $detected = (Invoke-NativeQuiet { & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm $remoteCmd 2>$null } | Out-String).Trim()
+# --- 0b. VM-User + Shared-Group in EINEM SSH-Roundtrip erkennen ------------------
+# VM-User: fuer den Default-Alpha-Endpunkt bei Neuanlage (bei bestehender
+# Session unnoetig - deshalb ist das Fehlen erst im Create-Pfad ein Fehler).
+# Shared-Group: ein geteilter `Workspaces`-Bind-Mount ist auf der VM als
+# setgid-Verzeichnis (drwxrws---, Modus 2770) mit der geteilten Gruppe
+# angelegt - genau daran ist er erkennbar. Deshalb wird NICHTS angenommen:
+# kein geteilter Ordner -> keine Gruppen-Freigabe (Normalfall). Grund fuer die
+# explizite Gruppe (Mutagen staged ausserhalb des Roots und renamed hinein,
+# setgid vererbt dabei nicht): references/mutagen.md.
+# Das Remote-Kommando steht bewusst ohne Quotes/Redirects da: als EIN
+# single-quoted Argument uebergeben interpretiert PowerShell weder $HOME noch
+# ein 2> - und es ist identisch zur sh-Variante.
+# ssh-Exit-Codes: 255 = Transportfehler (dann laut warnen statt still "aus"
+# annehmen); alles andere (auch 1 = Workspaces-Ordner fehlt) ist auswertbar -
+# Zeile 1 ist der VM-User, Zeile 2 (falls vorhanden) die setgid-Gruppe.
+$needUser  = -not $VmUser
+$needGroup = -not $PSBoundParameters.ContainsKey('SharedGroup')
+if ($needGroup) { $SharedGroup = '' }
+if ($needUser -or $needGroup) {
+    $remoteCmd = 'id -un && find $HOME/KI-OS/Workspaces -maxdepth 0 -perm -2000 -printf %g'
+    $remoteOut = @(Invoke-NativeQuiet { & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm $remoteCmd 2>$null } | ForEach-Object { "$_".Trim() })
     if ($LASTEXITCODE -eq 255) {
-        Write-Host 'WARN: Shared-Group-Erkennung fehlgeschlagen (SSH nicht erreichbar).'
+        Write-Host 'WARN: VM-Erkennung fehlgeschlagen (SSH nicht erreichbar).'
         Write-Host '      Es wird KEINE Gruppen-Freigabe gesetzt. Teilst du deinen'
         Write-Host '      Workspaces-Ordner mit Kollegen, den Schritt mit'
         Write-Host '      -SharedGroup <NAME> wiederholen.'
-    } elseif ($detected) {
-        $SharedGroup = $detected
-        Write-Host "OK: geteilter Workspaces-Ordner erkannt - Shared-Group '$SharedGroup'."
+    } else {
+        if ($needUser -and $remoteOut.Count -ge 1 -and $remoteOut[0]) {
+            $VmUser = $remoteOut[0]
+            Write-Host "OK: VM-User '$VmUser' erkannt."
+        }
+        if ($needGroup -and $remoteOut.Count -ge 2 -and $remoteOut[1]) {
+            $SharedGroup = $remoteOut[1]
+            Write-Host "OK: geteilter Workspaces-Ordner erkannt - Shared-Group '$SharedGroup'."
+        }
     }
 }
 
@@ -148,45 +165,53 @@ if (-not (Test-Path $mutagenExe)) {
     }
     if ($env:PATH -notlike "*$binDir*") { $env:PATH = "$binDir;$env:PATH" }
 }
-$mutagenVersion = & $mutagenExe version 2>&1
+# In Invoke-NativeQuiet: schreibt das Binary auch nur eine Zeile auf stderr
+# (z.B. Daemon-Versions-Hinweis), macht PS 5.1 unter Stop + Redirect daraus
+# sonst einen terminierenden NativeCommandError.
+$mutagenVersion = (Invoke-NativeQuiet { & $mutagenExe version 2>&1 } | Out-String).Trim()
 Write-Host "OK: mutagen $mutagenVersion ($mutagenExe)"
 
-# --- 2. Daemon-Autostart (uebernimmt der Watchdog-Task) --------------------------
-# Den Autostart faehrt der gemeinsame Scheduled Task ki-os-vm-watchdog aus
-# setup-tunnels.ps1: sein 2-Min-Guard startet den Daemon unsichtbar, sobald
-# mutagen installiert ist und kein Daemon laeuft (Daemon-Lock als Backstop).
-# Hier nur: evtl. sichtbar gestarteten Daemon abloesen, den frueheren
-# Einzel-Task mutagen-daemon aufraeumen, Watchdog anstossen.
+# --- 2. Daemon-Autostart (Watchdog-Task, selbsttragend) --------------------------
+# Den Autostart faehrt der gemeinsame Scheduled Task ki-os-vm-watchdog: sein
+# 2-Min-Guard startet den Daemon unsichtbar, sobald mutagen installiert ist und
+# kein Daemon laeuft (Daemon-Lock als Backstop). Existiert der Task noch nicht
+# (Tunnel-Setup nicht gelaufen, gateway-VM, Mutagen-only-Nutzung), legt
+# setup-tunnels.ps1 -EnsureMutagen ihn ADDITIV Mutagen-only an - ohne Cleanup,
+# also ohne Risiko fuer funktionierende Alt-Tunnel; ein spaeterer voller
+# Schritt-7-Lauf erweitert denselben Task um die Tunnel. Damit gibt es KEINE
+# Reihenfolge-Abhaengigkeit Schritt 7 -> 8 mehr.
+# Hier zusaetzlich: evtl. sichtbar gestarteten Daemon abloesen, den frueheren
+# Einzel-Task mutagen-daemon aufraeumen.
 $watchdog = 'ki-os-vm-watchdog'
 Invoke-NativeQuiet { & $mutagenExe daemon stop 2>$null } | Out-Null
+Unregister-ScheduledTask -TaskName 'mutagen-daemon' -Confirm:$false -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $binDir 'mutagen-daemon-hidden.vbs') -ErrorAction SilentlyContinue
 if (Get-ScheduledTask -TaskName $watchdog -ErrorAction SilentlyContinue) {
-    Unregister-ScheduledTask -TaskName 'mutagen-daemon' -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item (Join-Path $binDir 'mutagen-daemon-hidden.vbs') -ErrorAction SilentlyContinue
     Start-ScheduledTask -TaskName $watchdog
     Start-Sleep -Seconds 5
-    Write-Host "OK: Daemon-Autostart via Scheduled Task $watchdog (setup-tunnels.ps1)"
+    Write-Host "OK: Daemon-Autostart via Scheduled Task $watchdog"
 } else {
-    # setup-tunnels.ps1 (Schritt 7) noch nicht gelaufen.
     $setupTunnels = Join-Path $PSScriptRoot 'setup-tunnels.ps1'
-    if ($Gateway -and (Test-Path $setupTunnels)) {
-        # gateway-VM: kein Tunnel-Setup vorgesehen -> Watchdog hier selbst
-        # Mutagen-only anlegen. NUR im gateway-Modus: -MutagenOnly raeumt
-        # bestehende Tunnel-Tasks ab (auf tunnel-VMs = Alt-Tunnel zerstoert).
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupTunnels -MutagenOnly
-        if ($LASTEXITCODE -ne 0) {
-            # Kind-Skript scheiterte (native Exit-Codes werfen unter Stop nicht) ->
-            # Daemon wenigstens fuer diese Session direkt starten statt falsches OK.
-            Write-Host "WARN: Watchdog-Anlage (Mutagen-only) fehlgeschlagen (Exit $LASTEXITCODE) - Daemon fuer diese Session direkt starten."
-            Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
-            Start-Sleep -Seconds 3
+    $ensured = $false
+    if (Test-Path $setupTunnels) {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setupTunnels -EnsureMutagen
+        if ($LASTEXITCODE -eq 0) {
+            $ensured = $true
+            Start-Sleep -Seconds 5
+            Write-Host "OK: Daemon-Autostart via Scheduled Task $watchdog (Mutagen-only angelegt)"
+            Write-Host "    Hinweis: Tunnel sind damit NICHT eingerichtet - auf tunnel-VMs bei"
+            Write-Host "    Bedarf setup-tunnels.ps1 mit Ports laufen lassen (Schritt 7)."
         } else {
-            Write-Host "OK: Watchdog-Task $watchdog (Mutagen-only) angelegt."
+            # Kind-Skript scheiterte (native Exit-Codes werfen unter Stop nicht).
+            Write-Host "WARN: setup-tunnels.ps1 -EnsureMutagen scheiterte (Exit $LASTEXITCODE)."
         }
     } else {
-        # tunnel-VM ohne Watchdog (Schritt 7 nachzuholen) ODER setup-tunnels.ps1
-        # fehlt: NICHT -MutagenOnly aufrufen (raeumte Alt-Tunnel-Tasks ab) - nur
-        # den Daemon fuer diese Session sichern.
-        Write-Host "WARN: Scheduled Task $watchdog fehlt - setup-tunnels.ps1 (Schritt 7) nachholen (uebernimmt Tunnel + Mutagen-Daemon-Autostart)."
+        Write-Host "WARN: setup-tunnels.ps1 fehlt neben setup-mutagen.ps1 (Skill unvollstaendig installiert?)."
+    }
+    if (-not $ensured) {
+        # Daemon wenigstens fuer diese Session direkt starten statt falsches OK;
+        # nach Reboot muss der Schritt dann wiederholt werden.
+        Write-Host 'WARN: kein Daemon-Autostart eingerichtet - Daemon nur fuer diese Session direkt starten.'
         Start-Process -WindowStyle Hidden -FilePath $mutagenExe -ArgumentList 'daemon', 'run'
         Start-Sleep -Seconds 3
     }
@@ -267,7 +292,7 @@ function New-KiOsSession {
 
 # Endpunkt einer bestehenden Session auslesen ('Alpha' oder 'Beta').
 function Get-KiOsEndpoint([string]$Section) {
-    $long = & $mutagenExe sync list ki-os --long 2>&1 | Out-String
+    $long = (Invoke-NativeQuiet { & $mutagenExe sync list ki-os --long 2>&1 }) | Out-String
     $m = [regex]::Match($long, "(?ms)^${Section}:\r?\n.*?^\s+URL:\s*(.+?)\r?$")
     if ($m.Success) { return $m.Groups[1].Value.Trim() }
     return ''
@@ -297,7 +322,7 @@ if ($LASTEXITCODE -eq 0) {
         # Session sind unveraenderlich, ein blosser Re-Run heilt sie NICHT. Bleibt
         # das unbemerkt, retryt die Session z.B. die 137 Skill-Symlinks endlos und
         # steht dauerhaft auf "Applying changes" statt "Watching for changes".
-        $cfg = & $mutagenExe sync list ki-os --long 2>&1 | Out-String
+        $cfg = (Invoke-NativeQuiet { & $mutagenExe sync list ki-os --long 2>&1 }) | Out-String
         $drift = @()
         if ($cfg -notmatch 'Symbolic link mode:\s*Ignore')      { $drift += '--symlink-mode=ignore fehlt (Skill-Symlinks scheitern als Transition problems)' }
         if ($cfg -notmatch '(?m)^\s+\.claude/skills\s*$')       { $drift += 'Ignore .claude/skills fehlt' }
@@ -333,6 +358,14 @@ if ($LASTEXITCODE -eq 0) {
         }
     }
 } else {
+    # Nur die NEUANLAGE braucht den VM-User (Default-Alpha-Endpunkt) - erst
+    # hier ist sein Fehlen ein Fehler, nicht schon beim Start.
+    if (-not $VmUser) {
+        Write-Host 'FAIL: VM-User unbekannt - SSH-Erkennung fehlgeschlagen und -VmUser nicht'
+        Write-Host '      angegeben. Neuanlage braucht den VM-Pfad: erst SSH fixen'
+        Write-Host '      (ssh ki-os-vm) oder -VmUser <NAME> mitgeben.'
+        exit 1
+    }
     New-KiOsSession
     Write-Host "SESSION_CREATED: ki-os (VM:/home/$VmUser/KI-OS <-> $env:USERPROFILE\KI-OS)"
 }
