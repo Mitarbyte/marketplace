@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>KI-OS Einrichtung — Mitarbyte</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --panel: #ffffff; --ink: #1e1e1c; --muted: #6b6a66;
+    --line: #e4e2dc; --accent: #0f6b5c; --accent-ink: #ffffff;
+    --code-bg: #f0efeb; --mark: #0f6b5c; --done: #9a9891;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --panel: #1f2124; --ink: #e8e6e1; --muted: #a09e98;
+      --line: #33343a; --accent: #3bab89; --accent-ink: #10231e;
+      --code-bg: #26282c; --mark: #4cc2a4; --done: #6f6e69;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+    padding: 0.7rem 1rem;
+  }
+  .top-inner { max-width: 780px; margin: 0 auto; }
+  .top-row { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; }
+  .brand { font-weight: 700; letter-spacing: 0.02em; }
+  .brand small { color: var(--muted); font-weight: 400; }
+  .pagetitle { color: var(--muted); font-size: 0.95rem; }
+  .progress { margin-top: 0.55rem; display: flex; align-items: center; gap: 0.6rem; }
+  .bar { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.25s; }
+  .count { font-size: 0.8rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  nav.toc { max-width: 780px; margin: 0 auto; padding: 0.45rem 0 0.1rem; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  nav.toc a {
+    font-size: 0.8rem; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.65rem;
+  }
+  nav.toc a:hover { color: var(--accent); border-color: var(--accent); }
+  main { max-width: 780px; margin: 0 auto; padding: 1.2rem 1rem 4rem; }
+  section.block {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.4rem 1.6rem; margin: 1.1rem 0;
+  }
+  h2.block-title { margin: 0 0 0.6rem; font-size: 1.45rem; line-height: 1.3; }
+  h3.step {
+    display: flex; align-items: baseline; gap: 0.55rem;
+    margin: 1.6rem 0 0.5rem; font-size: 1.08rem; scroll-margin-top: 6rem;
+  }
+  h3.step input[type="checkbox"] {
+    width: 1.05rem; height: 1.05rem; accent-color: var(--mark);
+    flex: none; transform: translateY(2px); cursor: pointer;
+  }
+  h3.step.done .steptext { color: var(--done); text-decoration: line-through; text-decoration-thickness: 1px; }
+  h3.meta { margin: 1.6rem 0 0.5rem; font-size: 1.08rem; }
+  h4 { margin: 1.2rem 0 0.4rem; font-size: 0.98rem; }
+  p { margin: 0.55rem 0; }
+  a { color: var(--accent); }
+  ul, ol { margin: 0.45rem 0; padding-left: 1.5rem; }
+  li { margin: 0.28rem 0; }
+  li > ul, li > ol { margin: 0.25rem 0 0.25rem 0; }
+  blockquote {
+    margin: 0.8rem 0; padding: 0.55rem 0.95rem; border-left: 3px solid var(--accent);
+    background: var(--code-bg); border-radius: 0 8px 8px 0; color: var(--ink);
+    font-size: 0.93rem;
+  }
+  blockquote p { margin: 0.3rem 0; }
+  .codewrap { position: relative; margin: 0.7rem 0; }
+  pre {
+    margin: 0; background: var(--code-bg); border: 1px solid var(--line);
+    border-radius: 8px; padding: 0.75rem 5.5rem 0.75rem 0.95rem;
+    overflow-x: auto; font-size: 0.86rem; line-height: 1.5;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  p code, li code, h2 code, h3 code, td code {
+    background: var(--code-bg); border: 1px solid var(--line);
+    border-radius: 4px; padding: 0.05rem 0.3rem; font-size: 0.86em;
+  }
+  button.copy {
+    position: absolute; top: 0.45rem; right: 0.45rem;
+    font: 0.72rem/1 inherit; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+    padding: 0.3rem 0.55rem; cursor: pointer;
+  }
+  button.copy:hover { color: var(--accent); border-color: var(--accent); }
+  button.copy.ok { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+  .tablewrap { overflow-x: auto; margin: 0.7rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; border: 1px solid var(--line); padding: 0.45rem 0.7rem; }
+  th { background: var(--code-bg); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 1.4rem 0; }
+  .ph { font-weight: 600; }
+  pre .ph, code .ph { font-weight: inherit; }
+  footer { max-width: 780px; margin: 0 auto; padding: 0 1rem 2.5rem; color: var(--muted); font-size: 0.8rem; }
+  .confbad {
+    max-width: 780px; margin: 1rem auto 0; padding: 0.6rem 1rem;
+    border: 1px solid #c9a227; background: rgba(201, 162, 39, 0.12);
+    border-radius: 8px; font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <div class="top-row">
+      <span class="brand">Mitarbyte <small>KI-OS</small></span>
+      <span class="pagetitle" id="pagetitle">Technische Einrichtung</span>
+    </div>
+    <div class="progress" id="progress" hidden>
+      <div class="bar"><div id="barfill"></div></div>
+      <span class="count" id="count"></span>
+    </div>
+    <nav class="toc" id="toc"></nav>
+  </div>
+</header>
+<div class="confbad" id="confwarn" hidden>
+  Der Link enthält keine (gültige) Konfiguration — es wird die generische
+  Fassung mit allen Kapiteln angezeigt. Im Zweifel den Link aus der
+  Mitarbyte-Mail erneut öffnen.
+</div>
+<main id="main">
+<section class="block" id="block-00-intro" data-block="00-intro" hidden>
+<h2 class="block-title">KI-OS einrichten — <span class="ph" data-ph="FIRMA">euer Unternehmen</span></h2>
+<p>Willkommen! Diese Seite führt euch durch die technische Einrichtung eures KI-OS. Sie ist auf euch zugeschnitten: Es werden nur die Kapitel angezeigt, die für euer Setup relevant sind — die Übersicht oben zeigt sie. Jeder Schritt hat eine Checkbox; euer Fortschritt wird im Browser gespeichert und bleibt auch nach einem Neustart erhalten.</p>
+<p>So ist die Einrichtung aufgeteilt:</p>
+<ul>
+<li><strong>VM einrichten</strong> — die Server-VM bei Hostinger, die Mitarbyte für das KI-OS betreut. Einmalige, zentrale Aufgabe (eine VM fürs Unternehmen), dauert etwa 15 Minuten.</li>
+<li><strong>Arbeitsplatz einrichten</strong> — Claude auf jedem Arbeitsrechner für die Champ-Sessions. Macht jeder an seinem eigenen Rechner, etwa 10 Minuten.</li>
+<li><strong>Firmen-Login (Tenant App)</strong> — falls für euch eingeplant: eine App-Registrierung in eurem Microsoft-365- bzw. Google-Workspace-Konto, damit sich die Mitarbeiter mit dem normalen Firmen-Login anmelden. Einmalige Aufgabe für eure IT, 15–20 Minuten.</li>
+</ul>
+<p>Bei Fragen oder wenn etwas hakt: einfach bei <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> melden — lieber einmal zu früh als eine Stunde festhängen.</p>
+</section>
+<section class="block" id="block-10-vps-hostinger" data-block="10-vps-hostinger" hidden>
+<h2 class="block-title">Teil 1 — VM einrichten</h2>
+<p>Anleitung zum Aufsetzen einer eigenen VM bei Hostinger (Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong>, <strong>Ubuntu 24.04 LTS</strong>) und zur Registrierung bei Mitarbyte. Danach läuft eine frische Ubuntu-VM, auf die Mitarbyte per SSH zugreift, um sie einzurichten und zu betreuen. Den Zugang kannst du jederzeit selbst wieder entfernen.</p>
+<h3 class="step" id="10-vps-hostinger--schritt-1-vm-plan-bei-hostinger-kaufen">Schritt 1 — <span class="ph" data-ph="VM_PLAN">KVM 2</span> bei Hostinger kaufen</h3>
+<ol>
+<li>Auf <a href="https://www.hostinger.de" target="_blank" rel="noopener">hostinger.de</a> unter <strong>VPS Hosting</strong> den Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong> wählen.</li>
+<li>Laufzeit auswählen und kaufen.</li>
+<li>Beim Rechenzentrum einen Standort möglichst nah am Unternehmen wählen — für Deutschland z.B. Frankfurt oder ein anderes EU-Rechenzentrum.</li>
+</ol>
+<h3 class="step" id="10-vps-hostinger--schritt-2-betriebssystem-setup-starten">Schritt 2 — Betriebssystem-Setup starten</h3>
+<ol>
+<li>In <strong>hPanel</strong> unter <strong>VPS</strong> den neuen Server öffnen. Beim ersten Aufruf startet der Einrichtungs-Assistent automatisch.</li>
+<li>Bei der OS-Auswahl die Kategorie <strong>„Betriebssystem (ohne Panel)&quot;</strong> nehmen, also keine Vorlage mit Control-Panel (kein CyberPanel, kein CloudPanel etc.).</li>
+<li>Als OS <strong>Ubuntu 24.04 LTS</strong> auswählen.</li>
+</ol>
+<h3 class="step" id="10-vps-hostinger--schritt-3-root-passwort-und-hostname-setzen">Schritt 3 — Root-Passwort und Hostname setzen</h3>
+<ol>
+<li>Ein sicheres Root-Passwort vergeben und notieren (z.B. im Passwortmanager). Du brauchst es gleich für das Browser-Terminal.</li>
+<li>Den Hostname kannst du auf der Vorgabe lassen oder frei wählen.</li>
+<li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
+</ol>
+<h3 class="step" id="10-vps-hostinger--schritt-4-malware-scanner-und-backups-nicht-aktivieren">Schritt 4 — Malware-Scanner und Backups nicht aktivieren</h3>
+<p>Diese beiden Zusatzfunktionen nutzen wir bei Mitarbyte bewusst nicht:</p>
+<ul>
+<li><strong>Malware-Scanner:</strong> Wenn der Assistent oder ein Banner im VPS-Dashboard ihn anbietet, ablehnen und nicht installieren.</li>
+<li><strong>Backups:</strong> Unter <strong>VPS → Backups</strong> keine automatischen (wöchentlichen) Backups aktivieren. Falls voraktiviert, deaktivieren.</li>
+</ul>
+<h3 class="step" id="10-vps-hostinger--schritt-5-vm-registrieren-browser-terminal-eine-zeile">Schritt 5 — VM registrieren (Browser-Terminal, eine Zeile)</h3>
+<p>Die Registrierung läuft direkt auf der VM — kein Formular, keine Mail mit technischen Werten:</p>
+<ol>
+<li>In <strong>hPanel → VPS → Übersicht</strong> auf <strong>„Browser-Terminal&quot;</strong> klicken (öffnet ein schwarzes Terminal-Fenster im Browser).</li>
+<li>Als Benutzer <code>root</code> mit dem Root-Passwort aus Schritt 3 anmelden.</li>
+<li>Diese eine Zeile einfügen (Rechtsklick → Einfügen) und Enter drücken:</li>
+</ol>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; bash /root/mitarbyte.sh</code></pre></div>
+<p>Das Skript richtet den Mitarbyte-Zugang ein und stellt dir 3–4 kurze Fragen (Firmenname, gewünschte User-Namen — am einfachsten die Vornamen der Mitarbeiter, z.B. <code><span class="ph" data-ph="USERS">imran, philip</span></code> —, IT-Ansprechpartner, ob ihr Microsoft 365 oder Google Workspace nutzt).</p>
+<ol start="4">
+<li>Am Ende zeigt das Skript eine <strong>fertige Nachricht an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span></strong>. Kopiere sie <strong>komplett</strong> und schick sie ihm (Mail oder Messenger, egal). Das ist alles — wir übernehmen ab hier und melden uns, sobald alles läuft.</li>
+</ol>
+<blockquote><p>Falls beim Einfügen im Browser-Terminal nichts passiert: Die Zeile von Hand abtippen oder es mit <code>Strg+Umschalt+V</code> versuchen — das Browser-Terminal ist beim Einfügen manchmal eigen.</p></blockquote>
+<h3 class="meta">Zugang jederzeit entziehbar</h3>
+<p>Den Mitarbyte-Zugang kannst du jederzeit selbst entfernen — im Browser-Terminal (wie in Schritt 5):</p>
+<div class="codewrap"><pre><code>bash /root/mitarbyte.sh revoke</code></pre></div>
+<p>Danach kommt Mitarbyte nicht mehr auf die Maschine. (Wer ganz sicher gehen will: in hPanel das Betriebssystem neu installieren — das löscht allerdings alle Daten.) Wir empfehlen, damit bis zum Ende der Einrichtungs- und Betreuungsphase zu warten, damit wir dich so lange wie nötig unterstützen können.</p>
+<h3 class="meta">TL;DR</h3>
+<ol>
+<li>Hostinger-Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong> kaufen, Rechenzentrum EU/Deutschland.</li>
+<li>OS-Setup: <strong>Ubuntu 24.04 LTS</strong> (ohne Panel).</li>
+<li>Root-Passwort setzen und notieren.</li>
+<li><strong>Malware-Scanner aus, Backups aus.</strong></li>
+<li>Browser-Terminal öffnen, als <code>root</code> anmelden, den Mitarbyte-One-Liner ausführen und die 3–4 Fragen beantworten.</li>
+<li>Die vom Skript erzeugte Nachricht komplett an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kopieren. Fertig.</li>
+</ol>
+</section>
+<section class="block" id="block-40-arbeitsplatz-mac" data-block="40-arbeitsplatz-mac" hidden>
+<h2 class="block-title">Teil 2 — Claude auf dem Mac einrichten</h2>
+<p>Diese Schritte richtest du auf deinem eigenen Mac ein. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
+<h3 class="meta">Was vorab geklärt sein muss</h3>
+<p>Diese Punkte werden einmal zentral geklärt, nicht von jedem einzeln:</p>
+<ul>
+<li>Ein <strong>Claude Team-Account</strong> mit einem dir zugewiesenen Seat. Der Team-Plan ist wichtig, weil nur die kommerziellen Pläne den Auftragsverarbeitungsvertrag (AVV/DPA) nach Art. 28 DSGVO enthalten, den die Verarbeitung von Personendaten erfordert.</li>
+<li><strong>Installationsrechte</strong> auf dem Mac. Falls euer IT-Dienstleister die Geräte verwaltet, hol ihn vorab dazu.</li>
+</ul>
+<h3 class="step" id="40-arbeitsplatz-mac--schritt-1-claude-desktop-app-installieren">Schritt 1 — Claude-Desktop-App installieren</h3>
+<ol>
+<li>Öffne <a href="https://claude.ai/download" target="_blank" rel="noopener">claude.ai/download</a></li>
+<li>Lade die macOS-Version herunter, öffne die Datei und zieh Claude in den Programme-Ordner.</li>
+</ol>
+<p>Die App selbst ist kostenlos. Die Code-Funktion wird über deinen Team-Seat freigeschaltet.</p>
+<h3 class="step" id="40-arbeitsplatz-mac--schritt-2-anmelden">Schritt 2 — Anmelden</h3>
+<ol>
+<li>Starte die Claude-App.</li>
+<li>Melde dich mit dem <strong>Team-Account</strong> an, dem dein Seat zugewiesen wurde. Falls du eine Einladungs-E-Mail bekommen hast, nutz den darin enthaltenen Zugang.</li>
+</ol>
+<blockquote><p>Remote Control muss für euren Team-Account freigeschaltet sein — das ist eine Organisationseinstellung; im Zweifel <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> fragen.</p></blockquote>
+<h3 class="step" id="40-arbeitsplatz-mac--schritt-3-code-funktion-einrichten">Schritt 3 — Code-Funktion einrichten</h3>
+<ol>
+<li>Klick oben in der App auf den Tab <strong>Code</strong>.</li>
+<li>Wähle <strong>Local</strong>, um mit Dateien auf deinem eigenen Rechner zu arbeiten.</li>
+<li>Klick auf <strong>Select folder</strong> und wähle einen Projektordner aus (leg dafür z.B. einen Ordner <code>KI-Champ</code> in deinem Benutzerordner an).</li>
+</ol>
+<blockquote><p>Falls die App meldet, dass die <strong>Git-Kommandozeilen-Tools</strong> fehlen: einfach den angebotenen Dialog „Installieren&quot; bestätigen (macOS bringt sie über die Xcode Command Line Tools mit) und die App danach neu starten.</p></blockquote>
+<p>Der Code-Tab ist eine grafische Oberfläche, du brauchst kein Terminal.</p>
+<h3 class="step" id="40-arbeitsplatz-mac--schritt-4-funktionstest">Schritt 4 — Funktionstest</h3>
+<p>Stell im ausgewählten Ordner eine einfache Aufgabe, zum Beispiel: „Lies die Dateien in diesem Ordner und fasse sie kurz zusammen.&quot;</p>
+<blockquote><p>Wenn Claude antwortet, ist dein Setup einsatzbereit. Damit ist die Einrichtung abgeschlossen.</p></blockquote>
+<h3 class="meta">Falls etwas nicht funktioniert</h3>
+<ul>
+<li><strong>Der Code-Tab fehlt oder ist ausgegraut:</strong> Dein Seat ist vermutlich noch nicht korrekt zugewiesen. Melde dich bei der Person, die euren Team-Account verwaltet.</li>
+<li><strong>Die App lässt sich nicht öffnen („nicht verifiziert&quot;):</strong> Rechtsklick auf die App → „Öffnen&quot; → bestätigen.</li>
+</ul>
+<p>Wenn dein Problem hier nicht aufgeführt ist, notier kurz, was passiert, und bring es mit in die erste Session.</p>
+<h3 class="meta">Checkliste vor der ersten Session</h3>
+<ul>
+<li>Mit dem Team-Account in der Desktop-App angemeldet</li>
+<li>Code-Tab geöffnet und ein Projektordner ausgewählt</li>
+<li>Funktionstest erfolgreich (Claude hat geantwortet)</li>
+</ul>
+</section>
+<section class="block" id="block-40-arbeitsplatz-win" data-block="40-arbeitsplatz-win" hidden>
+<h2 class="block-title">Teil 2 — Claude auf Windows einrichten</h2>
+<p>Diese Schritte richtest du auf deinem eigenen Windows-Rechner ein. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
+<h3 class="meta">Was vorab geklärt sein muss</h3>
+<p>Diese Punkte werden einmal zentral geklärt, nicht von jedem einzeln:</p>
+<ul>
+<li>Ein <strong>Claude Team-Account</strong> mit einem dir zugewiesenen Seat. Der Team-Plan ist wichtig, weil nur die kommerziellen Pläne den Auftragsverarbeitungsvertrag (AVV/DPA) nach Art. 28 DSGVO enthalten, den die Verarbeitung von Personendaten erfordert.</li>
+<li><strong>Administratorrechte</strong> auf dem Rechner für die Installation. Falls du selbst keine Adminrechte hast, hol dir vorab die Person dazu, die bei euch Adminrechte vergibt, oder euren IT-Dienstleister.</li>
+</ul>
+<h3 class="step" id="40-arbeitsplatz-win--schritt-1-voraussetzungen-pruefen">Schritt 1 — Voraussetzungen prüfen</h3>
+<ul>
+<li>Windows 10 oder 11, 64-bit.</li>
+<li><strong>Git for Windows</strong> installieren. Lade es hier herunter und installiere es mit den Standardeinstellungen: <a href="https://git-scm.com/download/win" target="_blank" rel="noopener">git-scm.com/download/win</a> — Git wird benötigt, weil die Code-Funktion von Claude darauf aufsetzt.</li>
+</ul>
+<h3 class="step" id="40-arbeitsplatz-win--schritt-2-claude-desktop-app-installieren">Schritt 2 — Claude-Desktop-App installieren</h3>
+<ol>
+<li>Öffne <a href="https://claude.ai/download" target="_blank" rel="noopener">claude.ai/download</a></li>
+<li>Lade die Version für Windows herunter (passend zu deinem System, x64 oder ARM64).</li>
+<li>Führe den Installer aus und folge den Anweisungen.</li>
+</ol>
+<p>Die App selbst ist kostenlos. Die Code-Funktion wird über deinen Team-Seat freigeschaltet.</p>
+<h3 class="step" id="40-arbeitsplatz-win--schritt-3-anmelden">Schritt 3 — Anmelden</h3>
+<ol>
+<li>Starte die Claude-Desktop-App.</li>
+<li>Melde dich mit dem <strong>Team-Account</strong> an, dem dein Seat zugewiesen wurde. Falls du eine Einladungs-E-Mail bekommen hast, nutz den darin enthaltenen Zugang.</li>
+</ol>
+<blockquote><p>Remote Control muss für euren Team-Account freigeschaltet sein — das ist eine Organisationseinstellung; im Zweifel <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> fragen.</p></blockquote>
+<h3 class="step" id="40-arbeitsplatz-win--schritt-4-code-funktion-einrichten">Schritt 4 — Code-Funktion einrichten</h3>
+<ol>
+<li>Klick oben in der App auf den Tab <strong>Code</strong>.</li>
+<li>Wähle <strong>Local</strong>, um mit Dateien auf deinem eigenen Rechner zu arbeiten.</li>
+<li>Klick auf <strong>Select folder</strong> und wähle einen Projektordner aus (leg dafür z.B. einen Ordner <code>C:\KI-Champ</code> an).</li>
+</ol>
+<p>Der Code-Tab ist eine grafische Oberfläche, du brauchst kein Terminal.</p>
+<h3 class="step" id="40-arbeitsplatz-win--schritt-5-funktionstest">Schritt 5 — Funktionstest</h3>
+<p>Stell im ausgewählten Ordner eine einfache Aufgabe, zum Beispiel: „Lies die Dateien in diesem Ordner und fasse sie kurz zusammen.&quot;</p>
+<blockquote><p>Wenn Claude antwortet, ist dein Setup einsatzbereit. Damit ist die Einrichtung abgeschlossen.</p></blockquote>
+<h3 class="meta">Falls etwas nicht funktioniert</h3>
+<ul>
+<li><strong>Der Code-Tab fehlt oder ist ausgegraut:</strong> Dein Seat ist vermutlich noch nicht korrekt zugewiesen. Melde dich bei der Person, die euren Team-Account verwaltet.</li>
+<li><strong>Die App meldet, dass Git fehlt:</strong> Git for Windows nachinstallieren (Schritt 1), danach die App schließen und neu starten.</li>
+<li><strong>Die Installation lässt sich nicht ausführen:</strong> Wahrscheinlich fehlen Administratorrechte. Hol die Person mit Adminrechten oder euren IT-Dienstleister dazu.</li>
+</ul>
+<p>Wenn dein Problem hier nicht aufgeführt ist, notier kurz, was passiert, und bring es mit in die erste Session.</p>
+<h3 class="meta">Checkliste vor der ersten Session</h3>
+<ul>
+<li>Mit dem Team-Account in der Desktop-App angemeldet</li>
+<li>Git for Windows installiert</li>
+<li>Code-Tab geöffnet und ein Projektordner ausgewählt</li>
+<li>Funktionstest erfolgreich (Claude hat geantwortet)</li>
+</ul>
+</section>
+<section class="block" id="block-30-tenant-app-google" data-block="30-tenant-app-google" hidden>
+<h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Google Workspace)</h2>
+<p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Google-Workspace-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>.</p>
+<h3 class="meta">Wofür das gut ist</h3>
+<p>Standardmäßig erreichen die Mitarbeiter die VM nur über einen technischen SSH-Tunnel, den jeder lokal einrichten muss. Mit der App-Registrierung geht es ohne Installation: Jeder Mitarbeiter bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer 2-Faktor-Authentifizierung.</p>
+<div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Cockpit</td><td>Steuerzentrale: geplante Aufgaben, Skills, Benachrichtigungen, Systemstatus</td></tr><tr><td>VM-Desktop</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen</td></tr></tbody></table></div>
+<p>Wichtig für die Einordnung:</p>
+<ul>
+<li>Die Anmeldung passiert <strong>bei euch</strong>, nicht bei Mitarbyte. Wir betreiben keine eigene Login-Maske und sehen eure Passwörter nie.</li>
+<li>Die App braucht <strong>keinen Zugriff auf Daten</strong> — nur die Information „wer bist du&quot; (Name, E-Mail). Sie liest keine Mails, keine Dateien, keine Kalender.</li>
+<li>Es bekommt <strong>nur Zugriff, wer namentlich freigeschaltet ist.</strong> Ein gültiger Firmen-Login allein reicht nicht — jede Mitarbeiter-E-Mail wird von uns einzeln eingetragen; alle anderen sehen eine Fehlerseite (403).</li>
+<li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
+</ul>
+<p><strong>Voraussetzung:</strong> Ein Admin darf in eurer Google Cloud Console einen OAuth-Client anlegen.</p>
+<h3 class="step" id="30-tenant-app-google--die-redirect-uri-baut-ihr-selbst">Die Redirect-URI baut ihr selbst</h3>
+<p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die sogenannte <strong>Redirect-URI</strong>. Ihr baut sie selbst aus dem Hostnamen eurer VM zusammen, es ist keine Rückmeldung von Mitarbyte nötig:</p>
+<ol>
+<li>In <strong>hPanel → VPS → Übersicht</strong> den Hostnamen eurer VM aus Teil 1 ablesen. Er sieht so aus: <code>srv123456.hstgr.cloud</code>.</li>
+<li>Vor den Hostnamen <code>https://auth.</code> setzen, dahinter <code>/oauth2/callback</code> — fertig ist die Redirect-URI:</li>
+</ol>
+<div class="codewrap"><pre><code><span class="ph" data-ph="REDIRECT_URI">https://auth.srv123456.hstgr.cloud/oauth2/callback</span></code></pre></div>
+<p>Dabei <code>srv123456</code> durch die Nummer <strong>eures</strong> Hostnamens ersetzen, den Rest <strong>exakt so</strong> übernehmen — ein Tippfehler führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login.</p>
+<blockquote><p>Gut zu wissen: Diese eine URL gilt für <strong>alle</strong> Mitarbeiter und alle Links. Kommt später ein neuer Kollege dazu, muss an der App-Registrierung <strong>nichts</strong> geändert werden.</p></blockquote>
+<h3 class="step" id="30-tenant-app-google--schritt-b1-zustimmungsbildschirm-konfigurieren">Schritt B1 — Zustimmungsbildschirm konfigurieren</h3>
+<ol>
+<li>Öffne <a href="https://console.cloud.google.com" target="_blank" rel="noopener">https://console.cloud.google.com</a> und wähle oben euer Projekt (oder lege eines an, z.B. <code>Mitarbyte KI-OS</code>).</li>
+<li>Links <strong>„APIs &amp; Dienste&quot; → „OAuth-Zustimmungsbildschirm&quot;</strong>.</li>
+<li><strong>Nutzertyp: „Intern&quot;</strong> wählen. Damit können sich nur Konten eurer Workspace-Domain anmelden, und es ist <strong>kein</strong> Google-Verifizierungsverfahren nötig.</li>
+<li>App-Name (<code>Mitarbyte KI-OS Gateway</code>) und Support-E-Mail eintragen, speichern.</li>
+</ol>
+<blockquote><p>Wenn wir für euch schon einen anderen Google-Zugang eingerichtet haben (z.B. Search Console), existiert dieses Projekt samt Zustimmungsbildschirm oft bereits — dann Schritt B1 überspringen und im selben Projekt weitermachen.</p></blockquote>
+<h3 class="step" id="30-tenant-app-google--schritt-b2-oauth-client-erstellen">Schritt B2 — OAuth-Client erstellen</h3>
+<ol>
+<li>Links <strong>„APIs &amp; Dienste&quot; → „Anmeldedaten&quot;</strong> → <strong>„+ Anmeldedaten erstellen&quot;</strong> → <strong>„OAuth-Client-ID&quot;</strong>.</li>
+<li><strong>Anwendungstyp: „Webanwendung&quot;</strong> — <strong>nicht</strong> „Desktop-App&quot;.</li>
+<li><strong>Name:</strong> <code>Mitarbyte KI-OS Gateway</code>.</li>
+<li>Unter <strong>„Autorisierte Weiterleitungs-URIs&quot;</strong> auf <strong>„+ URI hinzufügen&quot;</strong> und die oben selbst gebaute URL einfügen.</li>
+<li><strong>„Erstellen&quot;</strong> klicken. Im Dialog danach <strong>Client-ID</strong> und <strong>Clientschlüssel</strong> kopieren.</li>
+</ol>
+<blockquote><p><strong>Ein vorhandener Google-Client aus einem anderen Setup ist hier nicht wiederverwendbar</strong>, wenn er vom Typ „Desktop-App&quot; ist — dieser Typ lässt sich nachträglich nicht ändern und akzeptiert keine HTTPS-Weiterleitungs-URI. Erkennen an der heruntergeladenen JSON-Datei: steht dort oben <code>&quot;installed&quot;</code>, ist es ein Desktop-Client (untauglich); <code>&quot;web&quot;</code> ist richtig. Im Zweifel einfach einen neuen Webanwendungs-Client anlegen.</p></blockquote>
+<h3 class="step" id="30-tenant-app-google--schritt-b3-checkliste-diese-zwei-werte-hast-du-jetzt">Schritt B3 — Checkliste: diese zwei Werte hast du jetzt</h3>
+<div class="codewrap"><pre><code>CLIENT_ID      = 123456789012-abcdefghijklmnop.apps.googleusercontent.com
+CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
+<p>Eine Tenant-ID gibt es bei Google nicht. <strong>Nichts davon per Mail schicken</strong> — die Übergabe passiert über das Browser-Terminal der VM (<strong>Werte übergeben</strong> unten); der Clientschlüssel bleibt dabei komplett auf eurer VM.</p>
+<h3 class="step" id="30-tenant-app-google--werte-uebergeben-im-browser-terminal-der-vm">Werte übergeben: im Browser-Terminal der VM</h3>
+<p>Die Werte aus B3 (plus die Login-Adressen der Mitarbeiter) übergibst du direkt auf eurer VM — <strong>nichts davon geht per Mail oder Chat</strong>, das Secret verlässt eure VM nie:</p>
+<ol>
+<li>In <strong>hPanel → VPS → Übersicht</strong> wieder das <strong>Browser-Terminal</strong> öffnen und als <code>root</code> anmelden (wie in Teil 1, Schritt 5).</li>
+<li>Diese Zeile ausführen:</li>
+</ol>
+<div class="codewrap"><pre><code>bash /root/mitarbyte.sh idp</code></pre></div>
+<ol start="3">
+<li>Das Skript fragt die Werte einzeln ab: <code>CLIENT_ID</code> und <code>CLIENT_SECRET</code> — die Secret-Eingabe bleibt unsichtbar, das ist Absicht. Zum Schluss <strong>pro Mitarbeiter die Google-Konto-E-Mail-Adresse</strong>.</li>
+<li>Danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> <strong>kurz Bescheid geben</strong> („Teil 3 ist erledigt&quot;) — dann geht&#x27;s bei uns weiter. Tippfehler oder ein neues Secret? Einfach denselben Befehl noch einmal ausführen, er übernimmt die bisherigen Werte als Vorschlag.</li>
+</ol>
+<blockquote><p>Fallback, falls das Browser-Terminal partout nicht will: Werte ausnahmsweise über <a href="https://onetimesecret.com/" target="_blank" rel="noopener">onetimesecret.com</a> an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken (den Clientschlüssel nie per normaler Mail) — das Terminal ist aber der Normalweg.</p></blockquote>
+<h3 class="meta">Zugang jederzeit entziehbar</h3>
+<ul>
+<li><strong>Einzelner Mitarbeiter:</strong> kurze Nachricht an uns — wir entfernen ihn aus der Zulassungsliste, seine Links sind sofort tot und laufende Sitzungen werden beendet.</li>
+<li><strong>Ganzes Unternehmen:</strong> ihr löscht den OAuth-Client (oder nur das Secret) in eurer Cloud Console. Dann kann sich niemand mehr über den Browser anmelden — ohne dass ihr uns fragen müsst.</li>
+<li>Das ist unabhängig vom SSH-Zugang aus Teil 1, den ihr wie dort beschrieben separat entfernen könnt.</li>
+</ul>
+<h3 class="meta">TL;DR</h3>
+<ol>
+<li>Redirect-URI selbst bauen: Hostname aus hPanel → VPS → Übersicht, davor <code>https://auth.</code>, dahinter <code>/oauth2/callback</code>.</li>
+<li>Cloud Console → Zustimmungsbildschirm <strong>Intern</strong> → Anmeldedaten → OAuth-Client <strong>Webanwendung</strong> mit der Redirect-URI. <code>CLIENT_ID</code> + <code>CLIENT_SECRET</code> notieren.</li>
+<li>Werte im <strong>Browser-Terminal der VM</strong> hinterlegen: <code>bash /root/mitarbyte.sh idp</code> (fragt IDs, Secret und die Login-Adressen aller Mitarbeiter ab; das Secret bleibt auf eurer VM). Danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kurz Bescheid geben.</li>
+<li>Wir schalten frei und schicken jedem seine zwei Links. Anmeldung = normales Firmen-Login, kein weiteres Passwort.</li>
+</ol>
+</section>
+<section class="block" id="block-30-tenant-app-m365" data-block="30-tenant-app-m365" hidden>
+<h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Microsoft 365)</h2>
+<p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Microsoft-365-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>.</p>
+<h3 class="meta">Wofür das gut ist</h3>
+<p>Standardmäßig erreichen die Mitarbeiter die VM nur über einen technischen SSH-Tunnel, den jeder lokal einrichten muss. Mit der Tenant App geht es ohne Installation: Jeder Mitarbeiter bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer MFA und eurer Conditional-Access-Regeln.</p>
+<div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Cockpit</td><td>Steuerzentrale: geplante Aufgaben, Skills, Benachrichtigungen, Systemstatus</td></tr><tr><td>VM-Desktop</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen</td></tr></tbody></table></div>
+<p>Wichtig für die Einordnung:</p>
+<ul>
+<li>Die Anmeldung passiert <strong>bei euch</strong>, nicht bei Mitarbyte. Wir betreiben keine eigene Login-Maske und sehen eure Passwörter nie.</li>
+<li>Die App braucht <strong>keinen Zugriff auf Daten</strong> — nur die Information „wer bist du&quot; (Name, E-Mail). Sie liest keine Mails, keine Dateien, keine Kalender.</li>
+<li>Es bekommt <strong>nur Zugriff, wer namentlich freigeschaltet ist.</strong> Ein gültiger Firmen-Login allein reicht nicht — jede Mitarbeiter-E-Mail wird von uns einzeln eingetragen; alle anderen sehen eine Fehlerseite (403).</li>
+<li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
+</ul>
+<p><strong>Voraussetzung:</strong> Ein Admin darf in eurem Microsoft 365 (Entra ID) eine App-Registrierung anlegen.</p>
+<h3 class="step" id="30-tenant-app-m365--die-redirect-uri-baut-ihr-selbst">Die Redirect-URI baut ihr selbst</h3>
+<p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die sogenannte <strong>Redirect-URI</strong>. Ihr baut sie selbst aus dem Hostnamen eurer VM zusammen, es ist keine Rückmeldung von Mitarbyte nötig:</p>
+<ol>
+<li>In <strong>hPanel → VPS → Übersicht</strong> den Hostnamen eurer VM aus Teil 1 ablesen. Er sieht so aus: <code>srv123456.hstgr.cloud</code>.</li>
+<li>Vor den Hostnamen <code>https://auth.</code> setzen, dahinter <code>/oauth2/callback</code> — fertig ist die Redirect-URI:</li>
+</ol>
+<div class="codewrap"><pre><code><span class="ph" data-ph="REDIRECT_URI">https://auth.srv123456.hstgr.cloud/oauth2/callback</span></code></pre></div>
+<p>Dabei <code>srv123456</code> durch die Nummer <strong>eures</strong> Hostnamens ersetzen, den Rest <strong>exakt so</strong> übernehmen — ein Tippfehler führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login.</p>
+<blockquote><p>Gut zu wissen: Diese eine URL gilt für <strong>alle</strong> Mitarbeiter und alle Links. Kommt später ein neuer Kollege dazu, muss an der App-Registrierung <strong>nichts</strong> geändert werden.</p></blockquote>
+<h3 class="step" id="30-tenant-app-m365--schritt-a1-app-registrierung-anlegen">Schritt A1 — App-Registrierung anlegen</h3>
+<ol>
+<li>Öffne <a href="https://entra.microsoft.com" target="_blank" rel="noopener">https://entra.microsoft.com</a> und melde dich mit deinem Admin-Konto an. (Alternativ <a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> → Suche <code>App registrations</code> — dasselbe.)</li>
+<li>Linkes Menü: <strong>Anwendungen → App-Registrierungen</strong> → oben <strong>„+ Neue Registrierung&quot;</strong>.</li>
+<li>Felder ausfüllen:</li>
+<ul>
+<li><strong>Name:</strong> <code>Mitarbyte KI-OS Gateway</code></li>
+<li><strong>Unterstützte Kontotypen:</strong> <strong>„Nur Konten in diesem Organisationsverzeichnis&quot;</strong> (Single tenant). Das ist Pflicht — damit können sich ausschließlich eure eigenen Mitarbeiter anmelden.</li>
+<li><strong>Umleitungs-URI:</strong> Plattform-Dropdown auf <strong>„Web&quot;</strong> stellen, daneben die oben selbst gebaute URL eintragen.</li>
+</ul>
+<li>Unten auf <strong>„Registrieren&quot;</strong> klicken.</li>
+</ol>
+<h3 class="step" id="30-tenant-app-m365--schritt-a2-tenant-id-und-client-id-notieren">Schritt A2 — TENANT_ID und CLIENT_ID notieren</h3>
+<p>Du landest auf der <strong>Übersicht</strong>-Seite der neuen App:</p>
+<ol>
+<li><strong>„Anwendungs-ID (Client)&quot;</strong> kopieren → das ist die <strong><code>CLIENT_ID</code></strong>.</li>
+<li><strong>„Verzeichnis-ID (Mandant)&quot;</strong> kopieren → das ist die <strong><code>TENANT_ID</code></strong>.</li>
+</ol>
+<blockquote><p>Typischer Fehler: Nicht die <strong>Objekt-ID</strong> kopieren — das ist eine dritte UUID auf derselben Seite und wird nicht gebraucht.</p></blockquote>
+<h3 class="step" id="30-tenant-app-m365--schritt-a3-client-secret-erzeugen">Schritt A3 — CLIENT_SECRET erzeugen</h3>
+<p>Das ist das Passwort der App — du siehst es <strong>nur einmal</strong>.</p>
+<ol>
+<li>Linkes Menü → <strong>„Zertifikate &amp; Geheimnisse&quot;</strong> → Tab <strong>„Geheime Clientschlüssel&quot;</strong> → <strong>„+ Neuer geheimer Clientschlüssel&quot;</strong>.</li>
+<li><strong>Beschreibung:</strong> beliebig. <strong>Gültig bis:</strong> Empfehlung <strong><code>24 Monate</code></strong> (länger geht meist nicht).</li>
+<li><strong>„Hinzufügen&quot;</strong> klicken, dann in der Spalte <strong>„Wert&quot;</strong> das Copy-Icon klicken und den Wert <strong>sofort</strong> in den Passwortmanager einfügen.</li>
+</ol>
+<blockquote><p>Nach dem Verlassen oder Neuladen der Seite ist der Wert maskiert und für immer weg. Wenn das passiert: alten Schlüssel löschen, neuen erzeugen.</p><p><strong>Notier dir das Ablaufdatum.</strong> Läuft das Secret ab, funktioniert der Login für alle nicht mehr. Wir erinnern euch rechtzeitig — der Austausch dauert dann fünf Minuten.</p></blockquote>
+<h3 class="step" id="30-tenant-app-m365--schritt-a4-berechtigungen-pruefen-und-consent-geben">Schritt A4 — Berechtigungen prüfen und Consent geben</h3>
+<ol>
+<li>Linkes Menü → <strong>„API-Berechtigungen&quot;</strong>.</li>
+<li>Es steht dort der Standard-Eintrag <strong><code>User.Read</code></strong> (delegiert) — <strong>der reicht, es muss nichts hinzugefügt werden.</strong> Mehr braucht die App nicht: nur Name und E-Mail des Anmeldenden.</li>
+<li>Über der Tabelle auf <strong>„Administratorzustimmung für [Organisation] erteilen&quot;</strong> klicken und mit <strong>„Ja&quot;</strong> bestätigen.</li>
+<ul>
+<li>Ohne diesen Klick sehen die Mitarbeiter beim ersten Login einen Zustimmungsdialog oder — je nach eurer Tenant-Einstellung — eine Sperre.</li>
+<li>Ist der Button grau: Du bist kein Admin → bitte einen Global Admin um genau diesen Klick.</li>
+</ul>
+</ol>
+<h3 class="step" id="30-tenant-app-m365--schritt-a5-checkliste-diese-drei-werte-hast-du-jetzt">Schritt A5 — Checkliste: diese drei Werte hast du jetzt</h3>
+<div class="codewrap"><pre><code>TENANT_ID      = 00000000-1111-2222-3333-444444444444
+CLIENT_ID      = b1a2c3d4-e5f6-7890-abcd-ef1234567890
+CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
+<p><strong>Nichts davon per Mail schicken</strong> — die Übergabe passiert am Ende gesammelt und sicher über das Browser-Terminal der VM (<strong>Werte übergeben</strong> unten). Das <code>CLIENT_SECRET</code> ist ein echtes Passwort und bleibt dabei komplett auf eurer VM.</p>
+<h3 class="step" id="30-tenant-app-m365--schritt-a6-optional-zweite-app-fuer-den-cloud-ordner-sync">Schritt A6 — Optional: zweite App für den Cloud-Ordner-Sync</h3>
+<p>Nur relevant, wenn mit euch ein <strong>SharePoint-Ordner-Sync</strong> vereinbart ist (eine SharePoint-Bibliothek wird als normaler Ordner ins KI-OS eingebunden) — sonst diesen Schritt überspringen. Da du gerade ohnehin in Entra angemeldet bist, dauert er nur ein paar Minuten:</p>
+<ol>
+<li>Wie in Schritt A1: <strong>Anwendungen → App-Registrierungen</strong> → <strong>„+ Neue Registrierung&quot;</strong>.</li>
+<li>Felder ausfüllen:</li>
+<ul>
+<li><strong>Name:</strong> <code>Mitarbyte KI-OS Cloud-Sync</code></li>
+<li><strong>Unterstützte Kontotypen:</strong> <strong>„Nur Konten in diesem Organisationsverzeichnis&quot;</strong> (Single tenant).</li>
+<li><strong>Umleitungs-URI:</strong> Plattform-Dropdown auf <strong>„Öffentlicher Client/nativ (mobil &amp; Desktop)&quot;</strong> stellen (<strong>nicht</strong> „Web&quot; wie bei der Gateway-App), daneben diese URL eintragen — mit <strong>eurer</strong> <code>TENANT_ID</code> aus Schritt A2 an der markierten Stelle:</li>
+</ul>
+</ol>
+<div class="codewrap"><pre><code>https://login.microsoftonline.com/&lt;TENANT_ID&gt;/oauth2/nativeclient</code></pre></div>
+<blockquote><p>Wichtig: die <strong>eigene Tenant-ID</strong> einsetzen, <strong>nicht</strong> die im Netz oft gezeigte Variante mit <code>/common/</code> — mit <code>/common/</code> schlägt der Sync-Login später mit dem Fehler <code>AADSTS50011</code> fehl (und zwar erst <strong>nach</strong> Anmeldung + MFA, der Fehler fällt also nicht sofort auf).</p></blockquote>
+<ol start="3">
+<li><strong>„Registrieren&quot;</strong> klicken.</li>
+<li>Linkes Menü → <strong>„Authentifizierung&quot;</strong> → unten bei <strong>„Erweiterte Einstellungen&quot;</strong> die Option <strong>„Öffentliche Clientflows zulassen&quot;</strong> auf <strong>„Ja&quot;</strong> stellen und speichern. Diese App hat bewusst <strong>kein</strong> Client-Secret.</li>
+<li>Linkes Menü → <strong>„API-Berechtigungen&quot;</strong> → <strong>„+ Berechtigung hinzufügen&quot;</strong> → <strong>Microsoft Graph</strong> → <strong>„Delegierte Berechtigungen&quot;</strong> (hier ausnahmsweise NICHT „Anwendungsberechtigungen&quot; — der Sync handelt immer als der angemeldete Mitarbeiter) → nacheinander suchen und ankreuzen: <code>Files.ReadWrite</code>, <code>Files.ReadWrite.All</code>, <code>Sites.ReadWrite.All</code>, <code>offline_access</code> → <strong>„Berechtigungen hinzufügen&quot;</strong>.</li>
+<li>Über der Tabelle <strong>„Administratorzustimmung für [Organisation] erteilen&quot;</strong> klicken und bestätigen — sonst sieht jeder Mitarbeiter beim ersten Sync-Login einen Zustimmungsdialog.</li>
+<li>Von der <strong>Übersicht</strong>-Seite die <strong>„Anwendungs-ID (Client)&quot;</strong> kopieren und notieren — sie wird bei <strong>Werte übergeben</strong> (unten) mit abgefragt. Diese <code>application_id</code> ist <strong>kein Geheimnis</strong> (die App hat bewusst kein Secret).</li>
+</ol>
+<blockquote><p>Warum eine zweite App? Der Sync meldet sich <strong>pro Mitarbeiter mit dessen eigenem Firmen-Konto</strong> an — jede Änderung erscheint in SharePoint unter dem echten Autor, und jeder erreicht nur, was er ohnehin darf. Getrennte Apps heißen außerdem: ihr könnt den Sync jederzeit abschalten, ohne den VM-Login anzufassen.</p></blockquote>
+<h3 class="step" id="30-tenant-app-m365--werte-uebergeben-im-browser-terminal-der-vm">Werte übergeben: im Browser-Terminal der VM</h3>
+<p>Alle Werte aus A5 (plus die Login-Adressen der Mitarbeiter) übergibst du direkt auf eurer VM — <strong>nichts davon geht per Mail oder Chat</strong>, das Secret verlässt eure VM nie:</p>
+<ol>
+<li>In <strong>hPanel → VPS → Übersicht</strong> wieder das <strong>Browser-Terminal</strong> öffnen und als <code>root</code> anmelden (wie in Teil 1, Schritt 5).</li>
+<li>Diese Zeile ausführen:</li>
+</ol>
+<div class="codewrap"><pre><code>bash /root/mitarbyte.sh idp</code></pre></div>
+<ol start="3">
+<li>Das Skript fragt die Werte einzeln ab (mit Prüfung auf Tippfehler): <code>TENANT_ID</code>, <code>CLIENT_ID</code>, <code>CLIENT_SECRET</code> — die Secret-Eingabe bleibt unsichtbar, das ist Absicht. Falls ihr Schritt A6 (Cloud-Sync-App) gemacht habt, danach optional deren <code>application_id</code>. Zum Schluss <strong>pro Mitarbeiter die Login-E-Mail-Adresse</strong> — exakt den <strong>UPN</strong> (die Anmelde-Adresse, mit der sich der Mitarbeiter bei Microsoft anmeldet), <strong>keine Alias-Adresse</strong>: sonst funktioniert der Login zwar, der Zugriff wird aber trotzdem mit 403 abgewiesen.</li>
+<li>Zum Schluss <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> <strong>kurz Bescheid geben</strong> („Teil 3 ist erledigt&quot;) — dann geht&#x27;s bei uns weiter. Tippfehler oder ein neues Secret? Einfach denselben Befehl noch einmal ausführen, er übernimmt die bisherigen Werte als Vorschlag.</li>
+</ol>
+<blockquote><p>Fallback, falls das Browser-Terminal partout nicht will: Werte ausnahmsweise über <a href="https://onetimesecret.com/" target="_blank" rel="noopener">onetimesecret.com</a> an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken (das <code>CLIENT_SECRET</code> nie per normaler Mail) — das Terminal ist aber der Normalweg.</p></blockquote>
+<h3 class="meta">Zugang jederzeit entziehbar</h3>
+<ul>
+<li><strong>Einzelner Mitarbeiter:</strong> kurze Nachricht an uns — wir entfernen ihn aus der Zulassungsliste, seine Links sind sofort tot und laufende Sitzungen werden beendet.</li>
+<li><strong>Ganzes Unternehmen:</strong> ihr löscht die App-Registrierung (oder nur das Secret) in eurem eigenen Portal. Dann kann sich niemand mehr über den Browser anmelden — ohne dass ihr uns fragen müsst.</li>
+<li>Das ist unabhängig vom SSH-Zugang aus Teil 1, den ihr wie dort beschrieben separat entfernen könnt.</li>
+</ul>
+<h3 class="meta">TL;DR</h3>
+<ol>
+<li>Redirect-URI selbst bauen: Hostname aus hPanel → VPS → Übersicht, davor <code>https://auth.</code>, dahinter <code>/oauth2/callback</code>.</li>
+<li>Entra → App-Registrierungen → Neue Registrierung, <strong>Single tenant</strong>, Redirect-URI als <strong>Web</strong>. <code>CLIENT_ID</code> + <code>TENANT_ID</code> notieren, Client-Secret erzeugen (24 Monate), <strong>Admin-Zustimmung</strong> klicken. Keine zusätzlichen Berechtigungen nötig.</li>
+<li><strong>Nur bei vereinbartem Cloud-Sync:</strong> zweite App <code>Mitarbyte KI-OS Cloud-Sync</code> (Schritt A6) — Single tenant, Plattform Mobile &amp; Desktop, tenant-scoped <code>…/oauth2/nativeclient</code>-URI (nie <code>/common/</code>), public client flows = Ja; <code>application_id</code> notieren.</li>
+<li>Werte im <strong>Browser-Terminal der VM</strong> hinterlegen: <code>bash /root/mitarbyte.sh idp</code> (fragt IDs, Secret und die Login-Adressen aller Mitarbeiter ab — exakt der UPN, kein Alias; das Secret bleibt auf eurer VM). Danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kurz Bescheid geben.</li>
+<li>Wir schalten frei und schicken jedem seine zwei Links. Anmeldung = normales Firmen-Login, kein weiteres Passwort.</li>
+</ol>
+</section>
+<section class="block" id="block-90-abschluss" data-block="90-abschluss" hidden>
+<h2 class="block-title">Wie es weitergeht</h2>
+<p>Sobald du die Nachricht aus der VM-Registrierung an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> geschickt hast, übernehmen wir:</p>
+<ol>
+<li><strong>Wir richten die VM vollständig ein</strong> — Betriebssystem-Härtung, KI-OS-Plattform, ein Arbeitsbereich pro Mitarbeiter (<span class="ph" data-ph="USERS">imran, philip</span>). Das dauert bei uns typischerweise weniger als einen Arbeitstag.</li>
+<li><strong>Jeder Mitarbeiter bekommt seine Zugangsdaten</strong> — eine kurze persönliche Nachricht mit allem, was er braucht. Je nach Setup sind das direkt nutzbare Browser-Links mit eurem Firmen-Login oder eine kurze lokale Einrichtung mit unserem Assistenten.</li>
+<li><strong>Erste Session</strong> — wir melden uns für den gemeinsamen Einstiegstermin. Dort richten wir das Unternehmenswissen ein und gehen die ersten Arbeitsabläufe durch.</li>
+</ol>
+<p>Danach läuft der Betrieb: Updates und Wartung macht Mitarbyte, ohne dass ihr etwas tun müsst. Den Zugriff könnt ihr jederzeit selbst entziehen (siehe „Zugang jederzeit entziehbar&quot; in den jeweiligen Kapiteln).</p>
+<blockquote><p>Noch offene Punkte aus dieser Anleitung? Kein Problem — Teile lassen sich in beliebiger Reihenfolge nachholen. Gib <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> einfach Bescheid, was noch fehlt.</p></blockquote>
+</section>
+</main>
+<footer>
+  Mitarbyte KI-OS · Diese Seite ist statisch und sendet nichts an einen
+  Server — Konfiguration lebt im Link, dein Fortschritt im Browser.
+</footer>
+<script>
+"use strict";
+var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
+
+/* ---- Konfiguration aus dem URL-Fragment (#c=<base64url(JSON)>) ---- */
+function readConfig() {
+  var h = location.hash || "";
+  var m = h.match(/[#&]c=([A-Za-z0-9_-]+)/);
+  if (!m) return null;
+  try {
+    var b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    var bytes = atob(b64);
+    var arr = new Uint8Array(bytes.length);
+    for (var i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return JSON.parse(new TextDecoder("utf-8").decode(arr));
+  } catch (e) {
+    return null;
+  }
+}
+
+var cfg = readConfig();
+var hadFragment = /[#&]c=/.test(location.hash || "");
+if (!cfg && hadFragment) document.getElementById("confwarn").hidden = false;
+cfg = cfg || {};
+
+/* ---- Sichtbarkeit: when-Bedingungen gegen die Config ---- */
+function listVal(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
+function visible(meta) {
+  for (var i = 0; i < meta.when.length; i++) {
+    var c = meta.when[i];
+    if (c.k === "mode" || c.k === "idp") {
+      var val = cfg[c.k];
+      if (val && val !== c.v) return false;
+      if (!val && c.k === "idp" && cfg.mode === "tunnel") return false;
+    } else if (c.k === "os") {
+      var os = listVal(cfg.os);
+      if (os.length && os.indexOf(c.v) < 0) return false;
+    } else if (c.k === "tool") {
+      var tools = listVal(cfg.tools);
+      if (tools.indexOf(c.v) < 0) return false;
+    }
+  }
+  return true;
+}
+
+/* ---- Platzhalter fuellen ---- */
+function userNames() {
+  return listVal(cfg.users).map(function (u) {
+    return typeof u === "string" ? u : (u.u || u.username || "");
+  }).filter(Boolean);
+}
+function phValue(name) {
+  var names = userNames();
+  switch (name) {
+    case "FIRMA": return cfg.firma || null;
+    case "ANSPRECHPARTNER": return cfg.ansprechpartner || null;
+    case "USERS": return names.length ? names.join(", ") : null;
+    case "VM_PLAN":
+      if (cfg.plan) return cfg.plan;
+      if (names.length) return names.length <= 2 ? "KVM 2" : "KVM 4";
+      return null;
+    case "REDIRECT_URI":
+      if (cfg.redirect_uri) return cfg.redirect_uri;
+      if (cfg.base_domain) return "https://auth." + cfg.base_domain + "/oauth2/callback";
+      return null;
+    default: return null;
+  }
+}
+Array.prototype.forEach.call(document.querySelectorAll(".ph"), function (el) {
+  var v = phValue(el.getAttribute("data-ph"));
+  if (v !== null) el.textContent = v;
+});
+if (cfg.firma) {
+  document.getElementById("pagetitle").textContent = "Technische Einrichtung — " + cfg.firma;
+  document.title = "KI-OS Einrichtung — " + cfg.firma;
+}
+
+/* ---- Kapitel einblenden + Navigation ---- */
+var toc = document.getElementById("toc");
+META.forEach(function (meta) {
+  var el = document.getElementById("block-" + meta.id);
+  if (!el) return;
+  if (visible(meta)) {
+    el.hidden = false;
+    if (meta.part !== "0") {
+      var a = document.createElement("a");
+      a.href = "#block-" + meta.id;
+      a.textContent = meta.title;
+      toc.appendChild(a);
+    }
+  } else {
+    el.remove();
+  }
+});
+
+/* ---- Checkliste: Zustand im localStorage, Fortschritt oben ---- */
+var storeKey = "ki-os-anleitung:" + (cfg.slug || "default");
+var state = {};
+try { state = JSON.parse(localStorage.getItem(storeKey) || "{}"); } catch (e) { state = {}; }
+function save() {
+  try { localStorage.setItem(storeKey, JSON.stringify(state)); } catch (e) {}
+}
+var steps = Array.prototype.slice.call(document.querySelectorAll("main h3.step"));
+function refresh() {
+  var done = 0;
+  steps.forEach(function (h) { if (state[h.id]) done++; });
+  var bar = document.getElementById("barfill");
+  bar.style.width = steps.length ? (100 * done / steps.length) + "%" : "0";
+  document.getElementById("count").textContent = done + " / " + steps.length + " Schritten";
+}
+steps.forEach(function (h) {
+  var box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = !!state[h.id];
+  box.setAttribute("aria-label", "Schritt erledigt");
+  var span = document.createElement("span");
+  span.className = "steptext";
+  while (h.firstChild) span.appendChild(h.firstChild);
+  h.appendChild(box);
+  h.appendChild(span);
+  if (box.checked) h.classList.add("done");
+  box.addEventListener("change", function () {
+    state[h.id] = box.checked;
+    if (!box.checked) delete state[h.id];
+    h.classList.toggle("done", box.checked);
+    save();
+    refresh();
+  });
+});
+if (steps.length) document.getElementById("progress").hidden = false;
+refresh();
+
+/* ---- Copy-Buttons auf Codebloecken ---- */
+Array.prototype.forEach.call(document.querySelectorAll(".codewrap"), function (wrap) {
+  var pre = wrap.querySelector("pre");
+  var btn = document.createElement("button");
+  btn.className = "copy";
+  btn.type = "button";
+  btn.textContent = "Kopieren";
+  btn.addEventListener("click", function () {
+    var text = pre.innerText.replace(/\n$/, "");
+    function ok() {
+      btn.textContent = "Kopiert ✓";
+      btn.classList.add("ok");
+      setTimeout(function () { btn.textContent = "Kopieren"; btn.classList.remove("ok"); }, 1600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok);
+    } else {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); ok(); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+  });
+  wrap.appendChild(btn);
+});
+</script>
+</body>
+</html>
