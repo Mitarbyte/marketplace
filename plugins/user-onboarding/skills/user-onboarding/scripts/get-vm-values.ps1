@@ -62,17 +62,24 @@ else
 fi
 '@ -replace "`r`n", "`n"
 
-# Das Here-String geht per stdin an `bash -s`. PowerShell kodiert die Pipeline zu
-# einem nativen Kommando mit $OutputEncoding - default ist das eine UTF-8-Variante
-# MIT BOM. Die drei BOM-Bytes landen dann VOR `set -u`, bash liest das als Teil des
-# ersten Wortes und quittiert mit `set: command not found`; weil `set -u` damit nie
-# greift, bricht das Skript still ab und der Gateway-Block unten laeuft nie -> das
-# Ergebnis war IMMER SSH_FAIL plus fehlende Gateway-URLs. Beobachtet bei
-# Marc/heimatwerft 2026-08-07. Darum hier explizit UTF-8 OHNE BOM ($false).
+# Das Here-String geht per stdin an `bash -s`. Zwei Windows-Fallstricke, beide
+# VM-seitig per `tr` weggeraeumt (der Remote-Snippet ist pure ASCII, darum ist
+# das Loeschen der Bytes im ganzen Stream gefahrlos - muss so bleiben):
+# 1. PowerShell haengt beim Pipen an ein natives Kommando einen CRLF-Terminator
+#    an die LETZTE Zeile - bash bekam `fi\r` statt `fi` und brach mit
+#    "unexpected end of file" ab, dadurch fehlten genau die Gateway-URLs
+#    (Jennifer/heimatwerft 2026-08-17). Das -replace oben normalisiert nur die
+#    INNEREN Zeilenenden, nicht diesen Terminator.
+# 2. $OutputEncoding ist default eine UTF-8-Variante MIT BOM - die drei
+#    BOM-Bytes landen VOR `set -u`, bash quittiert `set: command not found`
+#    und der Gateway-Block laeuft nie (Marc/heimatwerft 2026-08-07). Das
+#    UTF8Encoding($false) unten behebt das in pwsh 7, unter powershell.exe 5.1
+#    kam der BOM trotzdem durch - darum stehen seine Oktalbytes \357\273\277
+#    mit im tr-Satz.
 $prevOutputEncoding = $OutputEncoding
 $OutputEncoding = New-Object System.Text.UTF8Encoding $false
 try {
-    $out = $remote | & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm bash -s 2>&1
+    $out = $remote | & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm "tr -d '\r\357\273\277' | bash -s" 2>&1
 } finally {
     $OutputEncoding = $prevOutputEncoding
 }
