@@ -9,7 +9,12 @@
 #     -o /root/mitarbyte.sh && bash /root/mitarbyte.sh
 #
 # Modi:
-#   register  (Default)  Guards (root, Ubuntu 22.04/24.04 hard, E5-Groesse
+#   register  (Default)  FALLBACK seit Revision 2026-08-19: Der Normalweg ist
+#                        das Registrierungs-Formular der Anleitung (Web3Forms;
+#                        Bootstrap-Keys fuegt der Kunde im Hostinger-OS-Setup
+#                        ein). Dieser Modus bleibt fuer Kunden, bei denen
+#                        Formular oder Key-Feld nicht funktionieren:
+#                        Guards (root, Ubuntu 22.04/24.04 hard, E5-Groesse
 #                        weich) → Bootstrap-Keys append-dedupe nach
 #                        /root/.ssh/authorized_keys → Kurz-Interview →
 #                        /opt/mitarbyte/selfservice/registration.json →
@@ -19,14 +24,17 @@
 #                        Client-Secret via read -s) + Login-Mail pro User →
 #                        root-only idp.env + users-idp.txt. Das Secret
 #                        verlaesst die VM nie — der Motor liest es spaeter
-#                        per @vm:-Referenz (ssh, Heredoc).
+#                        per @vm:-Referenz (ssh, Heredoc). Laeuft auch OHNE
+#                        vorherige Registrierung (Formular-Pfad): dann werden
+#                        IdP-Typ + User-Namen interaktiv abgefragt.
 #   revoke               Mitarbyte-Zugang entziehen: Bootstrap-Keys aus
 #                        authorized_keys entfernen + /etc/ssh/ki-os_admin_keys
 #                        leeren.
 #
-# Idempotent: Re-Runs laden bestehende Werte als Defaults. Die VM ist der
-# Briefkasten — Rueckkanal ist ausschliesslich SSH (`ki-os-fleet intake pull`),
-# es gibt keinen Dritt-Kanal (plan: Revision 2026-08-11).
+# Idempotent: Re-Runs laden bestehende Werte als Defaults. Registrierungs-
+# Daten kommen seit Revision 2026-08-19 normal per Web3Forms-Formular
+# (nie Secrets); die VM bleibt der Briefkasten fuer alles Uebrige —
+# CLIENT_SECRET & Co. holt `ki-os-fleet intake pull` weiterhin nur per SSH.
 #
 # Source of Truth ist ki-os-template (scripts/selfservice/); ins Marketplace-
 # Repo spiegelt scripts/sync-onboarding-plugin.sh. bash-3.2-kompatibel, damit
@@ -309,14 +317,31 @@ ss_register() {
 # --- Modus: idp (Anleitung Teil 3) -------------------------------------------
 
 ss_idp() {
-    [ -f "$SS_REG" ] || ss_die "Keine Registrierung gefunden — bitte zuerst Teil 1 abschliessen (bash /root/mitarbyte.sh)."
-    local idp_type users
-    idp_type="$(ss_json_get "$SS_REG" idp_type)"
-    users="$(ss_json_get_users "$SS_REG")"
+    local idp_type="" users=""
+    if [ -f "$SS_REG" ]; then
+        idp_type="$(ss_json_get "$SS_REG" idp_type)"
+        users="$(ss_json_get_users "$SS_REG")"
+    else
+        # Formular-Pfad (Revision 2026-08-19): keine registration.json auf der
+        # VM — IdP-Typ + User-Namen interaktiv abfragen, Rest wie gehabt.
+        echo ""
+        echo "[i]  Keine Registrierung auf dieser VM gefunden — kein Problem"
+        echo "     (Registrierung lief per Formular). Zwei kurze Fragen vorab:"
+        while :; do
+            ss_ask "User-Namen wie im Registrierungs-Formular angegeben, durch Komma getrennt (z.B. max, erika)" ""
+            users="$(printf '%s' "$SS_ANSWER" | tr ',' ' ' | tr -s ' ')"
+            local ok=1 u
+            [ -n "$(printf '%s' "$users" | tr -d ' ')" ] || ok=0
+            for u in $users; do
+                ss_valid_username "$u" || { echo "     '${u}' ist ungueltig (Kleinbuchstaben/Ziffern/Bindestrich, 2-31 Zeichen, beginnt mit Buchstabe)."; ok=0; }
+            done
+            [ "$ok" = 1 ] && break
+        done
+    fi
 
     if [ "$idp_type" = "keins" ] || [ -z "$idp_type" ]; then
         while :; do
-            ss_ask "Bei der Registrierung war kein IdP angegeben — welchen nutzt ihr? (m365/google)" ""
+            ss_ask "Nutzt ihr Microsoft 365 oder Google Workspace? (m365/google)" ""
             idp_type="$(printf '%s' "$SS_ANSWER" | tr '[:upper:]' '[:lower:]')"
             case "$idp_type" in m365|google) break ;; esac
         done

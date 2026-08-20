@@ -178,6 +178,50 @@
   .ph { font-weight: 600; }
   pre .ph, code .ph { font-weight: inherit; }
 
+  /* ---- Selfservice-Formulare + Chooser ---- */
+  .ssform { margin: 0.9rem 0; }
+  .ssf {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--code-bg);
+    padding: 0.9rem 0.95rem;
+  }
+  .ssf label { display: block; margin: 0.55rem 0 0; font-size: 0.88rem; font-weight: 600; }
+  .ssf .ssf-sub { font-weight: 400; color: var(--muted); }
+  .ssf input[type="text"], .ssf input[type="email"], .ssf select {
+    display: block; width: 100%; margin-top: 0.25rem; padding: 0.45rem 0.6rem;
+    font: 0.92rem/1.4 var(--font-sans); color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  }
+  .ssf input:focus, .ssf select:focus {
+    outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent);
+  }
+  .ssf-bot { display: none !important; }
+  .ssf-warn { margin: 0.3rem 0 0; font-size: 0.8rem; color: #b45309; }
+  .ssf-status { margin: 0.8rem 0 0; padding: 0.5rem 0.7rem; border-radius: 6px; font-size: 0.9rem; }
+  .ssf-status.ok { background: rgba(61, 220, 151, 0.14); border: 1px solid var(--sb-ok, #3DDC97); }
+  .ssf-status.err { background: rgba(220, 61, 61, 0.10); border: 1px solid #c0392b; }
+  .ssf-btn {
+    margin-top: 0.8rem; font: 600 0.92rem/1.3 var(--font-sans); cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 0.55rem 1rem;
+  }
+  .ssf-btn:hover { filter: brightness(1.08); }
+  .ssf-btn[disabled] { opacity: 0.6; cursor: wait; }
+  .ssf-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--muted); }
+  .chooser {
+    margin-top: 1.1rem; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--code-bg); padding: 0.8rem 0.95rem;
+  }
+  .ch-title { font-family: var(--font-display); font-weight: 600; margin-bottom: 0.55rem; }
+  .ch-row { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+  .chbtn {
+    font: 0.9rem/1.3 var(--font-sans); cursor: pointer; border-radius: 8px;
+    padding: 0.5rem 0.95rem; background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .chbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .ch-change { margin-top: 0.9rem; font-size: 0.8rem; }
+  .ch-change a { color: var(--muted); }
+
   /* ---- Eingeklappte Meta-Abschnitte ({-}) ---- */
   details.meta {
     margin: 1.1rem 0; border: 1px solid var(--line); border-radius: 8px;
@@ -309,44 +353,50 @@
 <li>Bei der OS-Auswahl die Kategorie <strong>„Betriebssystem (ohne Panel)&quot;</strong> nehmen, also keine Vorlage mit Control-Panel (kein CyberPanel, kein CloudPanel etc.).</li>
 <li>Als OS <strong>Ubuntu 24.04 LTS</strong> auswählen.</li>
 </ol>
-<h3 class="step" id="10-vps-hostinger--schritt-3-root-passwort-und-hostname-setzen">Schritt 3 — Root-Passwort und Hostname setzen</h3>
+<h3 class="step" id="10-vps-hostinger--schritt-3-root-passwort-hostname-und-mitarbyte-schluessel-se">Schritt 3 — Root-Passwort, Hostname und Mitarbyte-Schlüssel setzen</h3>
 <ol>
-<li>Ein sicheres Root-Passwort vergeben und notieren (z.B. im Passwortmanager). Du brauchst es gleich für das Browser-Terminal.</li>
+<li>Ein sicheres Root-Passwort vergeben und notieren (z.B. im Passwortmanager).</li>
 <li>Den Hostname kannst du auf der Vorgabe lassen oder frei wählen.</li>
+<li>Wenn der Assistent nach einem <strong>SSH-Schlüssel</strong> fragt: die folgenden Zeilen mit dem Kopieren-Button übernehmen und <strong>komplett zusammen</strong> in das Feld einfügen — das ist der Mitarbyte-Zugang:</li>
+</ol>
+<div class="codewrap"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
+<ol start="4">
 <li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
 </ol>
+<blockquote><p>Feld übersehen oder der Assistent hat nicht gefragt? Kein Problem — der Schlüssel lässt sich jederzeit nachträglich hinterlegen: <strong>VPS → Einstellungen → SSH-Schlüssel → Hinzufügen</strong>, dort dieselben Zeilen einfügen.</p></blockquote>
 <h3 class="step" id="10-vps-hostinger--schritt-4-malware-scanner-und-backups-nicht-aktivieren">Schritt 4 — Malware-Scanner und Backups nicht aktivieren</h3>
 <p>Diese beiden Zusatzfunktionen nutzen wir bei Mitarbyte bewusst nicht:</p>
 <ul>
 <li><strong>Malware-Scanner:</strong> Wenn der Assistent oder ein Banner im VPS-Dashboard ihn anbietet, ablehnen und nicht installieren.</li>
 <li><strong>Backups:</strong> Unter <strong>VPS → Backups</strong> keine automatischen (wöchentlichen) Backups aktivieren. Falls voraktiviert, deaktivieren.</li>
 </ul>
-<h3 class="step" id="10-vps-hostinger--schritt-5-vm-registrieren-browser-terminal-eine-zeile">Schritt 5 — VM registrieren (Browser-Terminal, eine Zeile)</h3>
-<p>Die Registrierung läuft direkt auf der VM — kein Formular, keine Mail mit technischen Werten:</p>
+<h3 class="step" id="10-vps-hostinger--schritt-5-bei-mitarbyte-anmelden-formular">Schritt 5 — Bei Mitarbyte anmelden (Formular)</h3>
+<p>Zum Schluss noch kurz Bescheid geben, dass eure VM bereit ist — direkt hier auf der Seite. Die Antworten (Firmenname, User-Namen z.B. <code><span class="ph" data-ph="USERS">imran, philip</span></code>, IT-Ansprechpartner, IP und Hostname aus <strong>hPanel → VPS → Übersicht</strong>) gehen als Nachricht an Mitarbyte; Passwörter oder andere Geheimnisse werden <strong>nicht</strong> abgefragt.</p>
+<div class="ssform" data-form="registration"></div>
+<p>Das ist alles — wir übernehmen ab hier und melden uns, sobald alles läuft.</p>
+<details class="meta"><summary>Fallback: Registrierung im Browser-Terminal</summary>
+<p>Nur nötig, falls das Formular partout nicht funktioniert oder ihr den Schlüssel in Schritt 3 nicht hinterlegen konntet — die Registrierung geht auch direkt auf der VM:</p>
 <ol>
 <li>In <strong>hPanel → VPS → Übersicht</strong> auf <strong>„Browser-Terminal&quot;</strong> klicken (öffnet ein schwarzes Terminal-Fenster im Browser).</li>
 <li>Als Benutzer <code>root</code> mit dem Root-Passwort aus Schritt 3 anmelden.</li>
 <li>Diese eine Zeile einfügen (Rechtsklick → Einfügen) und Enter drücken:</li>
 </ol>
 <div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; bash /root/mitarbyte.sh</code></pre></div>
-<p>Das Skript richtet den Mitarbyte-Zugang ein und stellt dir 3–4 kurze Fragen (Firmenname, gewünschte User-Namen — am einfachsten die Vornamen der Mitarbeiter, z.B. <code><span class="ph" data-ph="USERS">imran, philip</span></code> —, IT-Ansprechpartner, ob ihr Microsoft 365 oder Google Workspace nutzt).</p>
-<ol start="4">
-<li>Am Ende zeigt das Skript eine <strong>fertige Nachricht an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span></strong>. Kopiere sie <strong>komplett</strong> und schick sie ihm (Mail oder Messenger, egal). Das ist alles — wir übernehmen ab hier und melden uns, sobald alles läuft.</li>
-</ol>
+<p>Das Skript richtet den Mitarbyte-Zugang ein, stellt dieselben 3–4 kurzen Fragen wie das Formular und zeigt am Ende eine fertige Nachricht an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> — komplett kopieren und schicken.</p>
 <blockquote><p>Falls beim Einfügen im Browser-Terminal nichts passiert: Die Zeile von Hand abtippen oder es mit <code>Strg+Umschalt+V</code> versuchen — das Browser-Terminal ist beim Einfügen manchmal eigen.</p></blockquote>
+</details>
 <details class="meta"><summary>Zugang jederzeit entziehbar</summary>
-<p>Den Mitarbyte-Zugang kannst du jederzeit selbst entfernen — im Browser-Terminal (wie in Schritt 5):</p>
-<div class="codewrap"><pre><code>bash /root/mitarbyte.sh revoke</code></pre></div>
+<p>Den Mitarbyte-Zugang kannst du jederzeit selbst entfernen — im Browser-Terminal (öffnen wie im Fallback-Abschnitt beschrieben, als <code>root</code> anmelden):</p>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; bash /root/mitarbyte.sh revoke</code></pre></div>
 <p>Danach kommt Mitarbyte nicht mehr auf die Maschine. (Wer ganz sicher gehen will: in hPanel das Betriebssystem neu installieren — das löscht allerdings alle Daten.) Wir empfehlen, damit bis zum Ende der Einrichtungs- und Betreuungsphase zu warten, damit wir dich so lange wie nötig unterstützen können.</p>
 </details>
 <details class="meta"><summary>TL;DR</summary>
 <ol>
 <li>Hostinger-Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong> kaufen, Rechenzentrum EU/Deutschland.</li>
 <li>OS-Setup: <strong>Ubuntu 24.04 LTS</strong> (ohne Panel).</li>
-<li>Root-Passwort setzen und notieren.</li>
+<li>Root-Passwort setzen und notieren; <strong>Mitarbyte-SSH-Schlüssel</strong> aus Schritt 3 einfügen.</li>
 <li><strong>Malware-Scanner aus, Backups aus.</strong></li>
-<li>Browser-Terminal öffnen, als <code>root</code> anmelden, den Mitarbyte-One-Liner ausführen und die 3–4 Fragen beantworten.</li>
-<li>Die vom Skript erzeugte Nachricht komplett an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kopieren. Fertig.</li>
+<li>Registrierungs-Formular auf dieser Seite ausfüllen und absenden. Fertig.</li>
 </ol>
 </details>
 </section>
@@ -455,9 +505,9 @@
 </section>
 <section class="block" id="block-30-tenant-app-google" data-block="30-tenant-app-google" hidden>
 <h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Google Workspace)</h2>
-<p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Google-Workspace-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin darf in eurer Google Cloud Console einen OAuth-Client anlegen.</p>
+<p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Google-Workspace-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit Zugang zur Google Cloud Console eures Unternehmens — dort wird eine App-Freigabe angelegt (Google nennt das „OAuth-Client&quot;).</p>
 <details class="meta"><summary>Wofür das gut ist</summary>
-<p>Mit der App-Registrierung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer 2-Faktor-Authentifizierung.</p>
+<p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
 <div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Cockpit</td><td>Steuerzentrale: geplante Aufgaben, Skills, Benachrichtigungen, Systemstatus</td></tr><tr><td>VM-Desktop</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen</td></tr></tbody></table></div>
 <p>Wichtig für die Einordnung:</p>
 <ul>
@@ -467,20 +517,17 @@
 <li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
 </ul>
 </details>
-<h3 class="step" id="30-tenant-app-google--die-redirect-uri-baut-ihr-selbst">Die Redirect-URI baut ihr selbst</h3>
-<p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die <strong>Redirect-URI</strong>. Ihr baut sie selbst zusammen, ohne Rückmeldung von Mitarbyte:</p>
-<ol>
-<li>In <strong>hPanel → VPS → Übersicht</strong> den Hostnamen eurer VM aus Teil 1 ablesen (Form: <code>srv123456.hstgr.cloud</code>).</li>
-<li>Davor <code>https://auth.</code> setzen, dahinter <code>/oauth2/callback</code>:</li>
-</ol>
+<h3 class="step" id="30-tenant-app-google--die-redirect-uri">Die Redirect-URI</h3>
+<p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die <strong>Redirect-URI</strong>. Tippe dazu einmal den Hostnamen eurer VM ein (steht in <strong>hPanel → VPS → Übersicht</strong>, aus Teil 1) — die fertige URL erscheint automatisch hier und in allen weiteren Schritten:</p>
+<div class="ssform" data-form="redirect-uri"></div>
 <div class="codewrap"><pre><code><span class="ph" data-ph="REDIRECT_URI">https://auth.srv123456.hstgr.cloud/oauth2/callback</span></code></pre></div>
-<p>Dabei <code>srv123456</code> durch die Nummer <strong>eures</strong> Hostnamens ersetzen, den Rest <strong>exakt so</strong> übernehmen — ein Tippfehler führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login.</p>
+<p>Ein Tippfehler im Hostnamen führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login — im Zweifel den Hostnamen noch einmal mit hPanel abgleichen.</p>
 <blockquote><p>Gut zu wissen: Diese eine URL gilt für <strong>alle</strong> Mitarbeiter und alle Links. Kommt später ein neuer Kollege dazu, muss an der App-Registrierung <strong>nichts</strong> geändert werden.</p></blockquote>
 <h3 class="step" id="30-tenant-app-google--schritt-b1-zustimmungsbildschirm-konfigurieren">Schritt B1 — Zustimmungsbildschirm konfigurieren</h3>
 <ol>
 <li>Öffne <a href="https://console.cloud.google.com" target="_blank" rel="noopener">https://console.cloud.google.com</a> und wähle oben euer Projekt (oder lege eines an, z.B. <code>Mitarbyte KI-OS</code>).</li>
 <li>Links <strong>„APIs &amp; Dienste&quot; → „OAuth-Zustimmungsbildschirm&quot;</strong>.</li>
-<li><strong>Nutzertyp: „Intern&quot;</strong> wählen. Damit können sich nur Konten eurer Workspace-Domain anmelden, und es ist <strong>kein</strong> Google-Verifizierungsverfahren nötig.</li>
+<li><strong>Nutzertyp: „Intern&quot;</strong> wählen. Damit können sich nur Konten eures Unternehmens anmelden — und Google verlangt keine zusätzliche App-Überprüfung.</li>
 <li>App-Name (<code>Mitarbyte KI-OS Gateway</code>) und Support-E-Mail eintragen, speichern.</li>
 </ol>
 <blockquote><p>Wenn wir für euch schon einen anderen Google-Zugang eingerichtet haben (z.B. Search Console), existiert dieses Projekt samt Zustimmungsbildschirm oft bereits — dann Schritt B1 überspringen und im selben Projekt weitermachen.</p></blockquote>
@@ -489,10 +536,12 @@
 <li>Links <strong>„APIs &amp; Dienste&quot; → „Anmeldedaten&quot;</strong> → <strong>„+ Anmeldedaten erstellen&quot;</strong> → <strong>„OAuth-Client-ID&quot;</strong>.</li>
 <li><strong>Anwendungstyp: „Webanwendung&quot;</strong> — <strong>nicht</strong> „Desktop-App&quot;.</li>
 <li><strong>Name:</strong> <code>Mitarbyte KI-OS Gateway</code>.</li>
-<li>Unter <strong>„Autorisierte Weiterleitungs-URIs&quot;</strong> auf <strong>„+ URI hinzufügen&quot;</strong> und die oben selbst gebaute URL einfügen.</li>
+<li>Unter <strong>„Autorisierte Weiterleitungs-URIs&quot;</strong> auf <strong>„+ URI hinzufügen&quot;</strong> und die Redirect-URI von oben einfügen.</li>
 <li><strong>„Erstellen&quot;</strong> klicken. Im Dialog danach <strong>Client-ID</strong> und <strong>Clientschlüssel</strong> kopieren.</li>
 </ol>
-<blockquote><p><strong>Ein vorhandener Google-Client aus einem anderen Setup ist hier nicht wiederverwendbar</strong>, wenn er vom Typ „Desktop-App&quot; ist — dieser Typ lässt sich nachträglich nicht ändern und akzeptiert keine HTTPS-Weiterleitungs-URI. Erkennen an der heruntergeladenen JSON-Datei: steht dort oben <code>&quot;installed&quot;</code>, ist es ein Desktop-Client (untauglich); <code>&quot;web&quot;</code> ist richtig. Im Zweifel einfach einen neuen Webanwendungs-Client anlegen.</p></blockquote>
+<details class="meta"><summary>Vorhandener Google-Client aus einem anderen Setup?</summary>
+<p>Ein bestehender Client ist hier <strong>nicht wiederverwendbar</strong>, wenn er vom Typ „Desktop-App&quot; ist — dieser Typ lässt sich nachträglich nicht ändern und akzeptiert keine HTTPS-Weiterleitungs-URI. Erkennen an der heruntergeladenen JSON-Datei: steht dort oben <code>&quot;installed&quot;</code>, ist es ein Desktop-Client (untauglich); <code>&quot;web&quot;</code> ist richtig. Im Zweifel einfach einen neuen Webanwendungs-Client anlegen (Schritt B2).</p>
+</details>
 <h3 class="step" id="30-tenant-app-google--schritt-b3-checkliste-diese-zwei-werte-hast-du-jetzt">Schritt B3 — Checkliste: diese zwei Werte hast du jetzt</h3>
 <div class="codewrap"><pre><code>CLIENT_ID      = 123456789012-abcdefghijklmnop.apps.googleusercontent.com
 CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
@@ -500,12 +549,12 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <h3 class="step" id="30-tenant-app-google--werte-uebergeben-im-browser-terminal-der-vm">Werte übergeben: im Browser-Terminal der VM</h3>
 <p>Die Werte aus B3 (plus die Login-Adressen der Mitarbeiter) übergibst du direkt auf eurer VM — <strong>nichts davon geht per Mail oder Chat</strong>, das Secret verlässt eure VM nie:</p>
 <ol>
-<li>In <strong>hPanel → VPS → Übersicht</strong> wieder das <strong>Browser-Terminal</strong> öffnen und als <code>root</code> anmelden (wie in Teil 1, Schritt 5).</li>
-<li>Diese Zeile ausführen:</li>
+<li>In <strong>hPanel → VPS → Übersicht</strong> das <strong>Browser-Terminal</strong> öffnen (schwarzes Terminal-Fenster im Browser) und als <code>root</code> mit dem Root-Passwort aus Teil 1 anmelden.</li>
+<li>Diese Zeile einfügen (Rechtsklick → Einfügen) und Enter drücken:</li>
 </ol>
-<div class="codewrap"><pre><code>bash /root/mitarbyte.sh idp</code></pre></div>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; bash /root/mitarbyte.sh idp</code></pre></div>
 <ol start="3">
-<li>Das Skript fragt die Werte einzeln ab: <code>CLIENT_ID</code> und <code>CLIENT_SECRET</code> — die Secret-Eingabe bleibt unsichtbar, das ist Absicht. Zum Schluss <strong>pro Mitarbeiter die Google-Konto-E-Mail-Adresse</strong>.</li>
+<li>Das Skript fragt die Werte einzeln ab: <code>CLIENT_ID</code> und <code>CLIENT_SECRET</code> — die Secret-Eingabe bleibt unsichtbar, das ist Absicht. Zum Schluss <strong>pro Mitarbeiter die Google-Konto-E-Mail-Adresse</strong> (für die bei der Registrierung angegebenen User, z.B. <code><span class="ph" data-ph="USERS">imran, philip</span></code>).</li>
 <li>Danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> <strong>kurz Bescheid geben</strong> („Teil 3 ist erledigt&quot;) — dann geht&#x27;s bei uns weiter. Tippfehler oder ein neues Secret? Einfach denselben Befehl noch einmal ausführen, er übernimmt die bisherigen Werte als Vorschlag.</li>
 </ol>
 <blockquote><p>Fallback, falls das Browser-Terminal partout nicht will: Werte ausnahmsweise über <a href="https://onetimesecret.com/" target="_blank" rel="noopener">onetimesecret.com</a> an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken (den Clientschlüssel nie per normaler Mail) — das Terminal ist aber der Normalweg.</p></blockquote>
@@ -518,7 +567,7 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 </details>
 <details class="meta"><summary>TL;DR</summary>
 <ol>
-<li>Redirect-URI selbst bauen: Hostname aus hPanel → VPS → Übersicht, davor <code>https://auth.</code>, dahinter <code>/oauth2/callback</code>.</li>
+<li>Redirect-URI: Hostname aus hPanel → VPS → Übersicht oben ins Feld tippen — die fertige URL erscheint überall in der Anleitung.</li>
 <li>Cloud Console → Zustimmungsbildschirm <strong>Intern</strong> → Anmeldedaten → OAuth-Client <strong>Webanwendung</strong> mit der Redirect-URI. <code>CLIENT_ID</code> + <code>CLIENT_SECRET</code> notieren.</li>
 <li>Werte im <strong>Browser-Terminal der VM</strong> hinterlegen: <code>bash /root/mitarbyte.sh idp</code> (fragt IDs, Secret und die Login-Adressen aller Mitarbeiter ab; das Secret bleibt auf eurer VM). Danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kurz Bescheid geben.</li>
 <li>Wir schalten frei und schicken jedem seine zwei Links. Anmeldung = normales Firmen-Login, kein weiteres Passwort.</li>
@@ -527,9 +576,9 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 </section>
 <section class="block" id="block-30-tenant-app-m365" data-block="30-tenant-app-m365" hidden>
 <h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Microsoft 365)</h2>
-<p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Microsoft-365-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin darf in eurem Microsoft 365 (Entra ID) eine App-Registrierung anlegen.</p>
+<p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Microsoft-365-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit dem Recht, in eurem Microsoft 365 neue Apps einzutragen — Microsoft nennt das „App-Registrierung&quot;.</p>
 <details class="meta"><summary>Wofür das gut ist</summary>
-<p>Mit der Tenant App erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer MFA und eurer Conditional-Access-Regeln.</p>
+<p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
 <div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Cockpit</td><td>Steuerzentrale: geplante Aufgaben, Skills, Benachrichtigungen, Systemstatus</td></tr><tr><td>VM-Desktop</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen</td></tr></tbody></table></div>
 <p>Wichtig für die Einordnung:</p>
 <ul>
@@ -539,14 +588,11 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
 </ul>
 </details>
-<h3 class="step" id="30-tenant-app-m365--die-redirect-uri-baut-ihr-selbst">Die Redirect-URI baut ihr selbst</h3>
-<p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die <strong>Redirect-URI</strong>. Ihr baut sie selbst zusammen, ohne Rückmeldung von Mitarbyte:</p>
-<ol>
-<li>In <strong>hPanel → VPS → Übersicht</strong> den Hostnamen eurer VM aus Teil 1 ablesen (Form: <code>srv123456.hstgr.cloud</code>).</li>
-<li>Davor <code>https://auth.</code> setzen, dahinter <code>/oauth2/callback</code>:</li>
-</ol>
+<h3 class="step" id="30-tenant-app-m365--die-redirect-uri">Die Redirect-URI</h3>
+<p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die <strong>Redirect-URI</strong>. Tippe dazu einmal den Hostnamen eurer VM ein (steht in <strong>hPanel → VPS → Übersicht</strong>, aus Teil 1) — die fertige URL erscheint automatisch hier und in allen weiteren Schritten:</p>
+<div class="ssform" data-form="redirect-uri"></div>
 <div class="codewrap"><pre><code><span class="ph" data-ph="REDIRECT_URI">https://auth.srv123456.hstgr.cloud/oauth2/callback</span></code></pre></div>
-<p>Dabei <code>srv123456</code> durch die Nummer <strong>eures</strong> Hostnamens ersetzen, den Rest <strong>exakt so</strong> übernehmen — ein Tippfehler führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login.</p>
+<p>Ein Tippfehler im Hostnamen führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login — im Zweifel den Hostnamen noch einmal mit hPanel abgleichen.</p>
 <blockquote><p>Gut zu wissen: Diese eine URL gilt für <strong>alle</strong> Mitarbeiter und alle Links. Kommt später ein neuer Kollege dazu, muss an der App-Registrierung <strong>nichts</strong> geändert werden.</p></blockquote>
 <h3 class="step" id="30-tenant-app-m365--schritt-a1-app-registrierung-anlegen">Schritt A1 — App-Registrierung anlegen</h3>
 <ol>
@@ -555,8 +601,8 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li>Felder:</li>
 <ul>
 <li><strong>Name:</strong> <code>Mitarbyte KI-OS Gateway</code></li>
-<li><strong>Unterstützte Kontotypen:</strong> <strong>„Nur Konten in diesem Organisationsverzeichnis&quot;</strong> (Single tenant) — Pflicht, damit sich nur eure eigenen Mitarbeiter anmelden können.</li>
-<li><strong>Umleitungs-URI:</strong> Plattform <strong>„Web&quot;</strong>, daneben die oben gebaute URL.</li>
+<li><strong>Unterstützte Kontotypen:</strong> <strong>„Nur Konten in diesem Organisationsverzeichnis&quot;</strong> — Pflicht: so können sich nur eure eigenen Mitarbeiter anmelden. (In englischen Anleitungen heißt diese Option „Single tenant&quot;.)</li>
+<li><strong>Umleitungs-URI:</strong> Plattform <strong>„Web&quot;</strong>, daneben die Redirect-URI von oben einfügen.</li>
 </ul>
 <li><strong>„Registrieren&quot;</strong> klicken.</li>
 </ol>
@@ -575,13 +621,13 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li><strong>„Hinzufügen&quot;</strong>, dann in der Spalte <strong>„Wert&quot;</strong> das Copy-Icon klicken und den Wert <strong>sofort</strong> in den Passwortmanager einfügen.</li>
 </ol>
 <blockquote><p>Nach dem Verlassen oder Neuladen der Seite ist der Wert maskiert und für immer weg. Wenn das passiert: alten Schlüssel löschen, neuen erzeugen.</p><p><strong>Notier dir das Ablaufdatum.</strong> Läuft das Secret ab, funktioniert der Login für alle nicht mehr. Wir erinnern euch rechtzeitig — der Austausch dauert dann fünf Minuten.</p></blockquote>
-<h3 class="step" id="30-tenant-app-m365--schritt-a4-berechtigungen-pruefen-und-consent-geben">Schritt A4 — Berechtigungen prüfen und Consent geben</h3>
+<h3 class="step" id="30-tenant-app-m365--schritt-a4-berechtigungen-pruefen-und-zustimmung-erteilen">Schritt A4 — Berechtigungen prüfen und Zustimmung erteilen</h3>
 <ol>
-<li><strong>„API-Berechtigungen&quot;</strong> öffnen: Der Standard-Eintrag <strong><code>User.Read</code></strong> (delegiert) <strong>reicht, es muss nichts hinzugefügt werden</strong> — die App braucht nur Name und E-Mail des Anmeldenden.</li>
+<li><strong>„API-Berechtigungen&quot;</strong> öffnen: Der Standard-Eintrag <strong><code>User.Read</code></strong> <strong>reicht, es muss nichts hinzugefügt werden</strong> — die App braucht nur Name und E-Mail des Anmeldenden.</li>
 <li>Über der Tabelle <strong>„Administratorzustimmung für [Organisation] erteilen&quot;</strong> klicken und mit <strong>„Ja&quot;</strong> bestätigen.</li>
 <ul>
-<li>Ohne diesen Klick sehen die Mitarbeiter beim ersten Login einen Zustimmungsdialog oder — je nach Tenant-Einstellung — eine Sperre.</li>
-<li>Ist der Button grau: Du bist kein Admin → bitte einen Global Admin um genau diesen Klick.</li>
+<li>Ohne diesen Klick sehen die Mitarbeiter beim ersten Login einen Zustimmungsdialog oder — je nach Einstellung — eine Sperre.</li>
+<li>Ist der Button grau: Dir fehlt das Admin-Recht → bitte einen Global Admin um genau diesen Klick.</li>
 </ul>
 </ol>
 <h3 class="step" id="30-tenant-app-m365--schritt-a5-checkliste-diese-drei-werte-hast-du-jetzt">Schritt A5 — Checkliste: diese drei Werte hast du jetzt</h3>
@@ -596,8 +642,8 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>Felder:</li>
 <ul>
 <li><strong>Name:</strong> <code>Mitarbyte KI-OS Cloud-Sync</code></li>
-<li><strong>Unterstützte Kontotypen:</strong> <strong>„Nur Konten in diesem Organisationsverzeichnis&quot;</strong> (Single tenant).</li>
-<li><strong>Umleitungs-URI:</strong> Plattform <strong>„Öffentlicher Client/nativ (mobil &amp; Desktop)&quot;</strong> (<strong>nicht</strong> „Web&quot; wie bei der Gateway-App), daneben diese URL — mit <strong>eurer</strong> <code>TENANT_ID</code> aus Schritt A2:</li>
+<li><strong>Unterstützte Kontotypen:</strong> <strong>„Nur Konten in diesem Organisationsverzeichnis&quot;</strong> (wie bei der ersten App).</li>
+<li><strong>Umleitungs-URI:</strong> Plattform <strong>„Öffentlicher Client/nativ (mobil &amp; Desktop)&quot;</strong> — diesmal <strong>nicht</strong> „Web&quot; —, daneben diese URL mit <strong>eurer</strong> <code>TENANT_ID</code> aus Schritt A2:</li>
 </ul>
 </ol>
 <div class="codewrap"><pre><code>https://login.microsoftonline.com/&lt;TENANT_ID&gt;/oauth2/nativeclient</code></pre></div>
@@ -605,7 +651,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <ol start="3">
 <li><strong>„Registrieren&quot;</strong> klicken.</li>
 <li><strong>„Authentifizierung&quot;</strong> → unter <strong>„Erweiterte Einstellungen&quot;</strong> die Option <strong>„Öffentliche Clientflows zulassen&quot;</strong> auf <strong>„Ja&quot;</strong> stellen und speichern. Diese App hat bewusst <strong>kein</strong> Client-Secret.</li>
-<li><strong>„API-Berechtigungen&quot;</strong> → <strong>„+ Berechtigung hinzufügen&quot;</strong> → <strong>Microsoft Graph</strong> → <strong>„Delegierte Berechtigungen&quot;</strong> (hier ausnahmsweise NICHT „Anwendungsberechtigungen&quot; — der Sync handelt immer als der angemeldete Mitarbeiter) → nacheinander suchen und ankreuzen: <code>Files.ReadWrite</code>, <code>Files.ReadWrite.All</code>, <code>Sites.ReadWrite.All</code>, <code>offline_access</code> → <strong>„Berechtigungen hinzufügen&quot;</strong>.</li>
+<li><strong>„API-Berechtigungen&quot;</strong> → <strong>„+ Berechtigung hinzufügen&quot;</strong> → <strong>Microsoft Graph</strong> → <strong>„Delegierte Berechtigungen&quot;</strong> (nicht „Anwendungsberechtigungen&quot; — der Sync handelt immer als der angemeldete Mitarbeiter) → nacheinander suchen und ankreuzen: <code>Files.ReadWrite</code>, <code>Files.ReadWrite.All</code>, <code>Sites.ReadWrite.All</code>, <code>offline_access</code> → <strong>„Berechtigungen hinzufügen&quot;</strong>.</li>
 <li>Über der Tabelle <strong>„Administratorzustimmung für [Organisation] erteilen&quot;</strong> klicken und bestätigen — sonst sieht jeder Mitarbeiter beim ersten Sync-Login einen Zustimmungsdialog.</li>
 <li>Von der <strong>Übersicht</strong>-Seite die <strong>„Anwendungs-ID (Client)&quot;</strong> kopieren und notieren — sie wird bei <strong>Werte übergeben</strong> (unten) mit abgefragt. Diese <code>application_id</code> ist <strong>kein Geheimnis</strong> (die App hat bewusst kein Secret).</li>
 </ol>
@@ -614,12 +660,12 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <h3 class="step" id="30-tenant-app-m365--werte-uebergeben-im-browser-terminal-der-vm">Werte übergeben: im Browser-Terminal der VM</h3>
 <p>Alle Werte aus A5 (plus die Login-Adressen der Mitarbeiter) übergibst du direkt auf eurer VM — <strong>nichts davon geht per Mail oder Chat</strong>, das Secret verlässt eure VM nie:</p>
 <ol>
-<li>In <strong>hPanel → VPS → Übersicht</strong> wieder das <strong>Browser-Terminal</strong> öffnen und als <code>root</code> anmelden (wie in Teil 1, Schritt 5).</li>
-<li>Diese Zeile ausführen:</li>
+<li>In <strong>hPanel → VPS → Übersicht</strong> das <strong>Browser-Terminal</strong> öffnen (schwarzes Terminal-Fenster im Browser) und als <code>root</code> mit dem Root-Passwort aus Teil 1 anmelden.</li>
+<li>Diese Zeile einfügen (Rechtsklick → Einfügen) und Enter drücken:</li>
 </ol>
-<div class="codewrap"><pre><code>bash /root/mitarbyte.sh idp</code></pre></div>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; bash /root/mitarbyte.sh idp</code></pre></div>
 <ol start="3">
-<li>Das Skript fragt die Werte einzeln ab (mit Prüfung auf Tippfehler): <code>TENANT_ID</code>, <code>CLIENT_ID</code>, <code>CLIENT_SECRET</code> — die Secret-Eingabe bleibt unsichtbar, das ist Absicht. Falls ihr die optionale Cloud-Sync-App angelegt habt, danach optional deren <code>application_id</code>. Zum Schluss <strong>pro Mitarbeiter die Login-E-Mail-Adresse</strong> — exakt den <strong>UPN</strong> (die Anmelde-Adresse, mit der sich der Mitarbeiter bei Microsoft anmeldet), <strong>keine Alias-Adresse</strong>: sonst funktioniert der Login zwar, der Zugriff wird aber trotzdem mit 403 abgewiesen.</li>
+<li>Das Skript fragt die Werte einzeln ab (mit Prüfung auf Tippfehler): <code>TENANT_ID</code>, <code>CLIENT_ID</code>, <code>CLIENT_SECRET</code> — die Secret-Eingabe bleibt unsichtbar, das ist Absicht. Falls ihr die optionale Cloud-Sync-App angelegt habt, danach optional deren <code>application_id</code>. Zum Schluss <strong>pro Mitarbeiter die Login-E-Mail-Adresse</strong> (für die bei der Registrierung angegebenen User, z.B. <code><span class="ph" data-ph="USERS">imran, philip</span></code>) — exakt den <strong>UPN</strong> (die Anmelde-Adresse, mit der sich der Mitarbeiter bei Microsoft anmeldet), <strong>keine Alias-Adresse</strong>: sonst funktioniert der Login zwar, der Zugriff wird aber trotzdem mit 403 abgewiesen.</li>
 <li>Zum Schluss <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> <strong>kurz Bescheid geben</strong> („Teil 3 ist erledigt&quot;) — dann geht&#x27;s bei uns weiter. Tippfehler oder ein neues Secret? Einfach denselben Befehl noch einmal ausführen, er übernimmt die bisherigen Werte als Vorschlag.</li>
 </ol>
 <blockquote><p>Fallback, falls das Browser-Terminal partout nicht will: Werte ausnahmsweise über <a href="https://onetimesecret.com/" target="_blank" rel="noopener">onetimesecret.com</a> an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken (das <code>CLIENT_SECRET</code> nie per normaler Mail) — das Terminal ist aber der Normalweg.</p></blockquote>
@@ -632,9 +678,9 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 </details>
 <details class="meta"><summary>TL;DR</summary>
 <ol>
-<li>Redirect-URI selbst bauen: Hostname aus hPanel → VPS → Übersicht, davor <code>https://auth.</code>, dahinter <code>/oauth2/callback</code>.</li>
+<li>Redirect-URI: Hostname aus hPanel → VPS → Übersicht oben ins Feld tippen — die fertige URL erscheint überall in der Anleitung.</li>
 <li>Entra → App-Registrierungen → Neue Registrierung, <strong>Single tenant</strong>, Redirect-URI als <strong>Web</strong>. <code>CLIENT_ID</code> + <code>TENANT_ID</code> notieren, Client-Secret erzeugen (24 Monate), <strong>Admin-Zustimmung</strong> klicken. Keine zusätzlichen Berechtigungen nötig.</li>
-<li><strong>Nur bei vereinbartem Cloud-Sync:</strong> zweite App <code>Mitarbyte KI-OS Cloud-Sync</code> (Abschnitt „Optional: zweite App&quot;) — Single tenant, Plattform Mobile &amp; Desktop, tenant-scoped <code>…/oauth2/nativeclient</code>-URI (nie <code>/common/</code>), public client flows = Ja; <code>application_id</code> notieren.</li>
+<li><strong>Nur bei vereinbartem Cloud-Sync:</strong> zweite App <code>Mitarbyte KI-OS Cloud-Sync</code> (Abschnitt „Optional: zweite App&quot;) — gleiche Kontotypen-Wahl, Plattform Mobile &amp; Desktop, <code>…/oauth2/nativeclient</code>-URI mit eurer Tenant-ID (nie <code>/common/</code>), öffentliche Clientflows = Ja; <code>application_id</code> notieren.</li>
 <li>Werte im <strong>Browser-Terminal der VM</strong> hinterlegen: <code>bash /root/mitarbyte.sh idp</code> (fragt IDs, Secret und die Login-Adressen aller Mitarbeiter ab — exakt der UPN, kein Alias; das Secret bleibt auf eurer VM). Danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kurz Bescheid geben.</li>
 <li>Wir schalten frei und schicken jedem seine zwei Links. Anmeldung = normales Firmen-Login, kein weiteres Passwort.</li>
 </ol>
@@ -657,15 +703,68 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
     <button id="nextbtn" type="button">Weiter: <span id="nextlabel"></span> →</button>
   </div>
   <footer>
-    Mitarbyte KI-OS · Diese Seite ist statisch und sendet nichts an einen
-    Server — Konfiguration lebt im Link, dein Fortschritt im Browser.
+    Mitarbyte KI-OS · Konfiguration und Fortschritt bleiben im Link bzw. in
+    deinem Browser; nur beim Absenden des Registrierungs-Formulars werden
+    eure Antworten an Mitarbyte übermittelt (via Web3Forms).
     · <a href="#" id="showall">Alle Teile auf einer Seite anzeigen</a>
   </footer>
 </div>
 <div id="backdrop"></div>
+
+<template id="tpl-form-registration">
+  <form class="ssf" novalidate>
+    <label>Firmenname
+      <input name="firma" type="text" autocomplete="organization">
+    </label>
+    <label>Gewünschte User-Namen <span class="ssf-sub">(am einfachsten die Vornamen, durch Komma getrennt)</span>
+      <input name="users" type="text" placeholder="z.B. imran, philip" autocomplete="off">
+    </label>
+    <div class="ssf-warn" data-warn="users" hidden></div>
+    <label>IT-Ansprechpartner — Name
+      <input name="it_name" type="text" autocomplete="name">
+    </label>
+    <label>IT-Ansprechpartner — E-Mail
+      <input name="it_mail" type="email" autocomplete="email">
+    </label>
+    <label data-field="idp">Nutzt ihr Microsoft 365 oder Google Workspace?
+      <select name="idp">
+        <option value="m365">Microsoft 365</option>
+        <option value="google">Google Workspace</option>
+        <option value="keins">Keins von beiden</option>
+      </select>
+    </label>
+    <label>IP-Adresse der VM <span class="ssf-sub">(hPanel → VPS → Übersicht)</span>
+      <input name="vm_ip" type="text" inputmode="decimal" placeholder="z.B. 203.0.113.10" autocomplete="off">
+    </label>
+    <label>Hostname der VM <span class="ssf-sub">(ebenfalls in der Übersicht)</span>
+      <input name="vm_host" type="text" data-host-field placeholder="srv123456.hstgr.cloud" autocomplete="off">
+    </label>
+    <input type="checkbox" name="botcheck" class="ssf-bot" tabindex="-1" autocomplete="off">
+    <input type="hidden" name="slug">
+    <div class="ssf-status" hidden></div>
+    <button type="submit" class="ssf-btn">Registrierung absenden</button>
+    <p class="ssf-note">Beim Absenden werden diese Antworten (keine Passwörter,
+    keine Geheimnisse) an Mitarbyte übermittelt (via Web3Forms).</p>
+  </form>
+</template>
+
+<template id="tpl-form-redirect-uri">
+  <div class="ssf">
+    <label>Hostname eurer VM <span class="ssf-sub">(hPanel → VPS → Übersicht, Form <code>srv123456.hstgr.cloud</code>)</span>
+      <input type="text" data-host-field placeholder="srv123456.hstgr.cloud" autocomplete="off">
+    </label>
+    <p class="ssf-note">Eure Redirect-URI erscheint damit automatisch an allen
+    Stellen dieser Seite — nichts selbst zusammenbauen.</p>
+  </div>
+</template>
+
 <script>
 "use strict";
 var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
+/* Web3Forms Access-Key: public by design (Alias auf das Empfaenger-Postfach,
+   kein Secret; Mitarbyte-Account, eingerichtet 2026-08-20). */
+var W3F_KEY = "74e9fc47-c48c-422d-be31-e769dcec6a45";
+var W3F_URL = "https://api.web3forms.com/submit";
 
 /* ---- Konfiguration aus dem URL-Fragment (#c=<base64url(JSON)>) ---- */
 function readConfig() {
@@ -688,6 +787,39 @@ var cfg = readConfig();
 var hadFragment = /[#&]c=/.test(location.hash || "");
 if (!cfg && hadFragment) document.getElementById("confwarn").hidden = false;
 cfg = cfg || {};
+
+/* ---- Checkliste/Chooser-State: Schluessel frueh, weil der Chooser-Overlay
+   VOR dem Seitenaufbau in cfg eingreift ---- */
+var storeKey = "ki-os-anleitung:" + (cfg.slug || "default");
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+/* ---- Chooser-Overlay: fehlt os/idp im Fragment, entscheidet der Leser
+   selbst (Wahl in localStorage, Kapitel via location.reload()). visible()
+   bleibt unangetastet: "__keins__" matcht keine when-Bedingung und
+   versteckt damit beide Varianten, bis gewaehlt wurde. ---- */
+var origIdp = cfg.idp;
+var osChooser = false, idpChooser = false;
+if (!listVal(cfg.os).length) {
+  var storedOs = null;
+  try { storedOs = JSON.parse(lsGet(storeKey + ":os") || "null"); } catch (e) {}
+  if (storedOs && storedOs.length) { cfg.os = storedOs; osChooser = "set"; }
+  else { cfg.os = ["__keins__"]; osChooser = true; }
+}
+if (cfg.mode === "gateway" && !cfg.idp) {
+  var storedIdp = lsGet(storeKey + ":idp");
+  if (storedIdp) { cfg.idp = storedIdp; idpChooser = "set"; }
+  else { cfg.idp = "__keins__"; idpChooser = true; }
+}
+
+/* ---- JS-Ports aus selfservice.sh (ss_slugify / ss_valid_username) ---- */
+function slugifyJs(text) {
+  return String(text || "").toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+function validUsername(u) { return /^[a-z][a-z0-9-]{1,30}$/.test(u); }
 
 /* ---- Sichtbarkeit: when-Bedingungen gegen die Config ---- */
 function listVal(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
@@ -753,8 +885,7 @@ META.forEach(function (meta) {
   }
 });
 
-/* ---- Checkliste: Zustand im localStorage ---- */
-var storeKey = "ki-os-anleitung:" + (cfg.slug || "default");
+/* ---- Checkliste: Zustand im localStorage (storeKey s. oben) ---- */
 var state = {};
 try { state = JSON.parse(localStorage.getItem(storeKey) || "{}"); } catch (e) { state = {}; }
 function save() {
@@ -927,9 +1058,61 @@ window.addEventListener("hashchange", function () {
   if (pid && (current < 0 || !pages[current] || pid !== pages[current].id)) go(pid, true);
 });
 
-/* ---- Intro-Landing: klickbare Teile-Uebersicht ---- */
+/* ---- Intro-Landing: Chooser (os/idp) + klickbare Teile-Uebersicht ---- */
+function chooserCard(title, opts, key) {
+  var div = document.createElement("div");
+  div.className = "chooser";
+  var h = document.createElement("div");
+  h.className = "ch-title";
+  h.textContent = title;
+  div.appendChild(h);
+  var row = document.createElement("div");
+  row.className = "ch-row";
+  opts.forEach(function (o) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chbtn";
+    b.textContent = o.label;
+    b.addEventListener("click", function () {
+      lsSet(storeKey + ":" + key, o.value);
+      location.reload();
+    });
+    row.appendChild(b);
+  });
+  div.appendChild(row);
+  return div;
+}
+function changeLink(text, key) {
+  var p = document.createElement("p");
+  p.className = "ch-change";
+  var a = document.createElement("a");
+  a.href = "#";
+  a.textContent = text;
+  a.addEventListener("click", function (e) {
+    e.preventDefault();
+    lsDel(storeKey + ":" + key);
+    location.reload();
+  });
+  p.appendChild(a);
+  return p;
+}
 var intro = document.getElementById("block-00-intro");
 if (intro) {
+  if (osChooser === true) {
+    intro.appendChild(chooserCard(
+      "Womit arbeitet ihr? Danach richtet sich Teil 2 der Anleitung.",
+      [{ label: "Mac", value: '["mac"]' },
+       { label: "Windows", value: '["win"]' },
+       { label: "Beides", value: '["mac","win"]' }], "os"));
+  }
+  if (idpChooser === true) {
+    intro.appendChild(chooserCard(
+      "Nutzt ihr Microsoft 365 oder Google Workspace? Danach richtet sich Teil 3.",
+      [{ label: "Microsoft 365", value: "m365" },
+       { label: "Google Workspace", value: "google" }], "idp"));
+  }
+  if (osChooser === "set") intro.appendChild(changeLink("Betriebssystem ändern", "os"));
+  if (idpChooser === "set") intro.appendChild(changeLink("Firmen-Login (M365/Google) ändern", "idp"));
   var ov = document.createElement("div");
   ov.className = "overview";
   pages.forEach(function (p) {
@@ -1008,6 +1191,169 @@ Array.prototype.forEach.call(document.querySelectorAll(".codewrap"), function (w
   });
   wrap.appendChild(btn);
 });
+
+/* ---- Redirect-URI-Widget: EIN geteilter Hostname-State fuer alle
+   data-host-field-Eingaben; live in alle REDIRECT_URI-Platzhalter ---- */
+function getHost() {
+  return lsGet(storeKey + ":host") || cfg.base_domain || "";
+}
+function updateRedirectSpans() {
+  var h = getHost();
+  if (!h) return;
+  var uri = "https://auth." + h + "/oauth2/callback";
+  Array.prototype.forEach.call(
+    document.querySelectorAll('.ph[data-ph="REDIRECT_URI"]'),
+    function (el) { el.textContent = uri; });
+}
+function setHost(v, from) {
+  v = String(v || "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  if (v) lsSet(storeKey + ":host", v);
+  Array.prototype.forEach.call(
+    document.querySelectorAll("input[data-host-field]"),
+    function (inp) { if (inp !== from && inp.value !== v) inp.value = v; });
+  updateRedirectSpans();
+}
+function initHostFields(rootEl) {
+  Array.prototype.forEach.call(
+    rootEl.querySelectorAll("input[data-host-field]"),
+    function (inp) {
+      inp.value = getHost();
+      inp.addEventListener("input", function () { setHost(inp.value, inp); });
+    });
+}
+
+/* ---- Registrierungs-Formular (Web3Forms; Antworten sind nie geheim) ---- */
+function initRegForm(slot) {
+  var form = slot.querySelector("form");
+  var statusEl = form.querySelector(".ssf-status");
+  var btn = form.querySelector(".ssf-btn");
+  var warnEl = form.querySelector('[data-warn="users"]');
+  var fieldNames = ["firma", "users", "it_name", "it_mail", "idp", "vm_ip", "vm_host"];
+
+  /* IdP-Frage nur, wenn das Fragment keinen IdP mitbringt */
+  if (origIdp) {
+    var idpLabel = form.querySelector('[data-field="idp"]');
+    if (idpLabel) idpLabel.remove();
+  }
+
+  /* Prefills aus der Config, gespeicherte Eingaben gewinnen */
+  if (cfg.firma) form.elements.firma.value = cfg.firma;
+  var names = userNames();
+  if (names.length) form.elements.users.value = names.join(", ");
+  var savedData = {};
+  try { savedData = JSON.parse(lsGet(storeKey + ":formdata") || "{}"); } catch (e) {}
+  fieldNames.forEach(function (n) {
+    if (form.elements[n] && savedData[n]) form.elements[n].value = savedData[n];
+  });
+  initHostFields(form);
+  form.elements.slug.value = cfg.slug || "";
+
+  /* Eingaben ueberleben Fehlschlag/Reload */
+  function persist() {
+    var d = {};
+    fieldNames.forEach(function (n) {
+      if (form.elements[n]) d[n] = form.elements[n].value;
+    });
+    lsSet(storeKey + ":formdata", JSON.stringify(d));
+  }
+  form.addEventListener("input", persist);
+
+  /* User-Namen: warn-only-Validierung (ss_valid_username) */
+  function checkUsers() {
+    var bad = form.elements.users.value.split(",")
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s && !validUsername(s); });
+    warnEl.hidden = !bad.length;
+    warnEl.textContent = bad.length
+      ? "Hinweis: '" + bad.join("', '") + "' ist kein gültiger User-Name "
+        + "(Kleinbuchstaben/Ziffern/Bindestrich, 2–31 Zeichen, beginnt mit "
+        + "Buchstabe) — wir melden uns dann mit einem Vorschlag."
+      : "";
+  }
+  form.elements.users.addEventListener("input", checkUsers);
+  checkUsers();
+
+  function showStatus(kind, text) {
+    statusEl.hidden = false;
+    statusEl.className = "ssf-status " + kind;
+    statusEl.textContent = text;
+  }
+  var sentAt = lsGet(storeKey + ":form");
+  if (sentAt) {
+    showStatus("ok", "Bereits gesendet am " + sentAt + ". Änderungen? Einfach erneut senden.");
+    btn.textContent = "Erneut senden";
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var firma = form.elements.firma.value.trim();
+    if (!firma) { showStatus("err", "Bitte mindestens den Firmennamen angeben."); return; }
+    var users = form.elements.users.value.split(",")
+      .map(function (s) { return s.trim(); }).filter(Boolean);
+    var idp = origIdp || (form.elements.idp ? form.elements.idp.value : "");
+    var ip = form.elements.vm_ip.value.trim();
+    var itContact = (form.elements.it_name.value.trim() + " " +
+                     form.elements.it_mail.value.trim()).trim();
+    var slug = cfg.slug || slugifyJs(firma);
+    form.elements.slug.value = slug;
+
+    /* Klingel-Zeile fuer den Admin (Werte sind nur ein Vorschlag — die
+       Plausibilitaet prueft der Mensch, s. /generate-onboarding) */
+    var befehl = "ki-os-fleet intake init --kunde " + slug
+      + ' --company "' + firma + '"'
+      + (users.length ? ' --users "' + users.join(",") + '"' : "")
+      + (idp && idp !== "keins" ? " --idp " + idp : "")
+      + (ip ? " --host " + ip : "")
+      + (itContact ? ' --it-contact "' + itContact + '"' : "");
+
+    var payload = {
+      access_key: W3F_KEY,
+      subject: "KI-OS Registrierung — " + firma,
+      from_name: "KI-OS Anleitung",
+      botcheck: form.elements.botcheck.checked,
+      firma: firma,
+      kurzname: slug,
+      user_namen: users.join(", "),
+      it_ansprechpartner: itContact,
+      idp: idp,
+      vm_ip: ip,
+      vm_hostname: getHost(),
+      befehl: befehl
+    };
+
+    btn.disabled = true;
+    showStatus("ok", "Wird gesendet …");
+    fetch(W3F_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok || !data.success) throw new Error("submit failed");
+        var when = new Date().toLocaleDateString("de-DE");
+        lsSet(storeKey + ":form", when);
+        showStatus("ok", "Gesendet ✓ — wir haben eure Registrierung erhalten und melden uns. Weiter mit Teil 2.");
+        btn.textContent = "Erneut senden";
+        btn.disabled = false;
+      });
+    }).catch(function () {
+      showStatus("err", "Senden fehlgeschlagen — Internetverbindung prüfen und "
+        + "erneut versuchen. Eure Eingaben bleiben erhalten.");
+      btn.textContent = "Erneut versuchen";
+      btn.disabled = false;
+    });
+  });
+}
+
+/* ---- Formulare in ihre [[FORM:…]]-Anker rendern ---- */
+Array.prototype.forEach.call(document.querySelectorAll(".ssform"), function (slot) {
+  var tpl = document.getElementById("tpl-form-" + slot.getAttribute("data-form"));
+  if (!tpl) return;
+  slot.appendChild(tpl.content.cloneNode(true));
+  if (slot.getAttribute("data-form") === "registration") initRegForm(slot);
+  else initHostFields(slot);
+});
+updateRedirectSpans();
 
 /* ---- Start: p= aus dem Fragment, sonst letzte Seite, sonst erste ---- */
 go(readPageParam() || ui.page || (pages[0] && pages[0].id));
