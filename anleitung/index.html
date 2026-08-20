@@ -1306,6 +1306,18 @@ function initRegForm(slot) {
       + (ip ? " --host " + ip : "")
       + (itContact ? ' --it-contact "' + itContact + '"' : "");
 
+    /* Antworten zusaetzlich als maschinenlesbarer Block (Feldnamen wie im
+       Intake-Schema) — fuer Copy-Paste und einen spaeteren Mail-Ingest */
+    var intakeJson = {
+      kunde: slug,
+      company: firma,
+      users: users,
+      vm: { host: ip },
+      base_domain: getHost(),
+      selfservice: { it_contact: itContact }
+    };
+    if (idp && idp !== "keins") intakeJson.idp = { type: idp };
+
     var payload = {
       access_key: W3F_KEY,
       subject: "KI-OS Registrierung — " + firma,
@@ -1318,7 +1330,8 @@ function initRegForm(slot) {
       idp: idp,
       vm_ip: ip,
       vm_hostname: getHost(),
-      befehl: befehl
+      befehl: befehl,
+      intake_json: JSON.stringify(intakeJson)
     };
 
     btn.disabled = true;
