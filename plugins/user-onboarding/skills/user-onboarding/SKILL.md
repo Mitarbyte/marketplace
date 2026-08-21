@@ -60,6 +60,22 @@ unabhängig; der Skill fragt nichts davon ab.
   `setup-tunnels --remove` die alten Tunnel ab). Wer nur im Browser
   arbeitet, braucht diesen Skill gar nicht.
 
+**Hub-Backend (`HUB_BACKEND` aus get-vm-values):**
+
+- **git (Default):** Firmenwissen ist ein GitHub-Klon unter `hub/`; der
+  Workspace kommt per Mutagen aufs Gerät — wie unten beschrieben.
+- **cloud:** Das Firmenwissen (`<Firmenname>/`) und `Geteilte-Arbeitsplaetze/`
+  synchronisieren direkt mit SharePoint/Google Drive der Firma — **Mutagen
+  entfällt komplett** (Schritt 8 überspringen): die geteilten Ordner liegen
+  über den normalen Cloud-Client der Firma ohnehin auf jedem Gerät, eine
+  zweite Sync-Engine auf denselben Bytes würde nur Konfliktkopien erzeugen.
+  Pflicht bleiben SSH-Key + (tunnel-Modus) die Tunnel-Autostarts; optional
+  die Desktop-App. Dateizugriff sonst: Cloud-Web/Client + Cockpit-Explorer
+  bzw. Hermes-Dashboard. Läuft auf dem Gerät noch eine alte
+  Mutagen-Session, beim Re-Run auf DRIFT achten (die neuen Ignores
+  verhindern Doppel-Sync) oder sie mit `mutagen sync terminate ki-os`
+  abbauen.
+
 ---
 
 ## Architektur in 30 Sekunden
@@ -117,7 +133,10 @@ Hermes-Dashboard im Browser bzw. die Hermes-Desktop-App (Remote gateway).
 
 Will der User **nur den Datei-Sync** (typisch: „nur mutagen", „Sync
 kaputt/reparieren", „KI-OS-Ordner lokal syncen", gateway-VM ohne
-Tunnel-Bedarf), NICHT den vollen Ablauf fahren. Einzige Voraussetzung ist ein
+Tunnel-Bedarf), NICHT den vollen Ablauf fahren. **Zuerst `HUB_BACKEND`
+prüfen** (get-vm-values): auf `cloud` gibt es keinen Mutagen-Sync — dem User
+erklären, dass die geteilten Ordner über SharePoint/Google Drive der Firma
+kommen, und hier stoppen. Einzige Voraussetzung sonst ist ein
 funktionierender SSH-Zugang: `ssh -o BatchMode=yes -o ConnectTimeout=10
 ki-os-vm true` → Exit 0. Schlägt das fehl, fehlt das SSH-Setup → Schritte 3–5
 zuerst, dann hierher zurück.
@@ -287,6 +306,13 @@ Wert tunnelt auf das Display eines anderen Users!). Härtungs-Hintergrund +
 Troubleshooting: `references/tunnels.md`.
 
 ### Schritt 8 — Mutagen-Sync einrichten
+
+> **`HUB_BACKEND=cloud`? → Schritt komplett überspringen.** Die geteilten
+> Ordner kommen dort über SharePoint/Google Drive der Firma; Mutagen wäre
+> eine zweite Sync-Engine auf denselben Bytes (Konfliktkopien). Falls die VM
+> gemischte Backends fährt und Mutagen doch gewünscht ist: vor dem Aufruf
+> `COMPANY_LOCAL=<Firmenordner>` (aus get-vm-values) exportieren, damit das
+> Skript den Firmenordner ignoriert.
 
 ```
 bash "$SKILL_DIR/scripts/setup-mutagen.sh" --vm-user <VM_USER>

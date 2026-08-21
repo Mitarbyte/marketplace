@@ -15,6 +15,11 @@
 #          hermes gibt es KEIN Cockpit — der Einstieg ist das Hermes-Dashboard
 #          (AGENT_PORT), und im tunnel-Modus wird dieser Port getunnelt statt
 #          3847 (docs/features/hermes/plan.md § 8).
+#   HUB_BACKEND=<git|cloud>      git = GitHub-Hub + Mutagen (Bestand); cloud =
+#          Firmenwissen synct per SharePoint/Drive — Mutagen ENTFAELLT dort
+#          komplett (Datei-Einsicht ueber den Cloud-Client der Firma bzw.
+#          Cockpit/Dashboard), der Skill richtet nur SSH/Tunnel/Desktop-App ein.
+#   COMPANY_LOCAL=<name>         Firmenordner-Name im Workspace (nur cloud)
 #   AGENT_PORT=<n>               Hermes-Dashboard-Port (nur engine=hermes)
 #   COCKPIT_PORT=<n>  NOVNC_PORT=<n|MISSING>
 #   NOVNC_PASS=<pass|MISSING|NOT_NEEDED>   (NOT_NEEDED im gateway-Modus:
@@ -38,6 +43,15 @@ if [ -x /usr/local/bin/ki-os-engine ]; then
     eng="$(/usr/local/bin/ki-os-engine "$(id -un)" 2>/dev/null || echo claude)"
 fi
 echo "ENGINE=${eng}"
+# Hub-Backend (git|cloud) + Firmenordner-Name — steuert, ob Mutagen ueberhaupt
+# eingerichtet wird (cloud: entfaellt) bzw. welche Ignores es braucht.
+hb="git"; hrel="hub"
+if [ -x /usr/local/bin/ki-os-hub-dir ]; then
+    hb="$(/usr/local/bin/ki-os-hub-dir --backend "$(id -un)" 2>/dev/null || echo git)"
+    hrel="$(/usr/local/bin/ki-os-hub-dir --rel "$(id -un)" 2>/dev/null || echo hub)"
+fi
+echo "HUB_BACKEND=${hb}"
+[ "$hb" = "cloud" ] && echo "COMPANY_LOCAL=${hrel}"
 echo "AGENT_PORT=$((9119 + $(id -u) - 1000))"
 cp="$(mitarbyte cockpit-port 2>/dev/null | grep -oE '3[0-9]{4}' | head -1 || true)"
 if [ -z "$cp" ]; then

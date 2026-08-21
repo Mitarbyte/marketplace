@@ -258,11 +258,14 @@ function New-KiOsSession {
         # Arbeitsplatz — hier waere er die zweite, konkurrierende Kopie
         # desselben Baums.
         #
-        # Vier Literale (Ordnername hat Historie, ist fleet-weite Konvention):
+        # Literale (Ordnername hat Historie, ist fleet-weite Konvention):
         #   /Ablage       — aktuelle Konvention, providerneutral
         #   /SharePoint   — Bestand (schleumer, bleibt bewusst dort)
         #   /Sharepoint   — dieselbe Schreibweise mit kleinem p, real vergeben
         #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
+        #   /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev — Drei-Ordner-
+        #                   Struktur des cloud-Hub-Backends (plus Firmenordner
+        #                   via $env:COMPANY_LOCAL, s.u.)
         # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft einen Ordner
         # 'Sharepoint' nicht (aufgefallen 2026-08-12 - der lief unbemerkt doppelt).
         # Jedes ist ein No-op, solange der Ordner nicht existiert.
@@ -270,12 +273,20 @@ function New-KiOsSession {
         '--ignore=/SharePoint',
         '--ignore=/Sharepoint',
         '--ignore=/Google Drive',
+        '--ignore=/Geteilte-Arbeitsplaetze',
+        '--ignore=/Meine-Arbeitsplaetze',
+        '--ignore=/dev',
         '--ignore=.claude/skills',
         '--ignore=.cache',
         '--ignore=dist',
         '--ignore=.next',
         '--ignore=.DS_Store'
     )
+    # Firmenordner des cloud-Backends (Name aus get-vm-values: COMPANY_LOCAL) —
+    # pro Kunde verschieden, daher per Env statt Literal.
+    if ($env:COMPANY_LOCAL) {
+        $sshArgs += "--ignore=/$($env:COMPANY_LOCAL)"
+    }
     # Shared-Group fuer den geteilten Bind-Mount `Workspaces`: Dateien, die
     # Mutagen VM-seitig anlegt, muessen fuer die anderen Mitarbeiter der Gruppe
     # les-/schreibbar sein - sonst laufen deren Agents in Permission-Fehler.
@@ -329,7 +340,10 @@ if ($LASTEXITCODE -eq 0) {
         # Jedes fehlende Cloud-Sync-Literal einzeln melden: Sessions von vor der
         # Umbenennung auf 'Ablage' kennen nur '/SharePoint'. Echter Ausfall ist
         # das erst, wenn der jeweilige Ordner auf der VM benutzt wird.
-        foreach ($ign in @('/Ablage', '/SharePoint', '/Sharepoint', '/Google Drive')) {
+        $ignExpected = @('/Ablage', '/SharePoint', '/Sharepoint', '/Google Drive',
+                         '/Geteilte-Arbeitsplaetze', '/Meine-Arbeitsplaetze', '/dev')
+        if ($env:COMPANY_LOCAL) { $ignExpected += "/$($env:COMPANY_LOCAL)" }
+        foreach ($ign in $ignExpected) {
             if ($cfg -notmatch "(?m)^\s+$([regex]::Escape($ign))\s*$") {
                 $drift += "Ignore $ign fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)"
             }
