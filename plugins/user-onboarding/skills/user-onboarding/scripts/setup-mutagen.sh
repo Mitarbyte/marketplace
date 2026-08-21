@@ -186,11 +186,6 @@ create_session() {
     #   /SharePoint   — Bestand (schleumer, live seit 2026-08-07, bleibt dort)
     #   /Sharepoint   — dieselbe Schreibweise mit kleinem p, real vergeben
     #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
-    #   /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev, /$COMPANY_LOCAL
-    #                 — Drei-Ordner-Struktur des cloud-Hub-Backends (Uebergang:
-    #                   auf reinen cloud-Usern entfaellt Mutagen ganz, aber auf
-    #                   VMs mit gemischten Backends laeuft es weiter und darf
-    #                   die Cloud-Ordner nicht doppelt syncen)
     # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft einen Ordner
     # 'Sharepoint' nicht. Beide Schreibweisen zu listen ist der einzige Weg, das
     # ohne Umbenennen am Live-Sync abzudecken (aufgefallen 2026-08-12: Ordner
@@ -210,18 +205,10 @@ create_session() {
         --ignore="/SharePoint" \
         --ignore="/Sharepoint" \
         --ignore="/Google Drive" \
-        --ignore="/Geteilte-Arbeitsplaetze" \
-        --ignore="/Meine-Arbeitsplaetze" \
-        --ignore="/dev" \
         --ignore=".cache" \
         --ignore="dist" \
         --ignore=".next" \
         --ignore=".DS_Store"
-    # Firmenordner des cloud-Backends (Name aus get-vm-values: COMPANY_LOCAL) —
-    # als Env uebergeben, weil der Name pro Kunde verschieden ist.
-    if [ -n "${COMPANY_LOCAL:-}" ]; then
-        set -- "$@" --ignore="/${COMPANY_LOCAL}"
-    fi
     # Shared-Group fuer den geteilten Bind-Mount `Workspaces`: Dateien, die
     # Mutagen VM-seitig anlegt, muessen fuer die anderen Mitarbeiter der Gruppe
     # les-/schreibbar sein - sonst laufen deren Agents in Permission-Fehler.
@@ -275,9 +262,7 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         # Umbenennung auf 'Ablage' angelegt wurden, kennen nur '/SharePoint'.
         # Das ist erst dann ein echter Ausfall, wenn der jeweilige Ordner auf
         # der VM auch benutzt wird — deshalb Hinweis statt Alarm.
-        for _ign in "/Ablage" "/SharePoint" "/Sharepoint" "/Google Drive" \
-                    "/Geteilte-Arbeitsplaetze" "/Meine-Arbeitsplaetze" "/dev" \
-                    ${COMPANY_LOCAL:+"/${COMPANY_LOCAL}"}; do
+        for _ign in "/Ablage" "/SharePoint" "/Sharepoint" "/Google Drive"; do
             if ! printf '%s\n' "$CFG" | grep -qE "^[[:space:]]+${_ign}[[:space:]]*\$"; then
                 DRIFT="${DRIFT}  - Ignore '${_ign}' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)\n"
             fi
