@@ -86,7 +86,8 @@ Agent-Browser live sichtbar), **noVNC** auf `127.0.0.1:<NOVNC_PORT>`
 (passwortgeschützt), die **Agenten-Oberfläche** (engine=claude: Cockpit auf
 `127.0.0.1:<COCKPIT_PORT>` — Scheduler, Token-Usage, Skills; engine=hermes:
 Hermes-Dashboard auf `127.0.0.1:<AGENT_PORT>`) und der **Workspace**
-`/home/<VM_USER>/KI-OS` (normaler Ordner, Hub als Git-Klon unter `hub/`).
+`/home/<VM_USER>/KI-OS` (normaler Ordner; Firmenwissen je Hub-Backend: Git-Klon
+unter `hub/` oder Firmenordner `<COMPANY_LOCAL>/` via Cloud-Sync).
 
 Lokal richtet dieser Skill nur drei dauerhafte Verbindungen ein:
 
@@ -109,15 +110,16 @@ Hermes-Dashboard im Browser bzw. die Hermes-Desktop-App (Remote gateway).
 - **SSH-Alias fest `ki-os-vm`** — wird nie abgefragt (jeder Mitarbeiter hat
   genau eine Firmen-VM). Alle Service-Namen (LaunchAgent-Labels, Unit-/
   Task-Namen) und die Desktop-App-Einträge leiten sich daraus ab.
-- **Drei Pflicht-Autostarts, keine Auswahl** (tunnel-Modus) — noVNC-Tunnel,
-  Tunnel zur Agenten-Oberfläche (Cockpit bzw. Hermes-Dashboard), Mutagen-Sync
-  werden immer eingerichtet. Backends pro OS:
+- **Drei Pflicht-Autostarts, keine Auswahl** (tunnel-Modus, `HUB_BACKEND=git`)
+  — noVNC-Tunnel, Tunnel zur Agenten-Oberfläche (Cockpit bzw.
+  Hermes-Dashboard), Mutagen-Sync werden immer eingerichtet. Backends pro OS:
   LaunchAgents (macOS), systemd-User-Services (Linux), Windows: EIN
   gemeinsamer Scheduled Task `ki-os-vm-watchdog` (Autor `Mitarbyte` +
   Beschreibung), der alle drei Komponenten liveness-guarded am Leben hält.
   **Im gateway-Modus ist nur der Mutagen-Autostart Pflicht** — die beiden
   Tunnel entfallen (Windows: der Watchdog-Task entsteht in der
-  Mutagen-only-Variante).
+  Mutagen-only-Variante). **Auf `HUB_BACKEND=cloud` entfällt Mutagen
+  komplett** (Schritt 8 überspringen; gateway+cloud: gar kein Autostart).
 - **Tunnel laufen als eigene Prozesse, nicht in der SSH-Config** — die
   `~/.ssh/config` enthält KEINE Forward-Zeilen, kein ControlMaster
   (`references/ssh.md`).
@@ -260,7 +262,8 @@ bash "$SKILL_DIR/scripts/get-vm-values.sh"
 # Windows: get-vm-values.ps1
 ```
 
-Liefert `SSH_OK` + `ACCESS_MODE=` + `ENGINE=` + `AGENT_PORT=` + `COCKPIT_PORT=` / `NOVNC_PORT=` /
+Liefert `SSH_OK` + `ACCESS_MODE=` + `ENGINE=` + `HUB_BACKEND=` (+
+`COMPANY_LOCAL=` nur auf cloud) + `AGENT_PORT=` + `COCKPIT_PORT=` / `NOVNC_PORT=` /
 `NOVNC_PASS=` (im gateway-Modus zusätzlich `GATEWAY_COCKPIT_URL=` /
 `GATEWAY_NOVNC_URL=`). Die Werte für die nächsten Schritte merken.
 
@@ -281,6 +284,10 @@ Liefert `SSH_OK` + `ACCESS_MODE=` + `ENGINE=` + `AGENT_PORT=` + `COCKPIT_PORT=` 
 der User früher Tunnel eingerichtet, stattdessen einmal
 `setup-tunnels.sh --remove` bzw. `setup-tunnels.ps1 -Remove` laufen
 lassen — baut die Tunnel-Autostarts ab, Mutagen/SSH bleiben).
+
+**`HUB_BACKEND=cloud` → Schritt 8 überspringen** (Mutagen entfällt
+komplett; Details im Backend-Abschnitt oben. In Schritt 10 `--hub-backend
+cloud` mitgeben, sonst meldet die Verifikation ein falsches FAIL).
 
 ### Schritt 7 — Beide Tunnel-Autostarts einrichten (nur tunnel-Modus)
 
@@ -410,15 +417,19 @@ Schritt wiederholen. Hintergrund + manueller Fallback:
 
 ```
 bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER> --mode <ACCESS_MODE> \
-    --engine <ENGINE> \
+    --engine <ENGINE> --hub-backend <HUB_BACKEND> \
     [--gateway-cockpit-url <URL> --gateway-novnc-url <URL> --gateway-agent-url <URL>]
 # Windows: verify.ps1 -VmUser <VM_USER> -Mode <ACCESS_MODE> -Engine <ENGINE> `
+#     -HubBackend <HUB_BACKEND> `
 #     [-GatewayCockpitUrl <URL> -GatewayNovncUrl <URL> -GatewayAgentUrl <URL>]
 ```
 
 Prüft SSH, die Zugangswege (tunnel: beide lokalen Tunnel; gateway: die zwei
 HTTPS-URLs — 302 zum IdP-Login = OK), die Mutagen-Session, den lokalen
 Sync-Ordner und die Desktop-App-Einträge (OK/WARN/FAIL pro Komponente).
+Auf `--hub-backend cloud` sind die Mutagen-Checks ein SKIP (Soll-Zustand
+„keine Session"); läuft dort noch eine `ki-os`-Session, warnt der Verify —
+sie gehört terminiert.
 
 Drei Dinge, die der Verify bewusst **zusätzlich** meldet, weil ein „laufender"
 Sync sie verdeckt: anliegende **Konflikte** und **Transition problems** (Status

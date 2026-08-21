@@ -7,9 +7,13 @@
 # aus; Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
 # Usage:  verify.sh --vm-user <VM_USER> [--mode tunnel|gateway]
-#                    [--engine claude|hermes]
+#                    [--engine claude|hermes] [--hub-backend git|cloud]
 #                    [--gateway-cockpit-url <url>] [--gateway-novnc-url <url>]
 #                    [--gateway-agent-url <url>]
+#
+# --hub-backend cloud (aus get-vm-values HUB_BACKEND): Mutagen ENTFAELLT dort
+# komplett (Datei-Einsicht ueber den Cloud-Client der Firma) — die Mutagen-
+# Checks werden zum SKIP statt zum Pflicht-FAIL fuer den Soll-Zustand.
 #
 # --engine hermes: es gibt kein Cockpit und keine Claude-Desktop-App — geprueft
 # werden das Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und, statt der
@@ -22,12 +26,13 @@
 # =============================================================================
 set -uo pipefail
 
-VM_USER="" MODE="tunnel" ENGINE="claude" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL=""
+VM_USER="" MODE="tunnel" ENGINE="claude" HUB_BACKEND="git" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --vm-user)             VM_USER="$2"; shift 2 ;;
         --mode)                MODE="$2"; shift 2 ;;
         --engine)              ENGINE="$2"; shift 2 ;;
+        --hub-backend)         HUB_BACKEND="$2"; shift 2 ;;
         --gateway-cockpit-url) GW_COCKPIT_URL="$2"; shift 2 ;;
         --gateway-novnc-url)   GW_NOVNC_URL="$2"; shift 2 ;;
         --gateway-agent-url)   GW_AGENT_URL="$2"; shift 2 ;;
@@ -86,6 +91,18 @@ else
     http_check "noVNC-Tunnel  http://localhost:6080/vnc.html" "http://localhost:6080/vnc.html"
     http_check "${MAIN_LABEL}-Tunnel http://localhost:${MAIN_LPORT}" "http://localhost:${MAIN_LPORT}"
 fi
+
+# Backend cloud: Mutagen ist dort der SOLL-Zustand "nicht vorhanden" — ein
+# Pflicht-FAIL fuer die fehlende Session waere falsch. Alle Mutagen-Checks
+# (Session, Konflikte, Workspace-Pfad, Watchdog) werden zum SKIP; laeuft
+# trotzdem eine ki-os-Session (nicht terminierter Uebergang), wird gewarnt.
+if [ "$HUB_BACKEND" = "cloud" ]; then
+    echo "OK:   hub-backend=cloud — Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)"
+    if command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os >/dev/null 2>&1; then
+        echo "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' — auf cloud-Backend gehoert sie"
+        echo "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
+    fi
+else
 
 # grep ohne -q (liest bis EOF) statt 'grep -q': sonst dieselbe SIGPIPE-Falle wie
 # beim Watchdog-Check unten — unter pipefail wird ein Treffer zu "false".
@@ -164,6 +181,8 @@ if [ -s "$WD_ISSUES" ]; then
 else
     echo "OK:   Sync-Watchdog meldet keine offenen Probleme"
 fi
+
+fi  # Ende Mutagen-Block (hub-backend git)
 
 # Desktop-App-Registrierung ist ein CLAUDE-Artefakt (ssh_configs.json +
 # ~/.claude.json). Auf Hermes gibt es sie nicht: die Hermes-Desktop-App wird mit

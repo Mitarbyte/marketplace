@@ -45,9 +45,11 @@ keine Tunnel) — den Modus erkennt er automatisch von der VM.
    (`http://localhost:6080/vnc.html?resize=scale`) und zur
    Agenten-Oberfläche — Cockpit (`http://localhost:3847`) bzw. auf
    `engine=hermes` Hermes-Dashboard (`http://localhost:9119`)
-5. **Pflicht-Autostart 3:** Mutagen-Sync — dein VM-Workspace als echter
-   lokaler Ordner `~/KI-OS` (two-way, offline lesbar; dort auch den
-   Obsidian-Vault öffnen)
+5. **Pflicht-Autostart 3** (nur `HUB_BACKEND=git`): Mutagen-Sync — dein
+   VM-Workspace als echter lokaler Ordner `~/KI-OS` (two-way, offline
+   lesbar; dort auch den Obsidian-Vault öffnen). Auf `cloud`-VMs entfällt
+   Mutagen komplett — die Firmen-Ordner kommen über den Cloud-Client der
+   Firma (SharePoint/Drive) auf dein Gerät
 6. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows, nur
    `engine=claude`): SSH-Host `ki-os-vm` + vertrauter Workspace — die VM
    erscheint direkt im Remote-Projekt-Switcher. Auf `engine=hermes`

@@ -7,8 +7,12 @@
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File verify.ps1 -VmUser <VM_USER> `
-#       [-Mode tunnel|gateway] [-Engine claude|hermes]
+#       [-Mode tunnel|gateway] [-Engine claude|hermes] [-HubBackend git|cloud]
 #       [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>] [-GatewayAgentUrl <url>]
+#
+# -HubBackend cloud (aus get-vm-values HUB_BACKEND): Mutagen ENTFAELLT dort
+# komplett (Datei-Einsicht ueber den Cloud-Client der Firma) - die Mutagen-
+# Checks werden zum SKIP statt zum Pflicht-FAIL fuer den Soll-Zustand.
 #
 # -Engine hermes: kein Cockpit und keine Claude-Desktop-App - geprueft werden das
 # Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und SSH/Mutagen. Die
@@ -22,6 +26,7 @@ param(
     [Parameter(Mandatory = $true)][string]$VmUser,
     [string]$Mode = 'tunnel',
     [ValidateSet('claude','hermes')][string]$Engine = 'claude',
+    [ValidateSet('git','cloud')][string]$HubBackend = 'git',
     [string]$GatewayCockpitUrl = '',
     [string]$GatewayNovncUrl = '',
     [string]$GatewayAgentUrl = ''
@@ -87,8 +92,21 @@ if ($isGateway) {
 }
 
 # --- Mutagen ------------------------------------------------------------------------
+# Backend cloud: Mutagen ist dort der SOLL-Zustand "nicht vorhanden" - ein
+# Pflicht-FAIL fuer die fehlende Session waere falsch. Checks werden zum SKIP;
+# laeuft trotzdem eine ki-os-Session (nicht terminierter Uebergang), wird gewarnt.
 $mutagenCmd = Get-Command mutagen -ErrorAction SilentlyContinue
 if (-not $mutagenCmd) { $mutagenCmd = Get-Command (Join-Path $env:USERPROFILE '.local\bin\mutagen.exe') -ErrorAction SilentlyContinue }
+if ($HubBackend -eq 'cloud') {
+    Write-Host 'OK:   hub-backend=cloud - Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)'
+    if ($mutagenCmd) {
+        & $mutagenCmd.Source sync list ki-os 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' - auf cloud-Backend gehoert sie"
+            Write-Host "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
+        }
+    }
+} else {
 if ($mutagenCmd) {
     $status = (& $mutagenCmd.Source sync list ki-os 2>$null) -join ' '
     if ($LASTEXITCODE -eq 0 -and $status -match 'Watching|Scanning|Staging|Reconciling|Saving|Transitioning') {
@@ -141,6 +159,8 @@ if ((Test-Path -LiteralPath $wdIssues) -and (Get-Item -LiteralPath $wdIssues).Le
 } else {
     Write-Host 'OK:   Sync-Watchdog meldet keine offenen Probleme'
 }
+
+}  # Ende Mutagen-Block (hub-backend git)
 
 # --- Desktop-App -----------------------------------------------------------------------
 # Die Registrierung (ssh_configs.json + ~\.claude.json) ist ein CLAUDE-Artefakt.
