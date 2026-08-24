@@ -10,9 +10,11 @@
 #       [-Mode tunnel|gateway] [-Engine claude|hermes] [-HubBackend git|cloud]
 #       [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>] [-GatewayAgentUrl <url>]
 #
-# -HubBackend cloud (aus get-vm-values HUB_BACKEND): Mutagen ENTFAELLT dort
-# komplett (Datei-Einsicht ueber den Cloud-Client der Firma) - die Mutagen-
-# Checks werden zum SKIP statt zum Pflicht-FAIL fuer den Soll-Zustand.
+# Mutagen wird nur mit -Mode tunnel + -HubBackend git geprueft. Sonst ist "keine
+# Session" der SOLL-Zustand: -Mode gateway richtet gar keinen Sync mehr ein
+# (Dateien ueber Cockpit-Explorer bzw. den Cloud-Client der Firma), -HubBackend
+# cloud synct das Firmenwissen ueber SharePoint/Drive. Im gateway-Modus gibt es
+# damit auch nichts, was der ki-os-vm-watchdog-Task am Leben halten muesste.
 #
 # -Engine hermes: kein Cockpit und keine Claude-Desktop-App - geprueft werden das
 # Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und SSH/Mutagen. Die
@@ -35,6 +37,8 @@ $ErrorActionPreference = 'Continue'
 $failed = $false
 $isGateway = ($Mode -eq 'gateway')
 $isHermes  = ($Engine -eq 'hermes')
+# Mutagen nur im tunnel-Modus mit git-Backend erwartet (siehe Kopf).
+$skipMutagen = ($isGateway -or ($HubBackend -eq 'cloud'))
 # Haupt-Oberflaeche je Engine - EIN Ort, an dem der Unterschied steht.
 if ($isHermes) {
     $mainLabel = 'Hermes-Dashboard'; $mainPort = 9119; $mainGwUrl = $GatewayAgentUrl
@@ -48,7 +52,16 @@ if ($LASTEXITCODE -eq 0) { Write-Host 'OK:   SSH-Verbindung (ki-os-vm)' }
 else { Write-Host 'FAIL: SSH-Verbindung (ki-os-vm) - references/ssh.md -> Smoketest'; $failed = $true }
 
 # --- Watchdog-Task (haelt Tunnel + Mutagen-Daemon am Leben) -----------------------
-if (Get-ScheduledTask -TaskName 'ki-os-vm-watchdog' -ErrorAction SilentlyContinue) {
+# Im gateway-Modus gibt es weder Tunnel noch Mutagen - dann ist der Task nicht
+# Pflicht, sondern hoechstens harmloser Bestand.
+$taskPresent = [bool](Get-ScheduledTask -TaskName 'ki-os-vm-watchdog' -ErrorAction SilentlyContinue)
+if ($isGateway -and $skipMutagen) {
+    if ($taskPresent) {
+        Write-Host 'OK:   Scheduled Task ki-os-vm-watchdog vorhanden (Bestand; im gateway-Modus nicht noetig)'
+    } else {
+        Write-Host 'OK:   access-mode=gateway - kein Watchdog-Task noetig (keine Tunnel, kein Mutagen)'
+    }
+} elseif ($taskPresent) {
     Write-Host 'OK:   Scheduled Task ki-os-vm-watchdog'
 } else {
     Write-Host 'FAIL: Scheduled Task ki-os-vm-watchdog fehlt (setup-tunnels.ps1)'; $failed = $true
@@ -92,18 +105,27 @@ if ($isGateway) {
 }
 
 # --- Mutagen ------------------------------------------------------------------------
-# Backend cloud: Mutagen ist dort der SOLL-Zustand "nicht vorhanden" - ein
-# Pflicht-FAIL fuer die fehlende Session waere falsch. Checks werden zum SKIP;
-# laeuft trotzdem eine ki-os-Session (nicht terminierter Uebergang), wird gewarnt.
+# gateway bzw. Backend cloud: "keine Session" ist der SOLL-Zustand, ein
+# Pflicht-FAIL waere falsch - alle Checks werden zum SKIP. Eine laufende
+# Bestands-Session ist nur auf cloud Handlungsbedarf (zwei Engines auf denselben
+# Bytes); auf gateway bleibt sie unangetastet.
 $mutagenCmd = Get-Command mutagen -ErrorAction SilentlyContinue
 if (-not $mutagenCmd) { $mutagenCmd = Get-Command (Join-Path $env:USERPROFILE '.local\bin\mutagen.exe') -ErrorAction SilentlyContinue }
-if ($HubBackend -eq 'cloud') {
-    Write-Host 'OK:   hub-backend=cloud - Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)'
+if ($skipMutagen) {
+    if ($isGateway) {
+        Write-Host 'OK:   access-mode=gateway - Mutagen entfaellt (Dateien ueber Cockpit-Explorer bzw. Cloud der Firma)'
+    } else {
+        Write-Host 'OK:   hub-backend=cloud - Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)'
+    }
     if ($mutagenCmd) {
         & $mutagenCmd.Source sync list ki-os 2>$null | Out-Null
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' - auf cloud-Backend gehoert sie"
-            Write-Host "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
+            if ($HubBackend -eq 'cloud') {
+                Write-Host "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' - auf cloud-Backend gehoert sie"
+                Write-Host "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
+            } else {
+                Write-Host "OK:   Bestehende Mutagen-Session 'ki-os' laeuft weiter (Bestand, wird nicht mehr eingerichtet)."
+            }
         }
     }
 } else {
@@ -160,7 +182,7 @@ if ((Test-Path -LiteralPath $wdIssues) -and (Get-Item -LiteralPath $wdIssues).Le
     Write-Host 'OK:   Sync-Watchdog meldet keine offenen Probleme'
 }
 
-}  # Ende Mutagen-Block (hub-backend git)
+}  # Ende Mutagen-Block (nur mode=tunnel + hub-backend git)
 
 # --- Desktop-App -----------------------------------------------------------------------
 # Die Registrierung (ssh_configs.json + ~\.claude.json) ist ein CLAUDE-Artefakt.

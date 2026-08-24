@@ -4,82 +4,83 @@ Claude-Code-Skill, den ein Mitarbeiter auf seinem lokalen Gerät
 (Mac/Linux/Windows) installiert, um sich mit dem vom Admin angelegten
 KI-OS-Workspace auf der Firmen-VM zu verbinden.
 
-Workspaces, Browser und Logins leben auf der VM — lokal richten wir nur den
-Zugriff ein: SSH-Key, minimale SSH-Config und drei Pflicht-Autostarts
-(noVNC-Tunnel, Agenten-Tunnel — Cockpit auf `engine=claude`, Hermes-Dashboard
-auf `engine=hermes` — und Mutagen-Sync) plus die Vorkonfiguration der
-Claude-Code-Desktop-App (nur `engine=claude`; auf hermes verbindet sich die
-Hermes-Desktop-App per URL + Session-Token). Engine und Zugangs-Modus liest
-der Skill von der VM. Die gesamte Mechanik liegt in fertigen,
-parametrisierten Skripten unter `scripts/` (bash für macOS/Linux, PowerShell
-für natives Windows) — der Skill orchestriert nur noch.
+Workspaces, Browser und Logins leben auf der VM — lokal wird nur der Zugriff
+eingerichtet. **Der Skill fragt als erstes den Zugangs-Modus ab** und fährt
+dann genau einen von zwei Pfaden:
 
-**gateway-VMs:** Manche VMs stellen noVNC + Cockpit direkt im Browser bereit
-(URL + Firmen-Login mit Microsoft/Google — dein Admin hat dir dann URLs
-geschickt). Dort ist dieser Skill **optional** (Datei-Sync + Desktop-App,
-keine Tunnel) — den Modus erkennt er automatisch von der VM.
+| | **gateway** (Regelfall) | **tunnel** |
+|---|---|---|
+| Woran erkennbar | Admin schickte eine **URL** (`https://<name>-cockpit.…` / `…-agent.…`) + Firmen-Login | Admin schickte nur **IP + Username** |
+| SSH-Key | trägst du **selbst im Cockpit** ein (Tab System → „SSH-Zugang") | geht **an den Admin** |
+| Tunnel | entfallen — noVNC/Cockpit laufen über die Gateway-URLs | noVNC (`localhost:6080`) + Cockpit (`3847`) bzw. Hermes-Dashboard (`9119`) |
+| Datei-Sync (Mutagen) | entfällt — Dateien über Cockpit-Explorer bzw. den Cloud-Client der Firma | `~/KI-OS` als lokaler Spiegel (Obsidian, Finder/Explorer) |
+| Desktop-App | ja (nur `engine=claude`) | ja (nur `engine=claude`) |
+
+Die zweite Achse ist die **Engine** der VM (`claude` | `hermes`) — die liest
+der Skill selbst von der VM: auf `hermes` gibt es kein Cockpit, die Oberfläche
+ist das Hermes-Dashboard, und die Hermes-Desktop-App verbindet sich per URL +
+Session-Token statt über eine lokale Registrierung.
+
+Die gesamte Mechanik liegt in fertigen, parametrisierten Skripten unter
+`scripts/` (bash für macOS/Linux, PowerShell für natives Windows) — der Skill
+orchestriert nur.
 
 ## Voraussetzungen
 
 - macOS, Linux oder Windows
   - macOS / Linux: `ssh`, `curl` (Standard); macOS zusätzlich Homebrew
-    (für Mutagen)
-  - Windows nativ: PowerShell 5.1+, Windows-OpenSSH-Client (vorinstalliert
-    auf Windows 10/11; sonst installiert ihn `scripts/check-prereqs.ps1`,
-    braucht Admin) und Git for Windows (Pflicht — Claude Code braucht auf
-    nativem Windows die Git Bash). WSL2 bleibt als Alternative.
+    (nur für Mutagen im tunnel-Modus)
+  - Windows nativ: PowerShell 5.1+, Windows-OpenSSH-Client (vorinstalliert auf
+    Windows 10/11; sonst installiert ihn `scripts/check-prereqs.ps1`, braucht
+    Admin) und Git for Windows (Pflicht — Claude Code braucht auf nativem
+    Windows die Git Bash). WSL2 bleibt als Alternative.
 - Claude Code installiert (`https://claude.com/claude-code`)
-- Vom Admin erhalten: VM-Public-IP, VM-Username
+- Vom Admin erhalten: entweder die **Login-URL** (gateway) oder
+  **VM-Public-IP + VM-Username** (tunnel)
 
 ## Was passiert beim ersten Lauf
 
-1. SSH-Key erstellen (falls nicht vorhanden) + minimalen
-   `~/.ssh/config`-Eintrag für den festen Alias `ki-os-vm` schreiben —
-   Public Key geht in die Zwischenablage, du schickst ihn an den Admin
-2. **Pause** — warten auf Admin-Bestätigung, dass dein VM-User komplett
-   eingerichtet ist
-3. SSH-Smoketest + deine User-Werte holen (ein Roundtrip: Engine,
-   Cockpit-/Agent-Port, noVNC-Port, noVNC-Passwort — letzteres nur im
-   tunnel-Modus; auf gateway-VMs gibt es keins)
-4. **Pflicht-Autostart 1+2:** gehärtete SSH-Tunnel zu noVNC
-   (`http://localhost:6080/vnc.html?resize=scale`) und zur
-   Agenten-Oberfläche — Cockpit (`http://localhost:3847`) bzw. auf
-   `engine=hermes` Hermes-Dashboard (`http://localhost:9119`)
-5. **Pflicht-Autostart 3** (nur `HUB_BACKEND=git`): Mutagen-Sync — dein
-   VM-Workspace als echter lokaler Ordner `~/KI-OS` (two-way, offline
-   lesbar; dort auch den Obsidian-Vault öffnen). Auf `cloud`-VMs entfällt
-   Mutagen komplett — die Firmen-Ordner kommen über den Cloud-Client der
-   Firma (SharePoint/Drive) auf dein Gerät
+1. Zugangs-Modus abfragen (URL vom Admin → gateway, sonst tunnel)
+2. SSH-Key erstellen (falls nicht vorhanden) + minimalen
+   `~/.ssh/config`-Eintrag für den festen Alias `ki-os-vm` schreiben — der
+   Public Key landet in der Zwischenablage
+3. Key hinterlegen — **gateway:** selbst im Cockpit (Tab System →
+   „SSH-Zugang"), kein Warten. **tunnel:** an den Admin schicken, dann Pause
+   bis er bestätigt
+4. SSH-Smoketest + User-Werte holen (ein Roundtrip: Engine, Ports, Hub-Backend,
+   im tunnel-Modus das noVNC-Passwort, im gateway-Modus die URLs)
+5. **Nur tunnel:** gehärtete SSH-Tunnel als Autostart (noVNC + Cockpit bzw.
+   Hermes-Dashboard) und Mutagen-Sync `~/KI-OS`
 6. Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows, nur
    `engine=claude`): SSH-Host `ki-os-vm` + vertrauter Workspace — die VM
-   erscheint direkt im Remote-Projekt-Switcher. Auf `engine=hermes`
-   entfällt das — die Hermes-Desktop-App verbindet sich per URL +
-   Session-Token (`references/hermes-desktop-app.md`)
+   erscheint direkt im Remote-Projekt-Switcher
 7. Verifikation aller Komponenten
 
-Autostart-Backends pro OS: LaunchAgents (macOS), systemd-User-Services
-(Linux), Scheduled Tasks (Windows). Der Skill ist idempotent — ein erneuter
-Lauf ist das Update.
+Autostart-Backends pro OS: LaunchAgents (macOS), systemd-User-Services (Linux),
+Scheduled Tasks (Windows). Der Skill ist idempotent — ein erneuter Lauf ist das
+Update.
 
 ## Danach: so arbeitest du
 
 `engine=claude`:
 
 - **Claude-Code-Desktop-App** (primär): Remote-Projekt `ki-os-vm` / `KI-OS`
-- **Browser:** `claude.ai/code` → eigene Remote-Session
+- **Browser:** Cockpit + noVNC über die Gateway-URLs (gateway) bzw.
+  `localhost:3847`/`6080` (tunnel) · `claude.ai/code` für eigene Sessions
 - **Terminal:** `ssh ki-os-vm` → `cd ~/KI-OS && claude`
 - **VS Code Remote-SSH** (Techniker): `references/vscode-remote-ssh.md`
 
 `engine=hermes`:
 
-- **Agent-Dashboard:** tunnel `http://localhost:9119`, gateway
-  `https://<user>-agent.…` — oder die **Hermes-Desktop-App**
-  (URL + Session-Token vom Admin, `references/hermes-desktop-app.md`)
+- **Agent-Dashboard:** gateway `https://<user>-agent.…`, tunnel
+  `http://localhost:9119` — oder die **Hermes-Desktop-App** (URL +
+  Session-Token vom Admin, `references/hermes-desktop-app.md`)
 
 Beide Engines:
 
-- **Browser-Logins:** einmalig im noVNC-Tab in die Zielsysteme einloggen
-- **Dateien/Obsidian:** lokaler Ordner `~/KI-OS`
+- **Browser-Logins:** einmalig im VM-Chrome (noVNC) in die Zielsysteme einloggen
+- **Dateien:** gateway → Cockpit-Explorer bzw. Cloud-Client der Firma;
+  tunnel → lokaler Ordner `~/KI-OS`
 
 ## Quellen
 
@@ -96,5 +97,6 @@ Beide Engines:
   (nur engine=hermes)
 - `references/vscode-remote-ssh.md` — VS Code Remote-SSH
 - `references/ssh-pubkey-handoff.md` — Mail-/Slack-Vorlage für den Pubkey
+  (tunnel-Modus bzw. Hermes-VMs ohne Cockpit-Self-Service)
 - `references/api-keys.md` — API-Keys/OAuth (beide Engines); ab
   „Claude-Code-Auth" nur engine=claude

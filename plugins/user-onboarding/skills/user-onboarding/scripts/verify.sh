@@ -11,9 +11,11 @@
 #                    [--gateway-cockpit-url <url>] [--gateway-novnc-url <url>]
 #                    [--gateway-agent-url <url>]
 #
-# --hub-backend cloud (aus get-vm-values HUB_BACKEND): Mutagen ENTFAELLT dort
-# komplett (Datei-Einsicht ueber den Cloud-Client der Firma) — die Mutagen-
-# Checks werden zum SKIP statt zum Pflicht-FAIL fuer den Soll-Zustand.
+# Mutagen wird nur im tunnel-Modus mit --hub-backend git geprueft. In beiden
+# anderen Faellen ist "keine Session" der SOLL-Zustand, ein Pflicht-FAIL waere
+# falsch: --mode gateway richtet gar keinen Sync mehr ein (Dateien ueber
+# Cockpit-Explorer bzw. den Cloud-Client der Firma), und --hub-backend cloud
+# synct das Firmenwissen ohnehin ueber SharePoint/Drive.
 #
 # --engine hermes: es gibt kein Cockpit und keine Claude-Desktop-App — geprueft
 # werden das Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und, statt der
@@ -92,15 +94,25 @@ else
     http_check "${MAIN_LABEL}-Tunnel http://localhost:${MAIN_LPORT}" "http://localhost:${MAIN_LPORT}"
 fi
 
-# Backend cloud: Mutagen ist dort der SOLL-Zustand "nicht vorhanden" — ein
-# Pflicht-FAIL fuer die fehlende Session waere falsch. Alle Mutagen-Checks
-# (Session, Konflikte, Workspace-Pfad, Watchdog) werden zum SKIP; laeuft
-# trotzdem eine ki-os-Session (nicht terminierter Uebergang), wird gewarnt.
-if [ "$HUB_BACKEND" = "cloud" ]; then
-    echo "OK:   hub-backend=cloud — Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)"
+# gateway bzw. Backend cloud: Mutagen ist dort der SOLL-Zustand "nicht
+# vorhanden" — ein Pflicht-FAIL fuer die fehlende Session waere falsch. Alle
+# Mutagen-Checks (Session, Konflikte, Workspace-Pfad, Watchdog) werden zum SKIP.
+# Eine noch laufende Bestands-Session wird gemeldet, aber nur auf cloud als
+# Handlungsbedarf: dort syncen sonst zwei Engines dieselben Bytes. Auf gateway
+# ist sie bloss ungepflegter Bestand und bleibt unangetastet.
+if [ "$MODE" = "gateway" ] || [ "$HUB_BACKEND" = "cloud" ]; then
+    if [ "$MODE" = "gateway" ]; then
+        echo "OK:   access-mode=gateway — Mutagen entfaellt (Dateien ueber Cockpit-Explorer bzw. Cloud der Firma)"
+    else
+        echo "OK:   hub-backend=cloud — Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)"
+    fi
     if command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os >/dev/null 2>&1; then
-        echo "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' — auf cloud-Backend gehoert sie"
-        echo "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
+        if [ "$HUB_BACKEND" = "cloud" ]; then
+            echo "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' — auf cloud-Backend gehoert sie"
+            echo "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
+        else
+            echo "OK:   Bestehende Mutagen-Session 'ki-os' laeuft weiter (Bestand, wird nicht mehr eingerichtet)."
+        fi
     fi
 else
 
@@ -182,7 +194,7 @@ else
     echo "OK:   Sync-Watchdog meldet keine offenen Probleme"
 fi
 
-fi  # Ende Mutagen-Block (hub-backend git)
+fi  # Ende Mutagen-Block (nur mode=tunnel + hub-backend git)
 
 # Desktop-App-Registrierung ist ein CLAUDE-Artefakt (ssh_configs.json +
 # ~/.claude.json). Auf Hermes gibt es sie nicht: die Hermes-Desktop-App wird mit
