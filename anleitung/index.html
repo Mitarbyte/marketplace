@@ -357,14 +357,14 @@
 <ol>
 <li>Ein sicheres Root-Passwort vergeben und notieren (z.B. im Passwortmanager).</li>
 <li>Den Hostname kannst du auf der Vorgabe lassen oder frei wählen.</li>
-<li>Wenn der Assistent nach einem <strong>SSH-Schlüssel</strong> fragt: die folgenden Zeilen mit dem Kopieren-Button übernehmen und <strong>komplett zusammen</strong> in das Feld einfügen — das ist der Mitarbyte-Zugang:</li>
+<li>Wenn der Assistent nach einem <strong>SSH-Schlüssel</strong> fragt: die folgenden Schlüssel <strong>einzeln nacheinander</strong> eintragen — Hostinger nimmt pro Eintrag genau <strong>einen</strong> Schlüssel, beide zusammen in ein Feld einzufügen funktioniert nicht. Also den ersten mit seinem Kopieren-Button übernehmen und speichern, dann das Hinzufügen erneut aufrufen und den zweiten genauso. Das ist der Mitarbyte-Zugang:</li>
 </ol>
-<div class="codewrap"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
+<div class="codewrap"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
+<div class="codewrap"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
 <ol start="4">
 <li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
 </ol>
-<blockquote><p>Feld übersehen oder der Assistent hat nicht gefragt? Kein Problem — der Schlüssel lässt sich jederzeit nachträglich hinterlegen: <strong>VPS → Einstellungen → SSH-Schlüssel → Hinzufügen</strong>, dort dieselben Zeilen einfügen.</p></blockquote>
+<blockquote><p>Feld übersehen oder der Assistent hat nicht gefragt? Kein Problem — die Schlüssel lassen sich jederzeit nachträglich hinterlegen: <strong>VPS → Einstellungen → SSH-Schlüssel → Hinzufügen</strong>, dort dieselben Schlüssel eintragen — auch hier einen pro Eintrag.</p></blockquote>
 <h3 class="step" id="10-vps-hostinger--schritt-4-malware-scanner-und-backups-nicht-aktivieren">Schritt 4 — Malware-Scanner und Backups nicht aktivieren</h3>
 <p>Diese beiden Zusatzfunktionen nutzen wir bei Mitarbyte bewusst nicht:</p>
 <ul>
