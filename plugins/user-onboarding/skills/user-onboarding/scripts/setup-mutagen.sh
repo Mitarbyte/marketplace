@@ -186,11 +186,14 @@ create_session() {
     #   /SharePoint   — Bestand (schleumer, live seit 2026-08-07, bleibt dort)
     #   /Sharepoint   — dieselbe Schreibweise mit kleinem p, real vergeben
     #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
-    #   /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev, /$COMPANY_LOCAL
+    #   /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev, /Apps,
+    #   /$COMPANY_LOCAL
     #                 — Drei-Ordner-Struktur des cloud-Hub-Backends (Uebergang:
     #                   auf reinen cloud-Usern entfaellt Mutagen ganz, aber auf
     #                   VMs mit gemischten Backends laeuft es weiter und darf
-    #                   die Cloud-Ordner nicht doppelt syncen)
+    #                   die Cloud-Ordner nicht doppelt syncen). /Apps ist der
+    #                   Nachfolger von /dev (Restructure 2026-08); beide
+    #                   gelistet, solange Bestands-VMs noch dev/ tragen.
     # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft einen Ordner
     # 'Sharepoint' nicht. Beide Schreibweisen zu listen ist der einzige Weg, das
     # ohne Umbenennen am Live-Sync abzudecken (aufgefallen 2026-08-12: Ordner
@@ -213,6 +216,7 @@ create_session() {
         --ignore="/Geteilte-Arbeitsplaetze" \
         --ignore="/Meine-Arbeitsplaetze" \
         --ignore="/dev" \
+        --ignore="/Apps" \
         --ignore=".cache" \
         --ignore="dist" \
         --ignore=".next" \
@@ -277,7 +281,7 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         # der VM auch benutzt wird — deshalb Hinweis statt Alarm.
         for _ign in "/Ablage" "/SharePoint" "/Sharepoint" "/Google Drive" \
                     "/Geteilte-Arbeitsplaetze" "/Meine-Arbeitsplaetze" "/dev" \
-                    ${COMPANY_LOCAL:+"/${COMPANY_LOCAL}"}; do
+                    "/Apps" ${COMPANY_LOCAL:+"/${COMPANY_LOCAL}"}; do
             if ! printf '%s\n' "$CFG" | grep -qE "^[[:space:]]+${_ign}[[:space:]]*\$"; then
                 DRIFT="${DRIFT}  - Ignore '${_ign}' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)\n"
             fi

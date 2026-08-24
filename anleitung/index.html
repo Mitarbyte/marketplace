@@ -157,6 +157,11 @@
     border-radius: 8px; padding: 0.75rem 5.5rem 0.75rem 0.95rem;
     overflow-x: auto; font-size: 0.86rem; line-height: 1.5;
   }
+  /* SSH-Pubkeys: umbrechen statt seitlich scrollen. Der Umbruch ist rein
+     visuell (soft wrap) — kopiert wird immer die echte Einzeiler-Zeile. */
+  .codewrap.keys pre {
+    white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: visible;
+  }
   code { font-family: var(--font-mono); }
   p code, li code, h2 code, h3 code, td code, summary code {
     background: var(--code-bg); border: 1px solid var(--line);
@@ -359,8 +364,8 @@
 <li>Den Hostname kannst du auf der Vorgabe lassen oder frei wählen.</li>
 <li>Wenn der Assistent nach einem <strong>SSH-Schlüssel</strong> fragt: die folgenden Schlüssel <strong>einzeln nacheinander</strong> eintragen — Hostinger nimmt pro Eintrag genau <strong>einen</strong> Schlüssel, beide zusammen in ein Feld einzufügen funktioniert nicht. Also den ersten mit seinem Kopieren-Button übernehmen und speichern, dann das Hinzufügen erneut aufrufen und den zweiten genauso. Das ist der Mitarbyte-Zugang:</li>
 </ol>
-<div class="codewrap"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
-<div class="codewrap"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
+<div class="codewrap keys"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
+<div class="codewrap keys"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
 <ol start="4">
 <li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
 </ol>
@@ -1173,7 +1178,10 @@ Array.prototype.forEach.call(document.querySelectorAll(".codewrap"), function (w
   btn.type = "button";
   btn.textContent = "Kopieren";
   btn.addEventListener("click", function () {
-    var text = pre.innerText.replace(/\n$/, "");
+    // textContent statt innerText: der Quelltext, unabhaengig davon,
+    // wie das Layout die Zeile umbricht (siehe .codewrap.keys).
+    var src = pre.querySelector("code") || pre;
+    var text = src.textContent.replace(/\n$/, "");
     function ok() {
       btn.textContent = "Kopiert ✓";
       btn.classList.add("ok");

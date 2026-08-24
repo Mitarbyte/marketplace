@@ -263,9 +263,10 @@ function New-KiOsSession {
         #   /SharePoint   — Bestand (schleumer, bleibt bewusst dort)
         #   /Sharepoint   — dieselbe Schreibweise mit kleinem p, real vergeben
         #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
-        #   /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev — Drei-Ordner-
-        #                   Struktur des cloud-Hub-Backends (plus Firmenordner
-        #                   via $env:COMPANY_LOCAL, s.u.)
+        #   /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev, /Apps —
+        #                   Drei-Ordner-Struktur des cloud-Hub-Backends (plus
+        #                   Firmenordner via $env:COMPANY_LOCAL, s.u.); /Apps
+        #                   ist der Nachfolger von /dev (Restructure 2026-08)
         # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft einen Ordner
         # 'Sharepoint' nicht (aufgefallen 2026-08-12 - der lief unbemerkt doppelt).
         # Jedes ist ein No-op, solange der Ordner nicht existiert.
@@ -276,6 +277,7 @@ function New-KiOsSession {
         '--ignore=/Geteilte-Arbeitsplaetze',
         '--ignore=/Meine-Arbeitsplaetze',
         '--ignore=/dev',
+        '--ignore=/Apps',
         '--ignore=.claude/skills',
         '--ignore=.cache',
         '--ignore=dist',
@@ -341,7 +343,7 @@ if ($LASTEXITCODE -eq 0) {
         # Umbenennung auf 'Ablage' kennen nur '/SharePoint'. Echter Ausfall ist
         # das erst, wenn der jeweilige Ordner auf der VM benutzt wird.
         $ignExpected = @('/Ablage', '/SharePoint', '/Sharepoint', '/Google Drive',
-                         '/Geteilte-Arbeitsplaetze', '/Meine-Arbeitsplaetze', '/dev')
+                         '/Geteilte-Arbeitsplaetze', '/Meine-Arbeitsplaetze', '/dev', '/Apps')
         if ($env:COMPANY_LOCAL) { $ignExpected += "/$($env:COMPANY_LOCAL)" }
         foreach ($ign in $ignExpected) {
             if ($cfg -notmatch "(?m)^\s+$([regex]::Escape($ign))\s*$") {
