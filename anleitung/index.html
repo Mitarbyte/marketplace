@@ -364,8 +364,10 @@
 <li>Den Hostname kannst du auf der Vorgabe lassen oder frei wählen.</li>
 <li>Wenn der Assistent nach einem <strong>SSH-Schlüssel</strong> fragt: die folgenden Schlüssel <strong>einzeln nacheinander</strong> eintragen — Hostinger nimmt pro Eintrag genau <strong>einen</strong> Schlüssel, beide zusammen in ein Feld einzufügen funktioniert nicht. Also den ersten mit seinem Kopieren-Button übernehmen und speichern, dann das Hinzufügen erneut aufrufen und den zweiten genauso. Das ist der Mitarbyte-Zugang:</li>
 </ol>
-<div class="codewrap keys"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
-<div class="codewrap keys"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
+<div class="codewrap keys" data-mgr="imran"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
+<div class="codewrap keys" data-mgr="nils"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
+<div class="codewrap keys" data-mgr="furkan"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEpRaiP6zhNnr4jyEG4HB9VbaAE9QY9Jswx706LvgzXl furkan@mitarbyte.com</code></pre></div>
+<div class="codewrap keys" data-mgr="eslem"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEMogGuDeT2nmiZuDmSt4t7SU/Yd/KE8K6lGcNVp6Ek9 eslem@mitarbyte.com</code></pre></div>
 <ol start="4">
 <li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
 </ol>
@@ -387,7 +389,7 @@
 <li>Als Benutzer <code>root</code> mit dem Root-Passwort aus Schritt 3 anmelden.</li>
 <li>Diese eine Zeile einfügen (Rechtsklick → Einfügen) und Enter drücken:</li>
 </ol>
-<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; bash /root/mitarbyte.sh</code></pre></div>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; MB_MGR=<span class="ph" data-ph="MANAGERS">imran</span> bash /root/mitarbyte.sh</code></pre></div>
 <p>Das Skript richtet den Mitarbyte-Zugang ein, stellt dieselben 3–4 kurzen Fragen wie das Formular und zeigt am Ende eine fertige Nachricht an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> — komplett kopieren und schicken.</p>
 <blockquote><p>Falls beim Einfügen im Browser-Terminal nichts passiert: Die Zeile von Hand abtippen oder es mit <code>Strg+Umschalt+V</code> versuchen — das Browser-Terminal ist beim Einfügen manchmal eigen.</p></blockquote>
 </details>
@@ -847,6 +849,33 @@ function visible(meta) {
   return true;
 }
 
+/* ---- Onboarding-Manager: welche Bootstrap-Keys zeigt die Seite? ----
+   cfg.mgr kommt aus dem Fragment (ki-os-fleet onboarding-doc). Fehlt es,
+   bleiben ALLE eingebackenen Keys sichtbar — so verhaelt sich ein alter
+   Link weiter wie bisher. ---- */
+/* Vom Fragment gewaehlt (kann leer sein). */
+function mgrSelected() { return listVal(cfg.mgr).filter(Boolean); }
+/* Alle in die Seite eingebackenen Manager. */
+function mgrEmbedded() {
+  return Array.prototype.map.call(
+    document.querySelectorAll(".codewrap.keys[data-mgr]"),
+    function (w) { return w.getAttribute("data-mgr"); }).filter(Boolean);
+}
+/* Was tatsaechlich gilt — und damit auch im One-Liner steht: die Auswahl,
+   sonst alle. So zeigen Seite und Befehl IMMER dieselben Keys. */
+function mgrEffective() {
+  var sel = mgrSelected();
+  return sel.length ? sel : mgrEmbedded();
+}
+function applyManagerFilter() {
+  var want = mgrSelected();
+  if (!want.length) return;
+  Array.prototype.forEach.call(
+    document.querySelectorAll(".codewrap.keys[data-mgr]"), function (w) {
+      if (want.indexOf(w.getAttribute("data-mgr")) < 0) w.hidden = true;
+    });
+}
+
 /* ---- Platzhalter fuellen ---- */
 function userNames() {
   return listVal(cfg.users).map(function (u) {
@@ -859,6 +888,7 @@ function phValue(name) {
     case "FIRMA": return cfg.firma || null;
     case "ANSPRECHPARTNER": return cfg.ansprechpartner || null;
     case "USERS": return names.length ? names.join(", ") : null;
+    case "MANAGERS": return mgrEffective().join(",") || null;
     case "VM_PLAN":
       if (cfg.plan) return cfg.plan;
       if (names.length) return names.length <= 2 ? "KVM 2" : "KVM 4";
@@ -1171,6 +1201,8 @@ document.getElementById("menubtn").addEventListener("click", function () {
 document.getElementById("backdrop").addEventListener("click", closeNav);
 
 /* ---- Copy-Buttons auf Codebloecken ---- */
+applyManagerFilter();
+
 Array.prototype.forEach.call(document.querySelectorAll(".codewrap"), function (wrap) {
   var pre = wrap.querySelector("pre");
   var btn = document.createElement("button");
@@ -1331,6 +1363,9 @@ function initRegForm(slot) {
       access_key: W3F_KEY,
       subject: "KI-OS Registrierung — " + firma,
       from_name: "KI-OS Anleitung",
+      // Antworten landen beim zustaendigen Manager (Empfaenger selbst ist am
+      // Web3Forms-Account fest; ccemail waere ein PRO-Feature).
+      replyto: (mgrSelected().slice(-1)[0] || "office") + "@mitarbyte.com",
       botcheck: form.elements.botcheck.checked,
       firma: firma,
       kurzname: slug,
@@ -1340,6 +1375,7 @@ function initRegForm(slot) {
       vm_ip: ip,
       vm_hostname: getHost(),
       befehl: befehl,
+      zustaendig: mgrSelected().join(", "),
       intake_json: JSON.stringify(intakeJson)
     };
 

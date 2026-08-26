@@ -45,6 +45,8 @@
 #   SELFSERVICE_OS_RELEASE  alternative os-release-Datei
 #   SELFSERVICE_NPROC / SELFSERVICE_MEMINFO   Hardware-Werte injizieren
 #   BOOTSTRAP_KEYS_URL      alternative Key-Quelle (file:// erlaubt)
+#   MB_MGR                  Onboarding-Manager (komma-separiert), deren Keys
+#                           eingetragen werden; leer = alle aus der Datei
 # =============================================================================
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then set -euo pipefail; fi
@@ -144,11 +146,38 @@ ss_append_keys() {
     echo "$added"
 }
 
+# MB_MGR (aus der Anleitung, komma-separiert) waehlt aus, welche Manager-Keys
+# eingetragen werden — dieselbe Auswahl, die die Anleitung anzeigt. Gefiltert
+# wird ueber den Key-Kommentar (<name>@mitarbyte.com). Ist MB_MGR leer, bleibt
+# es beim bisherigen Verhalten: alle Keys der Datei.
+ss_filter_bootstrap_keys() {
+    local file="$1" want="${MB_MGR:-}" tmp line name keep
+    [ -n "$want" ] || return 0
+    tmp="${file}.sel"
+    : > "$tmp"
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in ''|'#'*) continue ;; esac
+        name="$(printf '%s' "$line" | awk '{print $NF}' | cut -d@ -f1)"
+        keep=0
+        case ",${want}," in *",${name},"*) keep=1 ;; esac
+        [ "$keep" = 1 ] && printf '%s\n' "$line" >> "$tmp"
+    done < "$file"
+    if grep -q 'ssh-' "$tmp" 2>/dev/null; then
+        mv "$tmp" "$file"
+    else
+        # Auswahl passt auf keinen Key (Tippfehler, alter Link): lieber alle
+        # eintragen als den Kunden mit einer VM ohne Zugang zurueckzulassen.
+        rm -f "$tmp"
+        echo "[i] Manager-Auswahl '${want}' traf keinen Key — alle Mitarbyte-Keys werden eingetragen."
+    fi
+}
+
 ss_fetch_bootstrap_keys() {
     local dest="$1"
     curl -fsSL "$BOOTSTRAP_KEYS_URL" -o "$dest" 2>/dev/null \
         || ss_die "Bootstrap-Keys nicht ladbar (${BOOTSTRAP_KEYS_URL}) — Internet-Zugang der VM pruefen, dann erneut ausfuehren."
     grep -q 'ssh-' "$dest" || ss_die "Bootstrap-Keys-Datei sieht nicht nach SSH-Keys aus — bitte Mitarbyte kontaktieren."
+    ss_filter_bootstrap_keys "$dest"
 }
 
 # --- JSON-Helfer (flach, selbst geschriebenes Format — bewusst ohne jq:
