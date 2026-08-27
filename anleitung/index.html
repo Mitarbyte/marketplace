@@ -362,7 +362,7 @@
 <ol>
 <li>Ein sicheres Root-Passwort vergeben und notieren (z.B. im Passwortmanager).</li>
 <li>Den Hostname kannst du auf der Vorgabe lassen oder frei wählen.</li>
-<li>Wenn der Assistent nach einem <strong>SSH-Schlüssel</strong> fragt: die folgenden Schlüssel <strong>einzeln nacheinander</strong> eintragen — Hostinger nimmt pro Eintrag genau <strong>einen</strong> Schlüssel, beide zusammen in ein Feld einzufügen funktioniert nicht. Also den ersten mit seinem Kopieren-Button übernehmen und speichern, dann das Hinzufügen erneut aufrufen und den zweiten genauso. Das ist der Mitarbyte-Zugang:</li>
+<li>Wenn der Assistent nach einem <strong>SSH-Schlüssel</strong> fragt: die unten stehenden Schlüssel eintragen — <strong>einen pro Eintrag</strong>. Hostinger nimmt pro Eintrag genau einen Schlüssel, mehrere zusammen in ein Feld einzufügen funktioniert nicht. Also den ersten mit seinem Kopieren-Button übernehmen und speichern, dann das Hinzufügen erneut aufrufen und den nächsten genauso — bis alle hier gezeigten Schlüssel hinterlegt sind (je nach Betreuer ist es einer oder mehrere). Das ist der Mitarbyte-Zugang:</li>
 </ol>
 <div class="codewrap keys" data-mgr="imran"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
 <div class="codewrap keys" data-mgr="nils"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
@@ -769,9 +769,12 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <script>
 "use strict";
 var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
-/* Web3Forms Access-Key: public by design (Alias auf das Empfaenger-Postfach,
-   kein Secret; Mitarbyte-Account, eingerichtet 2026-08-20). */
-var W3F_KEY = "74e9fc47-c48c-422d-be31-e769dcec6a45";
+/* Web3Forms-Empfaenger, zur Buildzeit aus admins/web3forms.list eingesetzt:
+   {always: "<manager>", keys: {"<manager>": "<access-key>"}}. Access-Keys sind
+   public by design (Alias auf ein Postfach, kein Secret). Ein Key = ein
+   Postfach, also postet das Formular einmal pro zustaendigem Manager;
+   `always` ist immer dabei (Ruecklauf-Kanal auch fuer generische Links). */
+var W3F = {"always": "imran", "keys": {"imran": "058b5a12-f29c-473d-83cc-bac3c53e8b55", "nils": "74e9fc47-c48c-422d-be31-e769dcec6a45"}};
 var W3F_URL = "https://api.web3forms.com/submit";
 
 /* ---- Konfiguration aus dem URL-Fragment (#c=<base64url(JSON)>) ---- */
@@ -862,18 +865,49 @@ function mgrEmbedded() {
     function (w) { return w.getAttribute("data-mgr"); }).filter(Boolean);
 }
 /* Was tatsaechlich gilt — und damit auch im One-Liner steht: die Auswahl,
-   sonst alle. So zeigen Seite und Befehl IMMER dieselben Keys. */
+   soweit sie auf eingebackene Keys passt, sonst alle. Greift die Auswahl auf
+   keinen einzigen Key (Tippfehler, Manager ohne Bootstrap-Key), zeigt die
+   Seite ALLE — genau das traegt selfservice.sh dann via MB_MGR ein. Seite und
+   Befehl duerfen nie verschiedene Keys meinen.
+
+   W3F.always ist der Pflicht-Manager (dieselbe Person, die jede Registrierung
+   bekommt): sein Key gehoert auf JEDE VM — er ist der einzige Admin mit
+   scope.conf "*", faellt der Zustaendige aus, kommt sonst niemand mehr auf die
+   Maschine. Die CLI stellt ihn seit 2026-08-27 voran; hier wird er zusaetzlich
+   erzwungen, damit auch bereits verschickte Links ihn zeigen. */
 function mgrEffective() {
-  var sel = mgrSelected();
-  return sel.length ? sel : mgrEmbedded();
+  var emb = mgrEmbedded();
+  var must = (W3F && W3F.always) || "";
+  var hit = mgrSelected().filter(function (n) { return emb.indexOf(n) >= 0; });
+  if (!hit.length) return emb;
+  if (must && emb.indexOf(must) >= 0 && hit.indexOf(must) < 0) hit = [must].concat(hit);
+  return hit;
 }
 function applyManagerFilter() {
-  var want = mgrSelected();
-  if (!want.length) return;
+  var want = mgrEffective();
   Array.prototype.forEach.call(
     document.querySelectorAll(".codewrap.keys[data-mgr]"), function (w) {
       if (want.indexOf(w.getAttribute("data-mgr")) < 0) w.hidden = true;
     });
+}
+
+/* ---- Wer bekommt die Registrierung? ----
+   Ein Access-Key = ein Postfach, also ein Submit pro Empfaenger. Gefragt ist
+   hier die Auswahl aus dem Fragment (nicht mgrEffective): ein Manager kann ein
+   Postfach haben, ohne mit Bootstrap-Key in der Seite zu stehen. Der
+   always-Manager ist IMMER dabei — auch bei einem generischen Link ohne
+   Auswahl und bei einer Auswahl ohne Key; sonst verschwindet eine
+   Registrierung lautlos. Reihenfolge: always zuerst, sein Submit entscheidet,
+   was der Kunde sieht. ---- */
+function w3fRecipients() {
+  var keys = (W3F && W3F.keys) || {}, out = [], seen = {};
+  [W3F && W3F.always].concat(mgrSelected()).forEach(function (n) {
+    var k = n && keys[n];
+    if (!k || seen[k]) return;   /* Dedupe ueber den KEY = ueber das Postfach */
+    seen[k] = 1;
+    out.push({ mgr: n, key: k });
+  });
+  return out;
 }
 
 /* ---- Platzhalter fuellen ---- */
@@ -1359,12 +1393,18 @@ function initRegForm(slot) {
     };
     if (idp && idp !== "keins") intakeJson.idp = { type: idp };
 
+    /* Ein Submit pro Postfach — der Empfaenger haengt am Access-Key, ein
+       echtes CC gibt es im Free-Plan nicht (ccemail = PRO-Feature). */
+    var to = w3fRecipients();
+    if (!to.length) {
+      showStatus("err", "Das Formular ist gerade nicht verfügbar — bitte die "
+        + "Antworten kurz per Mail an Mitarbyte schicken.");
+      return;
+    }
+
     var payload = {
-      access_key: W3F_KEY,
       subject: "KI-OS Registrierung — " + firma,
       from_name: "KI-OS Anleitung",
-      // Antworten landen beim zustaendigen Manager (Empfaenger selbst ist am
-      // Web3Forms-Account fest; ccemail waere ein PRO-Feature).
       replyto: (mgrSelected().slice(-1)[0] || "office") + "@mitarbyte.com",
       botcheck: form.elements.botcheck.checked,
       firma: firma,
@@ -1379,21 +1419,40 @@ function initRegForm(slot) {
       intake_json: JSON.stringify(intakeJson)
     };
 
+    function submitTo(rcpt) {
+      /* access_key gehoert zum Empfaenger, der Rest ist fuer alle gleich —
+         hier gesetzt und SOFORT serialisiert, bevor der naechste dran ist. */
+      payload.access_key = rcpt.key;
+      var body = JSON.stringify(payload);
+      return fetch(W3F_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: body
+      }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          if (!res.ok || !data.success) throw new Error("submit failed");
+        });
+      });
+    }
+
     btn.disabled = true;
     showStatus("ok", "Wird gesendet …");
-    fetch(W3F_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (data) {
-        if (!res.ok || !data.success) throw new Error("submit failed");
-        var when = new Date().toLocaleDateString("de-DE");
-        lsSet(storeKey + ":form", when);
-        showStatus("ok", "Gesendet ✓ — wir haben eure Registrierung erhalten und melden uns. Weiter mit Teil 2.");
-        btn.textContent = "Erneut senden";
-        btn.disabled = false;
+    /* Der always-Empfaenger entscheidet, was der Kunde sieht: die Kopien an die
+       weiteren Manager laufen daneben und duerfen den Kunden nicht in eine
+       Fehlerschleife schicken (ein toter Zweit-Key wuerde sonst die
+       Registrierung blockieren). Wer zustaendig ist, steht im Feld
+       `zustaendig` — die Information ist also auch dann nicht verloren. */
+    to.slice(1).forEach(function (rcpt) {
+      submitTo(rcpt).catch(function () {
+        if (window.console) console.warn("Kopie an " + rcpt.mgr + " fehlgeschlagen");
       });
+    });
+    submitTo(to[0]).then(function () {
+      var when = new Date().toLocaleDateString("de-DE");
+      lsSet(storeKey + ":form", when);
+      showStatus("ok", "Gesendet ✓ — wir haben eure Registrierung erhalten und melden uns. Weiter mit Teil 2.");
+      btn.textContent = "Erneut senden";
+      btn.disabled = false;
     }).catch(function () {
       showStatus("err", "Senden fehlgeschlagen — Internetverbindung prüfen und "
         + "erneut versuchen. Eure Eingaben bleiben erhalten.");
