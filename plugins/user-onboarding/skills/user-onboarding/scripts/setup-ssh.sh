@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
 # setup-ssh.sh — SSH-Key + minimaler ~/.ssh/config-Eintrag (macOS/Linux)
 #
 # Erzeugt (falls noetig) den Ed25519-Key, ersetzt den Host-Block `ki-os-vm`
@@ -11,7 +10,6 @@
 #
 # Output-Marker (fuer den orchestrierenden Skill):
 #   KEY_EXISTS | KEY_CREATED, CONFIG_WRITTEN, PUBKEY: <key>
-# =============================================================================
 set -euo pipefail
 
 VM_IP="" VM_USER="" EMAIL="" NEW_KEY=0

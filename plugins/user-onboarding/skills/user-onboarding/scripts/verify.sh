@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
 # verify.sh — Abschluss-Verifikation aller Komponenten (macOS/Linux)
 #
 # Prueft: SSH, noVNC-Tunnel (6080), Agent-Tunnel (Cockpit 3847 bzw. Hermes 9119),
@@ -25,7 +24,6 @@
 # --mode gateway (aus get-vm-values ACCESS_MODE): statt der lokalen Tunnel
 # werden die beiden Gateway-URLs geprueft (302 zum IdP-Login = OK — der
 # Check laeuft unauthentifiziert). SSH/Mutagen/Desktop-App wie gehabt.
-# =============================================================================
 set -uo pipefail
 
 VM_USER="" MODE="tunnel" ENGINE="claude" HUB_BACKEND="git" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL=""

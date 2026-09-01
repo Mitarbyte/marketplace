@@ -1,30 +1,20 @@
 #!/usr/bin/env bash
-# =============================================================================
 # setup-mutagen.sh — Mutagen installieren + Daemon-Autostart + Session ki-os
-# (macOS/Linux)
-#
+# (macOS/Linux).
 #   VM (Alpha, gewinnt Konflikte):  ki-os-vm:/home/<VM_USER>/KI-OS
 #   Lokal (Beta):                   ~/KI-OS
-#
 # Ignore-Begruendung + Konflikt-Semantik: references/mutagen.md.
 #
 # Teilt der User seinen `Workspaces`-Ordner per Bind-Mount mit Kollegen, bekommt
-# alles, was Mutagen VM-seitig anlegt, dessen Gruppe + group-schreibbare Modes.
-# Das wird VM-seitig ERKANNT (setgid-Bit), nicht angenommen — Details unten.
-#
-# macOS-TCC: liegt der lokale Sync-Ordner in ~/Desktop, ~/Documents oder
-# ~/Downloads (Bestands-Setups), braucht der Session-Watchdog eine eigene,
-# freigegebene Shell — sonst kann er blockierte VM-Loeschungen nicht aufloesen
-# (Details in Abschnitt 4 + references/mutagen.md -> "macOS-TCC").
+# alles, was Mutagen VM-seitig anlegt, dessen Gruppe + group-schreibbare Modes. Das
+# wird VM-seitig ERKANNT (setgid-Bit), nicht angenommen.
+# macOS-TCC: liegt der lokale Sync-Ordner in ~/Desktop, ~/Documents oder ~/Downloads
+# (Bestands-Setups), braucht der Watchdog eine eigene, freigegebene Shell (Abschnitt 4).
 #
 # Usage:  setup-mutagen.sh [--vm-user <VM_USER>] [--recreate] [--shared-group <NAME>]
-#
-# --vm-user ist optional: das Skript erkennt den VM-User per SSH selbst (im
-# selben Roundtrip wie die Shared-Group). Angeben nur, wenn SSH gerade nicht
-# erreichbar ist UND die Session neu angelegt werden muss.
-#
+# --vm-user ist optional (das Skript erkennt ihn per SSH selbst) — nur angeben, wenn
+# SSH gerade nicht erreichbar ist UND die Session neu angelegt werden muss.
 # Output-Marker: SESSION_EXISTS | SESSION_CREATED | SESSION_RECREATED
-# =============================================================================
 set -euo pipefail
 
 VM_USER="" RECREATE=0
@@ -44,18 +34,15 @@ done
 OS="$(uname -s)"
 
 # --- VM-User + Shared-Group in EINEM SSH-Roundtrip erkennen ---------------------
-# VM-User: fuer den Default-Alpha-Endpunkt bei Neuanlage (bei bestehender
-# Session unnoetig — deshalb ist das Fehlen erst im Create-Pfad ein Fehler).
+# VM-User: fuer den Default-Alpha-Endpunkt bei Neuanlage (bei bestehender Session
+# unnoetig — deshalb ist das Fehlen erst im Create-Pfad ein Fehler).
 # Shared-Group: ein geteilter `Workspaces`-Bind-Mount ist auf der VM als
-# setgid-Verzeichnis (drwxrws---, Modus 2770) mit der geteilten Gruppe
-# angelegt — genau daran ist er erkennbar. Deshalb wird NICHTS angenommen:
-# kein geteilter Ordner -> keine Gruppen-Freigabe (Normalfall, Single-User-
-# und Multi-User-VMs ohne Sharing). Der Grund fuer die explizite Gruppe
-# (Mutagen staged ausserhalb des Roots und renamed hinein, setgid vererbt
-# dabei nicht): references/mutagen.md.
-# Exit-Codes: 255 = SSH-Transportfehler (laut warnen statt still annehmen);
-# alles andere (auch 1 = Workspaces-Ordner fehlt) ist auswertbar — Zeile 1 ist
-# der VM-User, Zeile 2 (falls vorhanden) die setgid-Gruppe.
+# setgid-Verzeichnis (2770) mit der geteilten Gruppe angelegt und genau daran
+# erkennbar. Es wird NICHTS angenommen: kein geteilter Ordner → keine
+# Gruppen-Freigabe. Warum die Gruppe explizit sein muss (Mutagen staged ausserhalb
+# des Roots und renamed hinein, setgid vererbt dabei nicht): references/mutagen.md.
+# Exit-Codes: 255 = SSH-Transportfehler (laut warnen statt still annehmen); alles
+# andere ist auswertbar — Zeile 1 = VM-User, Zeile 2 = setgid-Gruppe (falls da).
 detect_vm_values() {
     # Bewusst ohne Quotes/Redirects im Remote-Kommando: es muss durch die
     # sh- UND die PowerShell-Variante identisch durchgehen.
@@ -168,39 +155,24 @@ create_session() {
     _beta="${2:-$HOME/KI-OS}"
 
     # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta. .claude/skills wird
-    # auf macOS/Linux bewusst mitgesynct (relative Skill-Symlinks -> klickbare
-    # Skill-Ansicht); Details: references/mutagen.md.
+    # bewusst mitgesynct (relative Skill-Symlinks → klickbare Skill-Ansicht).
     #
-    # Cloud-Sync-Ordner (root-verankert, fuehrender Slash): diese Ordner
-    # gehoeren dem VM-seitigen Cloud-Sync und duerfen NICHT zusaetzlich durch
-    # Mutagen laufen — sonst haengen an denselben Bytes drei Sync-Engines mit
-    # zwei unabhaengigen Konfliktmodellen (Mutagen VM<->Client, Cloud-Client
-    # VM<->Cloud, Cloud-Client der Kollegen an derselben Bibliothek). Der
-    # Ordner liegt ueber die Cloud ohnehin schon auf jedem Arbeitsplatz.
-    # Root-verankert, damit nicht zufaellig gleichnamige Unterordner irgendwo
-    # im Baum mit ausgeschlossen werden.
-    #
-    # Vier Literale, weil der Ordnername Historie hat und nicht pro VM
-    # konfigurierbar sein soll:
-    #   /Ablage       — aktuelle Konvention, providerneutral (M365 wie Google)
-    #   /SharePoint   — Bestand (schleumer, live seit 2026-08-07, bleibt dort)
-    #   /Sharepoint   — dieselbe Schreibweise mit kleinem p, real vergeben
-    #   /Google Drive — Name, den Google Drive for Desktop selbst vergibt
-    #   /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev, /Apps,
-    #   /$COMPANY_LOCAL
-    #                 — Drei-Ordner-Struktur des cloud-Hub-Backends (Uebergang:
-    #                   auf reinen cloud-Usern entfaellt Mutagen ganz, aber auf
-    #                   VMs mit gemischten Backends laeuft es weiter und darf
-    #                   die Cloud-Ordner nicht doppelt syncen). /Apps ist der
-    #                   Nachfolger von /dev (Restructure 2026-08); beide
-    #                   gelistet, solange Bestands-VMs noch dev/ tragen.
-    # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft einen Ordner
-    # 'Sharepoint' nicht. Beide Schreibweisen zu listen ist der einzige Weg, das
-    # ohne Umbenennen am Live-Sync abzudecken (aufgefallen 2026-08-12: Ordner
-    # 'Sharepoint' lief unbemerkt doppelt, weil nur '/SharePoint' gelistet war).
-    # Jedes Literal ist ein No-op, solange der Ordner nicht existiert; sie
-    # kosten also nichts und sparen ein Migrationsfenster am Live-Sync.
-    # Details: docs/features/cloud-sync/cloudsync-runbook.md (Template).
+    # Cloud-Sync-Ordner (root-verankert, fuehrender Slash) gehoeren dem VM-seitigen
+    # Cloud-Sync und duerfen NICHT zusaetzlich durch Mutagen laufen — sonst haengen an
+    # denselben Bytes drei Sync-Engines mit zwei unabhaengigen Konfliktmodellen. Der
+    # Ordner liegt ueber die Cloud ohnehin auf jedem Arbeitsplatz. Root-verankert,
+    # damit nicht zufaellig gleichnamige Unterordner im Baum mit ausgeschlossen werden.
+    # Mehrere Literale, weil der Ordnername Historie hat und nicht pro VM
+    # konfigurierbar sein soll: /Ablage (aktuelle, providerneutrale Konvention),
+    # /SharePoint + /Sharepoint (Bestand, beide Schreibweisen real vergeben),
+    # /Google Drive (Name, den Drive for Desktop selbst vergibt) sowie
+    # /Geteilte-Arbeitsplaetze, /Meine-Arbeitsplaetze, /dev, /Apps, /$COMPANY_LOCAL
+    # (Struktur des cloud-Backends; /Apps ist der Nachfolger von /dev, beide gelistet,
+    # solange Bestands-VMs dev/ tragen).
+    # Mutagen-Ignores sind CASE-SENSITIV: '/SharePoint' trifft 'Sharepoint' NICHT —
+    # beide zu listen ist der einzige Weg ohne Umbenennen am Live-Sync. Jedes Literal
+    # ist ein No-op, solange der Ordner nicht existiert.
+    # Details: docs/features/cloud-sync/cloudsync-runbook.md.
     set -- \
         --name=ki-os \
         --sync-mode=two-way-resolved \
@@ -504,19 +476,16 @@ if [ "$OS" = "Darwin" ]; then
     mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 
     # --- Eigene Watchdog-Shell (macOS-TCC) ------------------------------------
-    # Ein LaunchAgent, der ueber /bin/bash laeuft, hat in ~/Desktop, ~/Documents
-    # und ~/Downloads KEINEN Zugriff auf fremd erzeugte Inhalte: stat und mkdir
-    # gehen durch, aber opendir und das rename fremder Objekte geben EPERM. Liegt
-    # der lokale Sync-Ordner dort (Bestands-Setups vor der ~/KI-OS-Konvention),
-    # kann der Watchdog blockierte VM-Loeschungen nicht aufloesen.
-    # Der Watchdog laeuft deshalb ueber eine EIGENE Kopie der Shell, die der User
-    # einmalig im Festplattenvollzugriff freigibt — statt /bin/bash global
-    # freizugeben, womit JEDES bash-Skript auf dem Rechner diese Rechte haette.
-    # Existiert die Kopie schon, wird sie NICHT ersetzt: ein neues Binary am
-    # selben Pfad invalidiert den erteilten TCC-Grant.
-    # Die Kopie MUSS ad-hoc neu signiert werden: /bin/bash ist ein Apple-Platform-
-    # Binary, dessen Signatur nur am Originalpfad validiert — eine unsignierte
-    # Kopie killt der Kernel beim Start sofort (SIGKILL, "Killed: 9").
+    # Ein LaunchAgent, der ueber /bin/bash laeuft, hat in ~/Desktop, ~/Documents und
+    # ~/Downloads KEINEN Zugriff auf fremd erzeugte Inhalte: stat und mkdir gehen
+    # durch, aber opendir und das rename fremder Objekte geben EPERM. Liegt der lokale
+    # Sync-Ordner dort, kann der Watchdog blockierte VM-Loeschungen nicht aufloesen.
+    # Deshalb laeuft er ueber eine EIGENE Kopie der Shell, die der User einmalig im
+    # Festplattenvollzugriff freigibt — statt /bin/bash global freizugeben, womit JEDES
+    # bash-Skript diese Rechte haette. Eine vorhandene Kopie wird NICHT ersetzt: ein
+    # neues Binary am selben Pfad invalidiert den TCC-Grant. Die Kopie MUSS ad-hoc neu
+    # signiert werden — /bin/bash ist ein Apple-Platform-Binary, dessen Signatur nur am
+    # Originalpfad validiert; eine unsignierte Kopie killt der Kernel sofort.
     WD_SHELL="$HOME/.local/bin/ki-os-watchdog-shell"
     if [ ! -x "$WD_SHELL" ] || ! "$WD_SHELL" -c true 2>/dev/null; then
         rm -f "$WD_SHELL" 2>/dev/null || true

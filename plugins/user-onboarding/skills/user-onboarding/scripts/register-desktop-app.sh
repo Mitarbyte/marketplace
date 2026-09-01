@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
 # register-desktop-app.sh — Claude-Code-Desktop-App vorkonfigurieren
 # (macOS: ssh_configs.json + ~/.claude.json; Linux: nur ~/.claude.json)
 #
@@ -11,7 +10,6 @@
 # Hintergrund + manueller Fallback: references/desktop-app.md.
 #
 # Usage:  register-desktop-app.sh --vm-user <VM_USER>
-# =============================================================================
 set -euo pipefail
 
 VM_USER=""

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
 # get-vm-values.sh — Smoketest + pro-User-Werte in EINEM SSH-Roundtrip
 #
 # Holt Engine, Cockpit-/Agent-Port, noVNC-Port und (nur im tunnel-Modus) das
@@ -14,7 +13,7 @@
 #   ENGINE=<claude|hermes>       welche Agent-Engine dieser User faehrt. Auf
 #          hermes gibt es KEIN Cockpit — der Einstieg ist das Hermes-Dashboard
 #          (AGENT_PORT), und im tunnel-Modus wird dieser Port getunnelt statt
-#          3847 (docs/features/hermes/plan.md § 8).
+#          3847 (docs/betrieb/vm-management.md § 8).
 #   HUB_BACKEND=<git|cloud>      git = GitHub-Hub + Mutagen (Bestand); cloud =
 #          Firmenwissen synct per SharePoint/Drive — Mutagen ENTFAELLT dort
 #          komplett (Datei-Einsicht ueber den Cloud-Client der Firma bzw.
@@ -27,7 +26,6 @@
 #          nicht ausgelesen, damit es nirgends im Chat/Log landet)
 #   GATEWAY_COCKPIT_URL=<url|MISSING>  GATEWAY_NOVNC_URL=<url|MISSING>   (nur gateway)
 #   GATEWAY_AGENT_URL=<url|MISSING>    (nur gateway + engine=hermes)
-# =============================================================================
 set -uo pipefail
 
 OUT="$(ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm bash -s 2>&1 <<'REMOTE'

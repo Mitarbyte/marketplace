@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# =============================================================================
 # selfservice.sh — Kunden-One-Liner fuer das Selfservice-Onboarding (Phase 1).
 #
 # Der Kunde fuehrt das Skript als root im Hostinger-Browser-Terminal aus
@@ -47,7 +46,6 @@
 #   BOOTSTRAP_KEYS_URL      alternative Key-Quelle (file:// erlaubt)
 #   MB_MGR                  Onboarding-Manager (komma-separiert), deren Keys
 #                           eingetragen werden; leer = alle aus der Datei
-# =============================================================================
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then set -euo pipefail; fi
 

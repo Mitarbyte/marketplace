@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# =============================================================================
 # setup-tunnels.sh — beide gehaerteten SSH-Tunnel-Autostarts (macOS/Linux)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
-#   Zweiter Tunnel je Engine (docs/features/hermes/plan.md § 8):
+#   Zweiter Tunnel je Engine (docs/betrieb/vm-management.md § 8):
 #     engine=claude  Cockpit:        lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
 #     engine=hermes  Hermes-Agent:   lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
 #   Lokal 9119 ist bewusst der Hermes-Default: die Desktop-App schlaegt
@@ -21,7 +20,6 @@
 # --remove baut beide Tunnel-Autostarts idempotent ab (gateway-Modus: die VM
 # stellt noVNC/Cockpit oeffentlich hinter Caddy+Kunden-IdP bereit, lokale
 # Tunnel sind obsolet). Mutagen/SSH bleiben unangetastet.
-# =============================================================================
 set -euo pipefail
 
 NOVNC_PORT="" COCKPIT_PORT="" AGENT_PORT="" ENGINE="claude" REMOVE=0

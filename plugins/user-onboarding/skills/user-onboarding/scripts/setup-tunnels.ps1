@@ -2,7 +2,7 @@
 # setup-tunnels.ps1 - gehaertete SSH-Tunnel-Autostarts (natives Windows)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
-#   Zweiter Tunnel je Engine (docs/features/hermes/plan.md Abschnitt 8):
+#   Zweiter Tunnel je Engine (docs/betrieb/vm-management.md Abschnitt 8):
 #     -Engine claude  Cockpit:        lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
 #     -Engine hermes  Hermes-Agent:   lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
 #   Lokal 9119 ist der Hermes-Default, den die Desktop-App selbst vorschlaegt.
