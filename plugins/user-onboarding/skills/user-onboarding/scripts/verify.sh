@@ -6,7 +6,7 @@
 # aus; Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
 # Usage:  verify.sh --vm-user <VM_USER> [--mode tunnel|gateway]
-#                    [--engine claude|hermes] [--hub-backend git|cloud]
+#                    [--engine claude|hybrid|hermes] [--hub-backend git|cloud]
 #                    [--gateway-cockpit-url <url>] [--gateway-novnc-url <url>]
 #                    [--gateway-agent-url <url>]
 #
@@ -20,6 +20,8 @@
 # werden das Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und, statt der
 # ~/.claude.json-Eintraege, nur SSH/Mutagen (die Hermes-Desktop-App verbindet
 # sich ueber URL + Session-Token, es gibt keine lokale Registrierung zu pruefen).
+# --engine hybrid (Layout v3, ADR 18): beide Stacks — Cockpit UND Hermes-
+# Dashboard werden geprueft, die Claude-Desktop-App wie auf claude.
 #
 # --mode gateway (aus get-vm-values ACCESS_MODE): statt der lokalen Tunnel
 # werden die beiden Gateway-URLs geprueft (302 zum IdP-Login = OK — der
@@ -39,12 +41,14 @@ while [ $# -gt 0 ]; do
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
-# Haupt-Oberflaeche je Engine — EIN Ort, an dem der Unterschied steht.
-if [ "$ENGINE" = "hermes" ]; then
-    MAIN_LABEL="Hermes-Dashboard"; MAIN_LPORT=9119; MAIN_GW_URL="$GW_AGENT_URL"
-else
-    MAIN_LABEL="Cockpit";          MAIN_LPORT=3847; MAIN_GW_URL="$GW_COCKPIT_URL"
-fi
+case "$ENGINE" in claude|hybrid|hermes) ;; *) echo "FAIL: --engine erlaubt nur claude|hybrid|hermes" >&2; exit 2 ;; esac
+# Agenten-Oberflaechen je Stack — EIN Ort, an dem der Unterschied steht:
+# "Label|lokaler Port|Gateway-URL", eine Zeile je Oberflaeche (hybrid: zwei).
+SURFACES=""
+case "$ENGINE" in claude|hybrid) SURFACES="Cockpit|3847|${GW_COCKPIT_URL}" ;; esac
+case "$ENGINE" in hermes|hybrid) SURFACES="${SURFACES}${SURFACES:+
+}Hermes-Dashboard|9119|${GW_AGENT_URL}" ;; esac
+HAS_CLAUDE=0; case "$ENGINE" in claude|hybrid) HAS_CLAUDE=1 ;; esac
 [ -n "$VM_USER" ] || { echo "FAIL: --vm-user fehlt" >&2; exit 2; }
 
 RC=0
@@ -73,8 +77,8 @@ check "SSH-Verbindung (ki-os-vm)" ssh -o BatchMode=yes -o ConnectTimeout=10 ki-o
 if [ "$MODE" = "gateway" ]; then
     # Gateway-URLs statt Tunnel: unauthentifiziert MUSS ein Redirect zum
     # IdP-Login kommen (302). 200 waere ein Auth-Bypass → Admin alarmieren.
-    for pair in "${MAIN_LABEL}|${MAIN_GW_URL}" "noVNC|${GW_NOVNC_URL}"; do
-        label="${pair%%|*}"; url="${pair#*|}"
+    while IFS='|' read -r label _lport url; do
+        [ -n "$label" ] || continue
         if [ -z "$url" ] || [ "$url" = "MISSING" ]; then
             echo "FAIL: Gateway-${label}-URL fehlt (Admin: ki-os-fleet vm gateway-grant)"
             RC=1
@@ -86,26 +90,50 @@ if [ "$MODE" = "gateway" ]; then
             200) echo "FAIL: Gateway ${label} ${url} liefert unauthentifiziert HTTP 200 — Admin SOFORT informieren"; RC=1 ;;
             *)   echo "FAIL: Gateway ${label} ${url} (HTTP ${code:-keine Antwort})"; RC=1 ;;
         esac
-    done
+    done <<EOF
+${SURFACES}
+noVNC|6080|${GW_NOVNC_URL}
+EOF
 else
     http_check "noVNC-Tunnel  http://localhost:6080/vnc.html" "http://localhost:6080/vnc.html"
-    http_check "${MAIN_LABEL}-Tunnel http://localhost:${MAIN_LPORT}" "http://localhost:${MAIN_LPORT}"
+    while IFS='|' read -r label lport _url; do
+        [ -n "$label" ] || continue
+        http_check "${label}-Tunnel http://localhost:${lport}" "http://localhost:${lport}"
+    done <<EOF
+${SURFACES}
+EOF
 fi
 
-# gateway bzw. Backend cloud: Mutagen ist dort der SOLL-Zustand "nicht
-# vorhanden" — ein Pflicht-FAIL fuer die fehlende Session waere falsch. Alle
-# Mutagen-Checks (Session, Konflikte, Workspace-Pfad, Watchdog) werden zum SKIP.
-# Eine noch laufende Bestands-Session wird gemeldet, aber nur auf cloud als
-# Handlungsbedarf: dort syncen sonst zwei Engines dieselben Bytes. Auf gateway
-# ist sie bloss ungepflegter Bestand und bleibt unangetastet.
-if [ "$MODE" = "gateway" ] || [ "$HUB_BACKEND" = "cloud" ]; then
-    if [ "$MODE" = "gateway" ]; then
-        echo "OK:   access-mode=gateway — Mutagen entfaellt (Dateien ueber Cockpit-Explorer bzw. Cloud der Firma)"
-    else
-        echo "OK:   hub-backend=cloud — Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)"
-    fi
+# Mutagen ist der SOLL-Zustand "nicht vorhanden", sobald EINE der beiden
+# Dimensionen es ueberfluessig macht — ein Pflicht-FAIL fuer die fehlende
+# Session waere dann falsch, alle Mutagen-Checks (Session, Konflikte,
+# Workspace-Pfad, Watchdog) werden zum SKIP.
+#
+# A6 (plan.md § 0.1/§ 2.2): kein kombinierter Zweig `access ∨ backend`. Jede
+# Dimension gated NUR ihre eigene Schicht und hinterlaesst ihre Begruendung;
+# das Ergebnis entsteht durch Ueberlagerung, nicht durch eine Verbund-Bedingung.
+MUTAGEN_SKIP=""          # Begruendung der Schicht, die Mutagen streicht
+MUTAGEN_STALE_ACTION=0   # zaehlt eine liegengebliebene Session als Handlungsbedarf?
+
+# Schicht Netz (access-mode): gateway hat keinen SSH-Tunnel, also keinen
+# Mutagen-Transport. Eine Bestands-Session ist hier bloss ungepflegter Bestand
+# und bleibt unangetastet.
+if [ "$MODE" = "gateway" ]; then
+    MUTAGEN_SKIP="access-mode=gateway — Mutagen entfaellt (Dateien ueber Cockpit-Explorer bzw. Cloud der Firma)"
+fi
+
+# Schicht Transport (hub-backend): im cloud-Backend liefert der Cloud-Client der
+# Firma die Dateien. Eine noch laufende Session IST hier Handlungsbedarf —
+# sonst syncen zwei Engines dieselben Bytes.
+if [ "$HUB_BACKEND" = "cloud" ]; then
+    MUTAGEN_SKIP="hub-backend=cloud — Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)"
+    MUTAGEN_STALE_ACTION=1
+fi
+
+if [ -n "$MUTAGEN_SKIP" ]; then
+    echo "OK:   ${MUTAGEN_SKIP}"
     if command -v mutagen >/dev/null 2>&1 && mutagen sync list ki-os >/dev/null 2>&1; then
-        if [ "$HUB_BACKEND" = "cloud" ]; then
+        if [ "$MUTAGEN_STALE_ACTION" = "1" ]; then
             echo "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' — auf cloud-Backend gehoert sie"
             echo "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
         else
@@ -197,7 +225,7 @@ fi  # Ende Mutagen-Block (nur mode=tunnel + hub-backend git)
 # Desktop-App-Registrierung ist ein CLAUDE-Artefakt (ssh_configs.json +
 # ~/.claude.json). Auf Hermes gibt es sie nicht: die Hermes-Desktop-App wird mit
 # URL + Session-Token verbunden, es liegt lokal nichts, was man pruefen koennte.
-if [ "$ENGINE" = "hermes" ]; then
+if [ "$HAS_CLAUDE" != "1" ]; then
     echo "OK:   engine=hermes — keine Claude-Desktop-App-Registrierung zu pruefen"
     echo "      (Hermes-App: Remote gateway → URL + Session-Token; Token beim Admin:"
     echo "       ki-os-fleet vm hermes-token --user ${VM_USER})"

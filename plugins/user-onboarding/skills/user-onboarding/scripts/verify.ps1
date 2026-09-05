@@ -7,7 +7,7 @@
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File verify.ps1 -VmUser <VM_USER> `
-#       [-Mode tunnel|gateway] [-Engine claude|hermes] [-HubBackend git|cloud]
+#       [-Mode tunnel|gateway] [-Engine claude|hybrid|hermes] [-HubBackend git|cloud]
 #       [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>] [-GatewayAgentUrl <url>]
 #
 # Mutagen wird nur mit -Mode tunnel + -HubBackend git geprueft. Sonst ist "keine
@@ -27,7 +27,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$VmUser,
     [string]$Mode = 'tunnel',
-    [ValidateSet('claude','hermes')][string]$Engine = 'claude',
+    [ValidateSet('claude','hybrid','hermes')][string]$Engine = 'claude',
     [ValidateSet('git','cloud')][string]$HubBackend = 'git',
     [string]$GatewayCockpitUrl = '',
     [string]$GatewayNovncUrl = '',
@@ -36,15 +36,29 @@ param(
 $ErrorActionPreference = 'Continue'
 $failed = $false
 $isGateway = ($Mode -eq 'gateway')
-$isHermes  = ($Engine -eq 'hermes')
+# Stacks (ADR 18): Claude-Stack = claude|hybrid, Hermes-Stack = hermes|hybrid.
+$hasClaude = ($Engine -in @('claude','hybrid'))
+$hasHermes = ($Engine -in @('hermes','hybrid'))
 # Mutagen nur im tunnel-Modus mit git-Backend erwartet (siehe Kopf).
-$skipMutagen = ($isGateway -or ($HubBackend -eq 'cloud'))
-# Haupt-Oberflaeche je Engine - EIN Ort, an dem der Unterschied steht.
-if ($isHermes) {
-    $mainLabel = 'Hermes-Dashboard'; $mainPort = 9119; $mainGwUrl = $GatewayAgentUrl
-} else {
-    $mainLabel = 'Cockpit';          $mainPort = 3847; $mainGwUrl = $GatewayCockpitUrl
+# A6 (plan.md § 0.1/§ 2.2): kein Verbund-Zweig `access -or backend`. Jede
+# Dimension gated NUR ihre eigene Schicht und hinterlaesst ihre Begruendung -
+# das Ergebnis entsteht durch Ueberlagerung (identisch zum bash-Zwilling).
+$mutagenSkip = ''          # Begruendung der Schicht, die Mutagen streicht
+$mutagenStaleAction = $false   # laufende Session = Handlungsbedarf?
+# Schicht Netz (access-mode): gateway hat keinen SSH-Tunnel, also keinen Transport.
+if ($isGateway) {
+    $mutagenSkip = 'access-mode=gateway - Mutagen entfaellt (Dateien ueber Cockpit-Explorer bzw. Cloud der Firma)'
 }
+# Schicht Transport (hub-backend): im cloud-Backend liefert der Cloud-Client die
+# Dateien - eine laufende Session ist hier Handlungsbedarf (zwei Engines, dieselben Bytes).
+if ($HubBackend -eq 'cloud') {
+    $mutagenSkip = 'hub-backend=cloud - Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)'
+    $mutagenStaleAction = $true
+}
+# Agenten-Oberflaechen je Stack - EIN Ort, an dem der Unterschied steht (hybrid: beide).
+$surfaces = @()
+if ($hasClaude) { $surfaces += @{ Label = 'Cockpit';          Port = 3847; GwUrl = $GatewayCockpitUrl } }
+if ($hasHermes) { $surfaces += @{ Label = 'Hermes-Dashboard'; Port = 9119; GwUrl = $GatewayAgentUrl } }
 
 # --- SSH ------------------------------------------------------------------------
 & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm true 2>$null
@@ -53,9 +67,13 @@ else { Write-Host 'FAIL: SSH-Verbindung (ki-os-vm) - references/ssh.md -> Smoket
 
 # --- Watchdog-Task (haelt Tunnel + Mutagen-Daemon am Leben) -----------------------
 # Im gateway-Modus gibt es weder Tunnel noch Mutagen - dann ist der Task nicht
-# Pflicht, sondern hoechstens harmloser Bestand.
+# Pflicht, sondern hoechstens harmloser Bestand. Das ist eine Frage der
+# Netz-Schicht ALLEIN (A6): im tunnel-Modus haelt der Task die Tunnel, ganz
+# unabhaengig vom Hub-Backend. Die frueher zusaetzliche Bedingung
+# `-and $skipMutagen` war wirkungslos (skipMutagen enthielt isGateway) und
+# vermischte zwei Dimensionen in einem Zweig.
 $taskPresent = [bool](Get-ScheduledTask -TaskName 'ki-os-vm-watchdog' -ErrorAction SilentlyContinue)
-if ($isGateway -and $skipMutagen) {
+if ($isGateway) {
     if ($taskPresent) {
         Write-Host 'OK:   Scheduled Task ki-os-vm-watchdog vorhanden (Bestand; im gateway-Modus nicht noetig)'
     } else {
@@ -71,10 +89,10 @@ if ($isGateway -and $skipMutagen) {
 if ($isGateway) {
     # Gateway statt Tunnel: unauthentifiziert MUSS ein Redirect/Deny kommen
     # (302/401/403). 200 waere ein Auth-Bypass -> Admin alarmieren.
-    foreach ($g in @(
-        @{ Label = "Gateway $mainLabel"; Url = $mainGwUrl },
-        @{ Label = 'Gateway noVNC';      Url = $GatewayNovncUrl }
-    )) {
+    $gwChecks = @()
+    foreach ($sf in $surfaces) { $gwChecks += @{ Label = "Gateway $($sf.Label)"; Url = $sf.GwUrl } }
+    $gwChecks += @{ Label = 'Gateway noVNC'; Url = $GatewayNovncUrl }
+    foreach ($g in $gwChecks) {
         if (-not $g.Url -or $g.Url -eq 'MISSING') {
             Write-Host "FAIL: $($g.Label)-URL fehlt (Admin: ki-os-fleet vm gateway-grant)"; $failed = $true
             continue
@@ -91,10 +109,9 @@ if ($isGateway) {
         else { Write-Host "FAIL: $($g.Label) $($g.Url) (HTTP $code / keine Antwort)"; $failed = $true }
     }
 } else {
-    foreach ($t in @(
-        @{ Label = 'noVNC-Tunnel  http://localhost:6080/vnc.html'; Url = 'http://localhost:6080/vnc.html'; Port = 6080 },
-        @{ Label = "$mainLabel-Tunnel http://localhost:$mainPort"; Url = "http://localhost:$mainPort"; Port = $mainPort }
-    )) {
+    $tChecks = @(@{ Label = 'noVNC-Tunnel  http://localhost:6080/vnc.html'; Url = 'http://localhost:6080/vnc.html'; Port = 6080 })
+    foreach ($sf in $surfaces) { $tChecks += @{ Label = "$($sf.Label)-Tunnel http://localhost:$($sf.Port)"; Url = "http://localhost:$($sf.Port)"; Port = $sf.Port } }
+    foreach ($t in $tChecks) {
         $listening = [bool](Get-NetTCPConnection -LocalPort $t.Port -State Listen -ErrorAction SilentlyContinue)
         $code = $null
         try { $code = (Invoke-WebRequest -UseBasicParsing -Uri $t.Url -TimeoutSec 5).StatusCode } catch {}
@@ -111,16 +128,12 @@ if ($isGateway) {
 # Bytes); auf gateway bleibt sie unangetastet.
 $mutagenCmd = Get-Command mutagen -ErrorAction SilentlyContinue
 if (-not $mutagenCmd) { $mutagenCmd = Get-Command (Join-Path $env:USERPROFILE '.local\bin\mutagen.exe') -ErrorAction SilentlyContinue }
-if ($skipMutagen) {
-    if ($isGateway) {
-        Write-Host 'OK:   access-mode=gateway - Mutagen entfaellt (Dateien ueber Cockpit-Explorer bzw. Cloud der Firma)'
-    } else {
-        Write-Host 'OK:   hub-backend=cloud - Mutagen entfaellt (Datei-Einsicht ueber den Cloud-Client der Firma)'
-    }
+if ($mutagenSkip -ne '') {
+    Write-Host "OK:   $mutagenSkip"
     if ($mutagenCmd) {
         & $mutagenCmd.Source sync list ki-os 2>$null | Out-Null
         if ($LASTEXITCODE -eq 0) {
-            if ($HubBackend -eq 'cloud') {
+            if ($mutagenStaleAction) {
                 Write-Host "WARN: Es laeuft noch eine Mutagen-Session 'ki-os' - auf cloud-Backend gehoert sie"
                 Write-Host "      terminiert ('mutagen sync terminate ki-os'), sonst syncen zwei Engines dieselben Bytes."
             } else {
@@ -188,7 +201,7 @@ if ((Test-Path -LiteralPath $wdIssues) -and (Get-Item -LiteralPath $wdIssues).Le
 # Die Registrierung (ssh_configs.json + ~\.claude.json) ist ein CLAUDE-Artefakt.
 # Auf Hermes gibt es sie nicht: die Hermes-App wird mit URL + Session-Token
 # verbunden, lokal liegt nichts, was man pruefen koennte.
-if ($isHermes) {
+if (-not $hasClaude) {
     Write-Host 'OK:   engine=hermes - keine Claude-Desktop-App-Registrierung zu pruefen'
     Write-Host "      (Hermes-App: Remote gateway -> URL + Session-Token; Token beim Admin: ki-os-fleet vm hermes-token --user $VmUser)"
     if ($failed) { exit 1 } else { exit 0 }

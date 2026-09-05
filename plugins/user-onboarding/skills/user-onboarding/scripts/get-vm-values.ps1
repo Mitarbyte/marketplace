@@ -9,18 +9,19 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File get-vm-values.ps1
 #
 # Output-Marker: SSH_OK | SSH_FAIL, ACCESS_MODE=,
-#                ENGINE= (claude|hermes - auf hermes gibt es KEIN Cockpit; der
-#                Einstieg ist das Hermes-Dashboard auf AGENT_PORT, und im
-#                tunnel-Modus wird dieser Port getunnelt statt 3847),
+#                ENGINE= (claude|hybrid|hermes - auf hermes gibt es KEIN Cockpit;
+#                der Einstieg ist das Hermes-Dashboard auf AGENT_PORT, und im
+#                tunnel-Modus wird dieser Port getunnelt statt 3847; hybrid =
+#                beide Stacks, also Cockpit UND Dashboard),
 #                HUB_BACKEND= (git|cloud - cloud: Mutagen ENTFAELLT komplett,
 #                der Skill richtet nur SSH/Tunnel/Desktop-App ein),
 #                COMPANY_LOCAL= (Firmenordner-Name im Workspace, nur cloud),
-#                AGENT_PORT= (Hermes-Dashboard-Port, nur relevant auf hermes),
+#                AGENT_PORT= (Hermes-Dashboard-Port, Hermes-Stack hermes|hybrid),
 #                COCKPIT_PORT= / NOVNC_PORT= /
 #                NOVNC_PASS= (NOT_NEEDED im gateway-Modus: x11vnc laeuft dort
 #                mit -nopw, ADR 5.6 - das Passwort wird bewusst nicht gelesen),
 #                GATEWAY_COCKPIT_URL= / GATEWAY_NOVNC_URL= (nur gateway),
-#                GATEWAY_AGENT_URL= (nur gateway + engine=hermes)
+#                GATEWAY_AGENT_URL= (nur gateway + Hermes-Stack hermes|hybrid)
 # =============================================================================
 $ErrorActionPreference = 'Continue'
 
@@ -67,9 +68,9 @@ if [ "${am:-tunnel}" = "gateway" ]; then
     # Als `if`, nicht als `[ ... ] && echo`: das Remote-Skript endet hier, und
     # eine falsche Bedingung waere sein Exit-Code - der $LASTEXITCODE-Check
     # meldete dann bei jedem claude-User faelschlich SSH_FAIL.
-    if [ "$eng" = "hermes" ]; then
-        echo "GATEWAY_AGENT_URL=${ga:-MISSING}"
-    fi
+    case "$eng" in
+        hermes|hybrid) echo "GATEWAY_AGENT_URL=${ga:-MISSING}" ;;
+    esac
 else
     pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
     echo "NOVNC_PASS=${pw:-MISSING}"
@@ -111,13 +112,14 @@ if ($out -match 'NOVNC_PORT=MISSING') {
     Write-Host "WARN: display.env fehlt - Display-Stack fuer diesen User noch nicht provisioniert. Admin kontaktieren, danach hier weitermachen."
 }
 
-# Auf engine=hermes ist GATEWAY_COCKPIT_URL legitim leer (kein Cockpit) - dort
-# zaehlt GATEWAY_AGENT_URL. Ohne diese Unterscheidung wuerde der Skill jedem
-# Hermes-User ein "kein Gateway-Mapping" vorwerfen, obwohl alles stimmt.
-if ($out -match 'ENGINE=hermes') {
-    if ($out -match 'GATEWAY_AGENT_URL=MISSING') {
-        Write-Host "WARN: gateway-VM, aber kein Gateway-Mapping fuer diesen User - Admin kontaktieren (ki-os-fleet vm gateway-grant)."
-    }
-} elseif ($out -match 'GATEWAY_COCKPIT_URL=MISSING') {
-    Write-Host "WARN: gateway-VM, aber kein Gateway-Mapping fuer diesen User - Admin kontaktieren (ki-os-fleet vm gateway-grant)."
+# Gateway-Mapping je Stack: Claude-Stack (claude|hybrid) braucht die Cockpit-URL,
+# Hermes-Stack (hermes|hybrid) die Agent-URL - hybrid beide. Auf engine=hermes
+# ist GATEWAY_COCKPIT_URL legitim leer (kein Cockpit).
+$engLine = ($out | Where-Object { $_ -match '^ENGINE=' } | Select-Object -First 1)
+$eng = if ($engLine) { ($engLine -replace '^ENGINE=', '') } else { 'claude' }
+if (($eng -in @('claude','hybrid')) -and ($out -match 'GATEWAY_COCKPIT_URL=MISSING')) {
+    Write-Host "WARN: gateway-VM, aber kein Gateway-Mapping (Cockpit) fuer diesen User - Admin kontaktieren (ki-os-fleet vm gateway-grant)."
+}
+if (($eng -in @('hermes','hybrid')) -and ($out -match 'GATEWAY_AGENT_URL=MISSING')) {
+    Write-Host "WARN: gateway-VM, aber kein Gateway-Mapping (Agent-Dashboard) fuer diesen User - Admin kontaktieren (ki-os-fleet vm gateway-grant)."
 }

@@ -10,7 +10,7 @@
 # Output-Marker:
 #   SSH_OK | SSH_FAIL: <fehler>
 #   ACCESS_MODE=<tunnel|gateway>
-#   ENGINE=<claude|hermes>       welche Agent-Engine dieser User faehrt. Auf
+#   ENGINE=<claude|hybrid|hermes> welche Agent-Engine dieser User faehrt. Auf
 #          hermes gibt es KEIN Cockpit — der Einstieg ist das Hermes-Dashboard
 #          (AGENT_PORT), und im tunnel-Modus wird dieser Port getunnelt statt
 #          3847 (docs/betrieb/vm-management.md § 8).
@@ -19,13 +19,13 @@
 #          komplett (Datei-Einsicht ueber den Cloud-Client der Firma bzw.
 #          Cockpit/Dashboard), der Skill richtet nur SSH/Tunnel/Desktop-App ein.
 #   COMPANY_LOCAL=<name>         Firmenordner-Name im Workspace (nur cloud)
-#   AGENT_PORT=<n>               Hermes-Dashboard-Port (nur engine=hermes)
+#   AGENT_PORT=<n>               Hermes-Dashboard-Port (Hermes-Stack: hermes|hybrid)
 #   COCKPIT_PORT=<n>  NOVNC_PORT=<n|MISSING>
 #   NOVNC_PASS=<pass|MISSING|NOT_NEEDED>   (NOT_NEEDED im gateway-Modus:
 #          x11vnc laeuft dort mit -nopw, ADR § 5.6 — das Passwort wird bewusst
 #          nicht ausgelesen, damit es nirgends im Chat/Log landet)
 #   GATEWAY_COCKPIT_URL=<url|MISSING>  GATEWAY_NOVNC_URL=<url|MISSING>   (nur gateway)
-#   GATEWAY_AGENT_URL=<url|MISSING>    (nur gateway + engine=hermes)
+#   GATEWAY_AGENT_URL=<url|MISSING>    (nur gateway + Hermes-Stack hermes|hybrid)
 set -uo pipefail
 
 OUT="$(ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm bash -s 2>&1 <<'REMOTE'
@@ -54,7 +54,7 @@ echo "AGENT_PORT=$((9119 + $(id -u) - 1000))"
 cp="$(mitarbyte cockpit-port 2>/dev/null | grep -oE '3[0-9]{4}' | head -1 || true)"
 if [ -z "$cp" ]; then
     cp=$((30000 + $(id -u)))
-    [ "$eng" = "hermes" ] || echo "WARN: mitarbyte-CLI nicht gefunden — Cockpit-Port aus UID abgeleitet."
+    [ "$eng" = "hermes" ] || echo "WARN: mitarbyte-CLI nicht gefunden — Cockpit-Port aus UID abgeleitet."   # nur mit Claude-Stack (claude|hybrid) relevant
 fi
 np="$(grep '^NOVNC_PORT=' ~/.config/ki-os/display.env 2>/dev/null | cut -d= -f2 || true)"
 echo "COCKPIT_PORT=${cp}"
@@ -72,9 +72,9 @@ if [ "${am:-tunnel}" = "gateway" ]; then
     # Als `if`, nicht als `[ ... ] && echo`: das Remote-Skript endet hier, und
     # eine falsche Bedingung waere sein Exit-Code — der Aufrufer meldete dann
     # bei jedem CLAUDE-User faelschlich SSH_FAIL.
-    if [ "$eng" = "hermes" ]; then
-        echo "GATEWAY_AGENT_URL=${ga:-MISSING}"
-    fi
+    case "$eng" in
+        hermes|hybrid) echo "GATEWAY_AGENT_URL=${ga:-MISSING}" ;;
+    esac
 else
     pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
     echo "NOVNC_PASS=${pw:-MISSING}"
@@ -96,13 +96,19 @@ if echo "$OUT" | grep -q '^NOVNC_PORT=MISSING'; then
     echo "WARN: display.env fehlt — Display-Stack fuer diesen User noch nicht provisioniert. Admin kontaktieren, danach hier weitermachen."
 fi
 
-# Auf engine=hermes ist GATEWAY_COCKPIT_URL legitim leer (kein Cockpit) — dort
-# zaehlt GATEWAY_AGENT_URL. Ohne diese Unterscheidung wuerde der Skill jedem
-# Hermes-User ein "kein Gateway-Mapping" vorwerfen, obwohl alles stimmt.
-if echo "$OUT" | grep -q '^ENGINE=hermes'; then
-    if echo "$OUT" | grep -q '^GATEWAY_AGENT_URL=MISSING'; then
-        echo "WARN: gateway-VM, aber kein Gateway-Mapping fuer diesen User — Admin kontaktieren (ki-os-fleet vm gateway-grant)."
-    fi
-elif echo "$OUT" | grep -q '^GATEWAY_COCKPIT_URL=MISSING'; then
-    echo "WARN: gateway-VM, aber kein Gateway-Mapping fuer diesen User — Admin kontaktieren (ki-os-fleet vm gateway-grant)."
-fi
+# Gateway-Mapping je Stack: Claude-Stack (claude|hybrid) braucht die Cockpit-URL,
+# Hermes-Stack (hermes|hybrid) die Agent-URL — hybrid beide. Auf engine=hermes
+# ist GATEWAY_COCKPIT_URL legitim leer (kein Cockpit). Ohne diese Unterscheidung
+# wuerde der Skill jedem Hermes-User ein "kein Gateway-Mapping" vorwerfen.
+_eng="$(echo "$OUT" | sed -n 's/^ENGINE=//p' | head -1)"
+case "$_eng" in
+    claude|hybrid)
+        echo "$OUT" | grep -q '^GATEWAY_COCKPIT_URL=MISSING' \
+            && echo "WARN: gateway-VM, aber kein Gateway-Mapping (Cockpit) fuer diesen User — Admin kontaktieren (ki-os-fleet vm gateway-grant)." ;;
+esac
+case "$_eng" in
+    hermes|hybrid)
+        echo "$OUT" | grep -q '^GATEWAY_AGENT_URL=MISSING' \
+            && echo "WARN: gateway-VM, aber kein Gateway-Mapping (Agent-Dashboard) fuer diesen User — Admin kontaktieren (ki-os-fleet vm gateway-grant)." ;;
+esac
+exit 0

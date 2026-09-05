@@ -2,9 +2,11 @@
 # setup-tunnels.sh — beide gehaerteten SSH-Tunnel-Autostarts (macOS/Linux)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
-#   Zweiter Tunnel je Engine (docs/betrieb/vm-management.md § 8):
-#     engine=claude  Cockpit:        lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
-#     engine=hermes  Hermes-Agent:   lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
+#   Agenten-Tunnel je Stack (docs/betrieb/vm-management.md § 8, ADR 18):
+#     Claude-Stack (engine claude|hybrid)  Cockpit:       lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
+#     Hermes-Stack (engine hermes|hybrid)  Hermes-Agent:  lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
+#   hybrid richtet also DREI Tunnel ein; der Tunnel eines nicht vorhandenen
+#   Stacks wird als Leiche abgeraeumt (Engine-Wechsel).
 #   Lokal 9119 ist bewusst der Hermes-Default: die Desktop-App schlaegt
 #   127.0.0.1:9119 von selbst vor, der Mitarbeiter muss nichts umtippen.
 #
@@ -15,6 +17,7 @@
 #
 # Usage:  setup-tunnels.sh --novnc-port <VM_PORT> --cockpit-port <VM_PORT>
 #         setup-tunnels.sh --novnc-port <VM_PORT> --agent-port <VM_PORT> --engine hermes
+#         setup-tunnels.sh --novnc-port <VM_PORT> --cockpit-port <VM_PORT> --agent-port <VM_PORT> --engine hybrid
 #         setup-tunnels.sh --remove
 #
 # --remove baut beide Tunnel-Autostarts idempotent ab (gateway-Modus: die VM
@@ -33,15 +36,14 @@ while [ $# -gt 0 ]; do
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
-case "$ENGINE" in claude|hermes) ;; *) echo "FAIL: --engine erlaubt nur claude|hermes" >&2; exit 2 ;; esac
+case "$ENGINE" in claude|hybrid|hermes) ;; *) echo "FAIL: --engine erlaubt nur claude|hybrid|hermes" >&2; exit 2 ;; esac
 
-# Zweiter Tunnel: Name, lokaler Port, VM-Port und Verifikations-Pfad haengen an
-# der Engine. Alles Weitere (Backends, Haertung, --remove) ist identisch.
-if [ "$ENGINE" = "hermes" ]; then
-    SECOND_NAME="agent";   SECOND_LPORT=9119; SECOND_RPORT="$AGENT_PORT";   SECOND_LABEL="Hermes-Dashboard"
-else
-    SECOND_NAME="cockpit"; SECOND_LPORT=3847; SECOND_RPORT="$COCKPIT_PORT"; SECOND_LABEL="Cockpit"
-fi
+# Agenten-Tunnel nach Stack: WANT_COCKPIT (Claude-Stack) und WANT_AGENT
+# (Hermes-Stack) — hybrid hat beide. Alles Weitere (Backends, Haertung,
+# --remove) ist identisch.
+WANT_COCKPIT=0; WANT_AGENT=0
+case "$ENGINE" in claude|hybrid) WANT_COCKPIT=1 ;; esac
+case "$ENGINE" in hermes|hybrid) WANT_AGENT=1 ;; esac
 
 remove_macos_tunnels() {
     local name label plist
@@ -69,30 +71,36 @@ remove_linux_tunnels() {
     systemctl --user daemon-reload 2>/dev/null || true
 }
 
-# Nach einem Engine-Wechsel ist der Tunnel der ALTEN Engine eine Leiche: er
-# tunnelt weiter auf einen Port, an dem nichts (mehr) lauscht, und belegt dabei
-# 3847 bzw. 9119 lokal. Beim Einrichten also gezielt entfernen.
+# Nach einem Engine-Wechsel ist der Tunnel eines nicht mehr vorhandenen Stacks
+# eine Leiche: er tunnelt weiter auf einen Port, an dem nichts (mehr) lauscht,
+# und belegt dabei 3847 bzw. 9119 lokal. Beim Einrichten also gezielt entfernen.
+stale_names() {   # Tunnel-Namen, die diese Engine NICHT hat
+    [ "$WANT_COCKPIT" = "1" ] || echo cockpit
+    [ "$WANT_AGENT" = "1" ]   || echo agent
+}
 remove_stale_second_macos() {
     local other label plist
-    other=cockpit; [ "$SECOND_NAME" = "cockpit" ] && other=agent
-    label="com.$(id -un).ssh-tunnel.ki-os-vm-${other}"
-    plist="$HOME/Library/LaunchAgents/${label}.plist"
-    if [ -f "$plist" ]; then
-        launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
-        rm -f "$plist"
-        echo "OK: alter ${other}-Tunnel entfernt (Engine-Wechsel)"
-    fi
+    for other in $(stale_names); do
+        label="com.$(id -un).ssh-tunnel.ki-os-vm-${other}"
+        plist="$HOME/Library/LaunchAgents/${label}.plist"
+        if [ -f "$plist" ]; then
+            launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
+            rm -f "$plist"
+            echo "OK: alter ${other}-Tunnel entfernt (Engine-Wechsel)"
+        fi
+    done
 }
 remove_stale_second_linux() {
     local other unit
-    other=cockpit; [ "$SECOND_NAME" = "cockpit" ] && other=agent
-    unit="ki-os-vm-${other}-tunnel.service"
-    if [ -f "$HOME/.config/systemd/user/${unit}" ]; then
-        systemctl --user disable --now "${unit}" 2>/dev/null || true
-        rm -f "$HOME/.config/systemd/user/${unit}"
-        systemctl --user daemon-reload 2>/dev/null || true
-        echo "OK: alter ${other}-Tunnel entfernt (Engine-Wechsel)"
-    fi
+    for other in $(stale_names); do
+        unit="ki-os-vm-${other}-tunnel.service"
+        if [ -f "$HOME/.config/systemd/user/${unit}" ]; then
+            systemctl --user disable --now "${unit}" 2>/dev/null || true
+            rm -f "$HOME/.config/systemd/user/${unit}"
+            systemctl --user daemon-reload 2>/dev/null || true
+            echo "OK: alter ${other}-Tunnel entfernt (Engine-Wechsel)"
+        fi
+    done
 }
 
 if [ "$REMOVE" = "1" ]; then
@@ -106,13 +114,11 @@ if [ "$REMOVE" = "1" ]; then
 fi
 
 [[ "$NOVNC_PORT"   =~ ^[0-9]+$ ]] || { echo "FAIL: --novnc-port fehlt/ungueltig" >&2; exit 2; }
-if ! [[ "$SECOND_RPORT" =~ ^[0-9]+$ ]]; then
-    if [ "$ENGINE" = "hermes" ]; then
-        echo "FAIL: --agent-port fehlt/ungueltig (engine=hermes)" >&2
-    else
-        echo "FAIL: --cockpit-port fehlt/ungueltig" >&2
-    fi
-    exit 2
+if [ "$WANT_COCKPIT" = "1" ] && ! [[ "$COCKPIT_PORT" =~ ^[0-9]+$ ]]; then
+    echo "FAIL: --cockpit-port fehlt/ungueltig (engine=${ENGINE} hat den Claude-Stack)" >&2; exit 2
+fi
+if [ "$WANT_AGENT" = "1" ] && ! [[ "$AGENT_PORT" =~ ^[0-9]+$ ]]; then
+    echo "FAIL: --agent-port fehlt/ungueltig (engine=${ENGINE} hat den Hermes-Stack)" >&2; exit 2
 fi
 
 SSH_OPTS="-o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -o TCPKeepAlive=yes -o StrictHostKeyChecking=accept-new"
@@ -189,12 +195,14 @@ case "$(uname -s)" in
     Darwin)
         remove_stale_second_macos
         setup_macos_tunnel novnc 6080 "$NOVNC_PORT"
-        setup_macos_tunnel "$SECOND_NAME" "$SECOND_LPORT" "$SECOND_RPORT"
+        [ "$WANT_COCKPIT" = "1" ] && setup_macos_tunnel cockpit 3847 "$COCKPIT_PORT"
+        [ "$WANT_AGENT" = "1" ]   && setup_macos_tunnel agent   9119 "$AGENT_PORT"
         ;;
     Linux)
         remove_stale_second_linux
         setup_linux_tunnel novnc 6080 "$NOVNC_PORT"
-        setup_linux_tunnel "$SECOND_NAME" "$SECOND_LPORT" "$SECOND_RPORT"
+        [ "$WANT_COCKPIT" = "1" ] && setup_linux_tunnel cockpit 3847 "$COCKPIT_PORT"
+        [ "$WANT_AGENT" = "1" ]   && setup_linux_tunnel agent   9119 "$AGENT_PORT"
         # Linger: User-Services auch ohne aktive Login-Session
         # grep ohne -q (liest bis EOF): 'grep -q' beendet die Pipe frueh, loginctl
         # stirbt an SIGPIPE und unter pipefail wird ein Treffer zu "false" — dann
@@ -209,8 +217,11 @@ case "$(uname -s)" in
 esac
 
 # --- Kurz-Verifikation --------------------------------------------------------
-sleep 4
-for pair in "6080:/vnc.html:noVNC" "${SECOND_LPORT}::${SECOND_LABEL}"; do
+sleep "${KI_OS_TUNNEL_VERIFY_WAIT:-4}"
+VERIFY_PAIRS="6080:/vnc.html:noVNC"
+[ "$WANT_COCKPIT" = "1" ] && VERIFY_PAIRS="${VERIFY_PAIRS} 3847::Cockpit"
+[ "$WANT_AGENT" = "1" ]   && VERIFY_PAIRS="${VERIFY_PAIRS} 9119::Hermes-Dashboard"
+for pair in ${VERIFY_PAIRS}; do
     port="${pair%%:*}"; rest="${pair#*:}"; path="${rest%%:*}"; label="${rest#*:}"
     code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "http://localhost:${port}${path}" 2>/dev/null || true)"
     if [ "$code" = "200" ] || [ "${code:0:1}" = "3" ]; then

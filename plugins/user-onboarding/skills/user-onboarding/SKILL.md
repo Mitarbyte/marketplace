@@ -25,13 +25,17 @@ im Chat nachbauen oder abwandeln; das Warum steht in `references/`.
 **Nicht-Ziele:** VM-seitiges Setup (Admin-Sache), lokale Hub-Klone,
 Browser-Logins (macht der User selbst im VM-Chrome).
 
-**Zweite Achse: `ENGINE`** (`claude` | `hermes`, liest Schritt 7 von der VM,
-wird nie abgefragt):
+**Zweite Achse: `ENGINE`** (`claude` | `hybrid` | `hermes`, liest Schritt 7 von
+der VM, wird nie abgefragt). Entscheidend ist der **Stack**, nicht der Wert:
+Claude-Stack = `claude|hybrid`, Hermes-Stack = `hermes|hybrid`.
 
 - **claude:** Cockpit als Oberfläche, Claude-Code-Desktop-App als Arbeitszugang.
 - **hermes:** **kein Cockpit** — Oberfläche ist das Hermes-Dashboard; im
   tunnel-Modus wird lokal `9119` getunnelt statt `3847`, Schritt 10
   (Claude-Desktop-App) entfällt.
+- **hybrid** (Layout v3): **beide** — Hermes-Dashboard (primär, `9119`) **und**
+  Cockpit (`3847`); im tunnel-Modus drei Tunnel, im gateway-Modus zwei
+  Agenten-URLs (`…-agent.…` + `…-cockpit.…`); Schritt 10 läuft wie auf claude.
 
 ## Konventionen
 
@@ -142,7 +146,7 @@ Liefert `SSH_OK` + `ACCESS_MODE=` + `ENGINE=` + `HUB_BACKEND=` (+
 `COMPANY_LOCAL=` nur auf cloud) + `AGENT_PORT=` / `COCKPIT_PORT=` /
 `NOVNC_PORT=` / `NOVNC_PASS=`, im gateway-Modus zusätzlich
 `GATEWAY_COCKPIT_URL=` / `GATEWAY_NOVNC_URL=` (/ `GATEWAY_AGENT_URL=` auf
-hermes). Werte merken.
+hermes **und** hybrid). Werte merken.
 
 - **`ACCESS_MODE` ist die Wahrheit** — weicht es von der Antwort aus Schritt 3
   ab, gilt der VM-Wert: `MODE` überschreiben, den User kurz informieren und
@@ -177,9 +181,13 @@ bash "$SKILL_DIR/scripts/setup-tunnels.sh" --novnc-port <NOVNC_PORT> --cockpit-p
 # engine=hermes (zweiter Tunnel geht auf das Hermes-Dashboard, lokal 9119):
 bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hermes --novnc-port <NOVNC_PORT> --agent-port <AGENT_PORT>
 # Windows: setup-tunnels.ps1 -Engine hermes -NovncPort <NOVNC_PORT> -AgentPort <AGENT_PORT>
+
+# engine=hybrid (drei Tunnel: noVNC, Cockpit 3847, Hermes-Dashboard 9119):
+bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hybrid --novnc-port <NOVNC_PORT> --cockpit-port <COCKPIT_PORT> --agent-port <AGENT_PORT>
+# Windows: setup-tunnels.ps1 -Engine hybrid -NovncPort <NOVNC_PORT> -CockpitPort <COCKPIT_PORT> -AgentPort <AGENT_PORT>
 ```
 
-Ein Aufruf richtet **beide** gehärteten Tunnel ein (idempotent; Windows
+Ein Aufruf richtet **alle** gehärteten Tunnel der Engine ein (idempotent; Windows
 zusätzlich self-healing: räumt alt/falsch benannte Tasks inhaltsbasiert weg und
 legt den gemeinsamen `ki-os-vm-watchdog` an). Die Argumente sind die
 **VM-seitigen** Ports aus Schritt 7 — nicht mit den festen lokalen Ports
@@ -217,14 +225,14 @@ Kundenbetrieb verifiziert — bei Problemen an den Admin.)
 
 ### Schritt 10 — Desktop-App vorkonfigurieren
 
-**`ENGINE=hermes` → überspringen.** Es gibt lokal nichts zu registrieren: die
+**`ENGINE=hermes` → überspringen** (`hybrid` läuft wie `claude`). Es gibt lokal nichts zu registrieren: die
 **Hermes-Desktop-App** wird als „Remote gateway" mit URL + **Session-Token**
 verbunden (Token vom Admin: `ki-os-fleet vm hermes-token --user <VM_USER>`);
 URL = die öffentliche `…-agent.…`-Adresse (gateway) bzw.
 `http://127.0.0.1:9119` durch den Tunnel (tunnel). Token wie ein Passwort
 behandeln. Details + Vorlage: `references/hermes-desktop-app.md`.
 
-Für `ENGINE=claude`:
+Für `ENGINE=claude` und `ENGINE=hybrid`:
 
 ```
 bash "$SKILL_DIR/scripts/register-desktop-app.sh" --vm-user <VM_USER>
@@ -251,8 +259,8 @@ bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER> --mode <MODE> \
 #     [-GatewayCockpitUrl <URL> -GatewayNovncUrl <URL> -GatewayAgentUrl <URL>]
 ```
 
-Prüft SSH, die Zugangswege (tunnel: beide lokalen Tunnel; gateway: die zwei
-HTTPS-URLs — 302/401/403 zum IdP-Login = OK, ein **200 unauthentifiziert** ist
+Prüft SSH, die Zugangswege (tunnel: alle lokalen Tunnel der Engine; gateway:
+die HTTPS-URLs je Stack + noVNC — 302/401/403 zum IdP-Login = OK, ein **200 unauthentifiziert** ist
 ein Auth-Bypass und gehört sofort an den Admin) und die Desktop-App-Einträge.
 Die Mutagen-Checks laufen nur im tunnel-Modus mit `--hub-backend git`; sonst
 SKIP. Im tunnel-Modus meldet der Verify zusätzlich, was ein „laufender" Sync
@@ -293,6 +301,12 @@ Statustabelle aus dem `verify`-Output zeigen, dann die nächsten Schritte:
 3. **Browser-Logins (einmalig):** siehe unten.
 4. **Dateien:** gateway → Cockpit-Explorer bzw. der Cloud-Client der Firma;
    tunnel → `~/KI-OS` als lokaler Spiegel (Obsidian-Vault, Finder/Explorer).
+
+**`ENGINE=hybrid`:** beides — Hermes-Dashboard ist der primäre Einstieg (wie
+`hermes`, Punkt 2), daneben Cockpit + Claude-Desktop-App (wie `claude`); der
+Claude-Login ist einmalig nötig. Geplante Aufgaben: `hermes cron` (Dashboard)
+**und** `mitarbyte scheduler` (Cockpit) laufen parallel — Jobs der anderen
+Engine nicht anfassen.
 
 **`ENGINE=hermes`:**
 

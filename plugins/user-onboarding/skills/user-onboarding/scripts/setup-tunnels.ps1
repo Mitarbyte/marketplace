@@ -2,10 +2,12 @@
 # setup-tunnels.ps1 - gehaertete SSH-Tunnel-Autostarts (natives Windows)
 #
 #   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
-#   Zweiter Tunnel je Engine (docs/betrieb/vm-management.md Abschnitt 8):
-#     -Engine claude  Cockpit:        lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
-#     -Engine hermes  Hermes-Agent:   lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
-#   Lokal 9119 ist der Hermes-Default, den die Desktop-App selbst vorschlaegt.
+#   Agenten-Tunnel je Stack (docs/betrieb/vm-management.md Abschnitt 8, ADR 18):
+#     Claude-Stack (-Engine claude|hybrid)  Cockpit:       lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
+#     Hermes-Stack (-Engine hermes|hybrid)  Hermes-Agent:  lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
+#   hybrid richtet also DREI Tunnel ein (der Cleanup-Scan raeumt Leichen eines
+#   nicht vorhandenen Stacks weg). Lokal 9119 ist der Hermes-Default, den die
+#   Desktop-App selbst vorschlaegt.
 #
 # Muster: EIN liveness-guarded Scheduled Task `ki-os-vm-watchdog` (mit Autor +
 # Beschreibung, statt mehrerer anonym wirkender Einzel-Tasks) - sein
@@ -21,6 +23,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File setup-tunnels.ps1 `
 #       -NovncPort <VM_PORT> -CockpitPort <VM_PORT>
 #   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -AgentPort <n> -Engine hermes
+#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -CockpitPort <n> -AgentPort <n> -Engine hybrid
 #   powershell ... -File setup-tunnels.ps1 -Remove        # gateway-Modus: Tunnel abbauen
 #   powershell ... -File setup-tunnels.ps1 -MutagenOnly   # frisches gateway-Setup ohne Tunnel
 #   powershell ... -File setup-tunnels.ps1 -EnsureMutagen # additiv: Watchdog nur sicherstellen
@@ -40,7 +43,7 @@ param(
     [int]$NovncPort = 0,
     [int]$CockpitPort = 0,
     [int]$AgentPort = 0,
-    [ValidateSet('claude','hermes')][string]$Engine = 'claude',
+    [ValidateSet('claude','hybrid','hermes')][string]$Engine = 'claude',
     [switch]$Remove,
     [switch]$MutagenOnly,
     [switch]$EnsureMutagen
@@ -48,19 +51,14 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $tunnelLess = [bool]($Remove -or $MutagenOnly -or $EnsureMutagen)
-# Zweiter Tunnel: Label, lokaler Port und VM-Port haengen an der Engine.
-if ($Engine -eq 'hermes') {
-    $secondLabel = 'Hermes-Dashboard'; $secondLocal = 9119; $secondRemote = $AgentPort
-} else {
-    $secondLabel = 'Cockpit';          $secondLocal = 3847; $secondRemote = $CockpitPort
-}
-if (-not $tunnelLess -and ($NovncPort -lt 1 -or $secondRemote -lt 1)) {
-    if ($Engine -eq 'hermes') {
-        Write-Host "FAIL: -NovncPort/-AgentPort fehlen (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."
-    } else {
-        Write-Host "FAIL: -NovncPort/-CockpitPort fehlen (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."
-    }
-    exit 2
+# Agenten-Tunnel nach Stack: Cockpit fuer den Claude-Stack (claude|hybrid),
+# Hermes-Dashboard fuer den Hermes-Stack (hermes|hybrid) - hybrid hat beide.
+$wantCockpit = ($Engine -in @('claude','hybrid'))
+$wantAgent   = ($Engine -in @('hermes','hybrid'))
+if (-not $tunnelLess) {
+    if ($NovncPort -lt 1) { Write-Host "FAIL: -NovncPort fehlt (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."; exit 2 }
+    if ($wantCockpit -and $CockpitPort -lt 1) { Write-Host "FAIL: -CockpitPort fehlt (Engine $Engine hat den Claude-Stack)."; exit 2 }
+    if ($wantAgent   -and $AgentPort   -lt 1) { Write-Host "FAIL: -AgentPort fehlt (Engine $Engine hat den Hermes-Stack)."; exit 2 }
 }
 
 $sshExe = 'C:\Windows\System32\OpenSSH\ssh.exe'
@@ -71,9 +69,10 @@ New-Item -ItemType Directory -Path $binDir -Force | Out-Null
 
 $taskName = 'ki-os-vm-watchdog'
 $tunnels = @(
-    @{ Label = 'noVNC';        LocalPort = 6080;         RemotePort = $NovncPort },
-    @{ Label = $secondLabel;   LocalPort = $secondLocal; RemotePort = $secondRemote }
+    @{ Label = 'noVNC';        LocalPort = 6080;         RemotePort = $NovncPort }
 )
+if ($wantCockpit) { $tunnels += @{ Label = 'Cockpit';          LocalPort = 3847; RemotePort = $CockpitPort } }
+if ($wantAgent)   { $tunnels += @{ Label = 'Hermes-Dashboard'; LocalPort = 9119; RemotePort = $AgentPort } }
 
 # --- -EnsureMutagen: existierender Watchdog reicht, egal welche Variante --------
 # Ob der Task die volle Tunnel-Fassung oder die Mutagen-only-Fassung faehrt:
