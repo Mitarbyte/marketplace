@@ -96,6 +96,25 @@
     font-variant-numeric: tabular-nums;
   }
   button.navitem.active .nav-count { color: var(--sb-accent); }
+  /* Unterliste des aktiven Kapitels: Ueberblick + Schritte */
+  .navsteps { margin: 0 0 0.35rem 1.15rem; padding-left: 0.5rem; border-left: 1px solid var(--sb-line); }
+  button.navstep {
+    display: flex; align-items: center; gap: 0.5rem; width: 100%;
+    background: none; border: 0; border-radius: 6px; cursor: pointer;
+    padding: 0.3rem 0.5rem; margin: 0.05rem 0; text-align: left;
+    font: 0.8rem/1.3 var(--font-sans); color: var(--sb-muted);
+  }
+  button.navstep:hover { background: var(--sb-surface); color: var(--sb-fg); }
+  button.navstep.active { color: var(--sb-accent); }
+  button.navstep .nav-ico { width: 12px; height: 12px; font-size: 9px; line-height: 8px; border-width: 1.5px; }
+  button.navstep.active .nav-ico { border-color: var(--sb-accent); }
+  button.navstep.active:not(.done) .nav-ico::after {
+    content: ""; position: absolute; inset: 2px; border-radius: 50%; background: var(--sb-accent);
+  }
+  button.navstep.done .nav-ico { border-color: var(--sb-ok); background: var(--sb-ok); }
+  button.navstep.done .nav-ico::before { content: "✓"; font-weight: 700; }
+  button.navstep .badge { color: var(--sb-muted); border-color: var(--sb-line); font-size: 0.58rem; }
+  button.navstep .badge.wartet { color: #e0a04a; border-color: #e0a04a; }
   .sb-foot { padding: 0.9rem 1.1rem 1.1rem; border-top: 1px solid var(--sb-line); }
   .sb-foot .bar { height: 6px; background: var(--sb-surface-2); border-radius: 3px; overflow: hidden; }
   .sb-foot .bar > div { height: 100%; width: 0; background: var(--sb-accent); border-radius: 3px; transition: width 0.25s; }
@@ -121,6 +140,9 @@
   .pageprog .bar { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
   .pageprog .bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.25s; }
   .pageprog .count { font-size: 0.78rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  /* hidden-Attribut gegen display:flex durchsetzen — sonst bleibt auf
+     schrittlosen Slides die letzte Position stehen */
+  .pageprog[hidden] { display: none; }
 
   main { width: 100%; max-width: 820px; margin: 0 auto; padding: 1.2rem 1rem 1rem; flex: 1; }
   section.block {
@@ -139,6 +161,17 @@
     flex: none; transform: translateY(2px); cursor: pointer;
   }
   h3.step.done .steptext { color: var(--done); text-decoration: line-through; text-decoration-thickness: 1px; }
+  /* Slides: ein Schritt = eine Seite; das h3 steht oben auf seiner Slide */
+  .slide[hidden] { display: none; }
+  .slide > h3.step:first-child { margin-top: 0.3rem; }
+  body.show-all .slide + .slide { border-top: 1px dashed var(--line); margin-top: 1.2rem; padding-top: 0.5rem; }
+  .badge {
+    display: inline-block; flex: none; align-self: center; margin-left: 0.2rem;
+    font: 600 0.66rem/1.5 var(--font-sans); letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.02rem 0.5rem;
+  }
+  .badge.wartet { color: #b45309; border-color: #b45309; }
+  h3.step.done .badge { opacity: 0.6; }
   h4 { margin: 1.2rem 0 0.4rem; font-size: 0.98rem; font-family: var(--font-display); }
   p { margin: 0.55rem 0; }
   a { color: var(--accent); }
@@ -252,21 +285,65 @@
   button.ovcard:hover { border-color: var(--accent); }
   .ov-title { flex: 1; font-family: var(--font-display); font-weight: 600; font-size: 0.97rem; }
   .ov-steps { flex: none; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* Schrittliste auf der Intro-Slide eines Kapitels (JS, Live-Haken) */
+  .steplist { display: grid; gap: 0.5rem; margin-top: 1.3rem; }
+  .steplist-title { font-family: var(--font-display); font-weight: 600; font-size: 0.88rem; color: var(--muted); }
+  .steplist button.ovcard { align-items: center; padding: 0.55rem 0.85rem; }
+  .ov-ico {
+    flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line);
+    font-size: 11px; line-height: 12px; text-align: center; color: var(--accent-ink);
+  }
+  button.ovcard.done .ov-ico { border-color: var(--accent); background: var(--accent); }
+  button.ovcard.done .ov-ico::before { content: "✓"; font-weight: 700; }
+  button.ovcard.done .ov-title { color: var(--muted); font-weight: 500; }
+  #rolebox .chooser { margin-top: 1.1rem; border-color: var(--accent); }
+
+  /* ---- Video-Kachel (Click-to-load; Navy-Tokens, in Light/Dark identisch) ---- */
+  .video { margin: 0.9rem 0 1.1rem; }
+  .video[hidden] { display: none; }
+  button.video-poster {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.55rem;
+    width: 100%; aspect-ratio: 16 / 9; cursor: pointer; padding: 1rem;
+    border: 1px solid var(--sb-line); border-radius: 10px;
+    background: linear-gradient(135deg, var(--sb-bg), var(--sb-surface-2)); color: var(--sb-fg);
+    font: inherit;
+  }
+  button.video-poster:hover .video-play { transform: scale(1.07); }
+  .video-play {
+    width: 64px; height: 64px; border-radius: 50%; background: var(--sb-accent); color: var(--sb-bg);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; padding-left: 5px;
+    transition: transform 0.15s;
+  }
+  .video-label { font-family: var(--font-display); font-weight: 600; font-size: 1rem; text-align: center; }
+  .video-kicker { font-size: 0.75rem; color: var(--sb-muted); }
+  .video-note { margin: 0.4rem 0 0; font-size: 0.75rem; color: var(--muted); }
+  .video.playing { position: relative; aspect-ratio: 16 / 9; }
+  .video.playing iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 10px; }
 
   /* ---- Pager ---- */
   .pager {
     max-width: 820px; margin: 0 auto; width: 100%;
-    padding: 0 1rem 1.4rem; display: flex; justify-content: space-between; gap: 0.8rem;
+    padding: 0 1rem 1.4rem; display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
   }
   .pager button {
     font: 0.9rem/1.3 var(--font-sans); cursor: pointer; border-radius: 8px;
-    padding: 0.55rem 0.95rem; max-width: 62%;
+    padding: 0.55rem 0.95rem;
   }
-  button#prevbtn { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+  button#prevbtn { background: var(--panel); color: var(--ink); border: 1px solid var(--line); flex: none; }
   button#prevbtn:hover { border-color: var(--accent); color: var(--accent); }
-  button#nextbtn { background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); font-weight: 600; margin-left: auto; }
+  .pager-right { display: flex; align-items: center; gap: 0.9rem; margin-left: auto; min-width: 0; }
+  .pager-right button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  button#nextbtn { background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); font-weight: 600; }
   button#nextbtn:hover { filter: brightness(1.08); }
-  .pager button[hidden] { display: none; }
+  .pager a.skip { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+  .pager a.skip:hover { color: var(--accent); }
+  .pager button[hidden], .pager a.skip[hidden] { display: none; }
+  .pagerstate { flex: 1; text-align: center; font-size: 0.9rem; color: var(--muted); }
+  .pagerstate[hidden] { display: none; }
+  .pagerstate button {
+    font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer;
+    text-decoration: underline; padding: 0;
+  }
 
   footer {
     max-width: 820px; margin: 0 auto; width: 100%;
@@ -300,10 +377,13 @@
     button#menubtn { display: block; }
     section.block { padding: 1.1rem 1rem; }
     .pageprog .count { display: none; }
+    .pager { flex-wrap: wrap; }
+    .pagerstate { flex-basis: 100%; order: 3; }
   }
 
   @media print {
-    aside.sidebar, header.topbar, .pager, #backdrop, button.copy { display: none !important; }
+    aside.sidebar, header.topbar, .pager, #backdrop, button.copy,
+    .video, .steplist, .pagerstate, #rolebox { display: none !important; }
     body { display: block; background: #fff; color: #000; }
     section.block { border: 0; padding: 0; margin: 0 0 1.5rem; break-inside: avoid-page; }
     details.meta { background: none; }
@@ -339,25 +419,34 @@
   </div>
   <main id="main">
 <section class="block" id="block-00-intro" data-block="00-intro" hidden>
+<div class="slide" data-slide="intro">
 <h2 class="block-title">KI-OS einrichten — <span class="ph" data-ph="FIRMA">euer Unternehmen</span></h2>
-<p>Willkommen! Diese Seite führt euch durch die technische Einrichtung eures KI-OS — zugeschnitten auf euer Setup: Links stehen nur die Teile, die euch betreffen. Jeder Schritt hat eine Checkbox; euer Fortschritt wird im Browser gespeichert und bleibt auch nach einem Neustart erhalten. Die Teile lassen sich in beliebiger Reihenfolge und von verschiedenen Personen bearbeiten.</p>
+<p>Willkommen! Diese Seite führt euch durch die technische Einrichtung eures KI-OS — zugeschnitten auf euer Setup: Links stehen nur die Teile, die euch betreffen. <strong>Jeder Schritt ist eine eigene Seite</strong> — unten „Erledigt &amp; weiter&quot; hakt ihn ab und blättert zum nächsten. Euer Fortschritt wird im Browser gespeichert und bleibt auch nach einem Neustart erhalten. Die Teile lassen sich in beliebiger Reihenfolge und von verschiedenen Personen bearbeiten: Wählt unten, was ihr einrichtet — die IT-Seite (VM und Firmen-Login) oder den eigenen Arbeitsplatz — dann bleiben nur die passenden Teile übrig.</p>
 <p>Bei Fragen oder wenn etwas hakt: einfach bei <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> melden — lieber einmal zu früh als eine Stunde festhängen.</p>
+</div>
 </section>
 <section class="block" id="block-10-vps-hostinger" data-block="10-vps-hostinger" hidden>
+<div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 1 — VM einrichten</h2>
 <p>Anleitung zum Aufsetzen einer eigenen VM bei Hostinger (Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong>, <strong>Ubuntu 24.04 LTS</strong>) und zur Registrierung bei Mitarbyte. Danach läuft eine frische Ubuntu-VM, auf die Mitarbyte per SSH zugreift, um sie einzurichten und zu betreuen. Den Zugang kannst du jederzeit selbst wieder entfernen.</p>
+</div>
+<div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-1-vm-plan-bei-hostinger-kaufen">
 <h3 class="step" id="10-vps-hostinger--schritt-1-vm-plan-bei-hostinger-kaufen">Schritt 1 — <span class="ph" data-ph="VM_PLAN">KVM 2</span> bei Hostinger kaufen</h3>
 <ol>
 <li>Auf <a href="https://www.hostinger.de" target="_blank" rel="noopener">hostinger.de</a> unter <strong>VPS Hosting</strong> den Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong> wählen.</li>
 <li>Laufzeit auswählen und kaufen.</li>
 <li>Beim Rechenzentrum einen Standort möglichst nah am Unternehmen wählen — für Deutschland z.B. Frankfurt oder ein anderes EU-Rechenzentrum.</li>
 </ol>
+</div>
+<div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-2-betriebssystem-setup-starten">
 <h3 class="step" id="10-vps-hostinger--schritt-2-betriebssystem-setup-starten">Schritt 2 — Betriebssystem-Setup starten</h3>
 <ol>
 <li>In <strong>hPanel</strong> unter <strong>VPS</strong> den neuen Server öffnen. Beim ersten Aufruf startet der Einrichtungs-Assistent automatisch.</li>
 <li>Bei der OS-Auswahl die Kategorie <strong>„Betriebssystem (ohne Panel)&quot;</strong> nehmen, also keine Vorlage mit Control-Panel (kein CyberPanel, kein CloudPanel etc.).</li>
 <li>Als OS <strong>Ubuntu 24.04 LTS</strong> auswählen.</li>
 </ol>
+</div>
+<div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-3-root-passwort-hostname-und-mitarbyte-schluessel-se">
 <h3 class="step" id="10-vps-hostinger--schritt-3-root-passwort-hostname-und-mitarbyte-schluessel-se">Schritt 3 — Root-Passwort, Hostname und Mitarbyte-Schlüssel setzen</h3>
 <ol>
 <li>Ein sicheres Root-Passwort vergeben und notieren (z.B. im Passwortmanager).</li>
@@ -371,12 +460,16 @@
 <li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
 </ol>
 <blockquote><p>Feld übersehen oder der Assistent hat nicht gefragt? Kein Problem — die Schlüssel lassen sich jederzeit nachträglich hinterlegen: <strong>VPS → Einstellungen → SSH-Schlüssel → Hinzufügen</strong>, dort dieselben Schlüssel eintragen — auch hier einen pro Eintrag.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-4-malware-scanner-und-backups-nicht-aktivieren">
 <h3 class="step" id="10-vps-hostinger--schritt-4-malware-scanner-und-backups-nicht-aktivieren">Schritt 4 — Malware-Scanner und Backups nicht aktivieren</h3>
 <p>Diese beiden Zusatzfunktionen nutzen wir bei Mitarbyte bewusst nicht:</p>
 <ul>
 <li><strong>Malware-Scanner:</strong> Wenn der Assistent oder ein Banner im VPS-Dashboard ihn anbietet, ablehnen und nicht installieren.</li>
 <li><strong>Backups:</strong> Unter <strong>VPS → Backups</strong> keine automatischen (wöchentlichen) Backups aktivieren. Falls voraktiviert, deaktivieren.</li>
 </ul>
+</div>
+<div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-5-bei-mitarbyte-anmelden-formular">
 <h3 class="step" id="10-vps-hostinger--schritt-5-bei-mitarbyte-anmelden-formular">Schritt 5 — Bei Mitarbyte anmelden (Formular)</h3>
 <p>Zum Schluss noch kurz Bescheid geben, dass eure VM bereit ist — direkt hier auf der Seite. Die Antworten (Firmenname, User-Namen z.B. <code><span class="ph" data-ph="USERS">imran, philip</span></code>, IT-Ansprechpartner, IP und Hostname aus <strong>hPanel → VPS → Übersicht</strong>) gehen als Nachricht an Mitarbyte; Passwörter oder andere Geheimnisse werden <strong>nicht</strong> abgefragt.</p>
 <div class="ssform" data-form="registration"></div>
@@ -406,8 +499,10 @@
 <li>Registrierungs-Formular auf dieser Seite ausfüllen und absenden. Fertig.</li>
 </ol>
 </details>
+</div>
 </section>
 <section class="block" id="block-40-arbeitsplatz-mac" data-block="40-arbeitsplatz-mac" hidden>
+<div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 2 — Claude auf dem Mac einrichten</h2>
 <p>Diese Schritte richtest du auf deinem eigenen Mac ein. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
 <details class="meta"><summary>Was vorab geklärt sein muss</summary>
@@ -417,18 +512,24 @@
 <li><strong>Installationsrechte</strong> auf dem Mac. Falls euer IT-Dienstleister die Geräte verwaltet, hol ihn vorab dazu.</li>
 </ul>
 </details>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-mac--schritt-1-claude-desktop-app-installieren">
 <h3 class="step" id="40-arbeitsplatz-mac--schritt-1-claude-desktop-app-installieren">Schritt 1 — Claude-Desktop-App installieren</h3>
 <ol>
 <li>Öffne <a href="https://claude.ai/download" target="_blank" rel="noopener">claude.ai/download</a></li>
 <li>Lade die macOS-Version herunter, öffne die Datei und zieh Claude in den Programme-Ordner.</li>
 </ol>
 <p>Die App selbst ist kostenlos. Die Code-Funktion wird über deinen Team-Seat freigeschaltet.</p>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-mac--schritt-2-anmelden">
 <h3 class="step" id="40-arbeitsplatz-mac--schritt-2-anmelden">Schritt 2 — Anmelden</h3>
 <ol>
 <li>Starte die Claude-App.</li>
 <li>Melde dich mit dem <strong>Team-Account</strong> an, dem dein Seat zugewiesen wurde. Falls du eine Einladungs-E-Mail bekommen hast, nutz den darin enthaltenen Zugang.</li>
 </ol>
 <blockquote><p>Remote Control muss für euren Team-Account freigeschaltet sein — das ist eine Organisationseinstellung; im Zweifel <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> fragen.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-mac--schritt-3-code-funktion-einrichten">
 <h3 class="step" id="40-arbeitsplatz-mac--schritt-3-code-funktion-einrichten">Schritt 3 — Code-Funktion einrichten</h3>
 <ol>
 <li>Klick oben in der App auf den Tab <strong>Code</strong>.</li>
@@ -437,6 +538,8 @@
 </ol>
 <blockquote><p>Falls die App meldet, dass die <strong>Git-Kommandozeilen-Tools</strong> fehlen: einfach den angebotenen Dialog „Installieren&quot; bestätigen (macOS bringt sie über die Xcode Command Line Tools mit) und die App danach neu starten.</p></blockquote>
 <p>Der Code-Tab ist eine grafische Oberfläche, du brauchst kein Terminal.</p>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-mac--schritt-4-funktionstest">
 <h3 class="step" id="40-arbeitsplatz-mac--schritt-4-funktionstest">Schritt 4 — Funktionstest</h3>
 <p>Stell im ausgewählten Ordner eine einfache Aufgabe, zum Beispiel: „Lies die Dateien in diesem Ordner und fasse sie kurz zusammen.&quot;</p>
 <blockquote><p>Wenn Claude antwortet, ist dein Setup einsatzbereit. Damit ist die Einrichtung abgeschlossen.</p></blockquote>
@@ -454,8 +557,10 @@
 <li>Funktionstest erfolgreich (Claude hat geantwortet)</li>
 </ul>
 </details>
+</div>
 </section>
 <section class="block" id="block-40-arbeitsplatz-win" data-block="40-arbeitsplatz-win" hidden>
+<div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 2 — Claude auf Windows einrichten</h2>
 <p>Diese Schritte richtest du auf deinem eigenen Windows-Rechner ein. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
 <details class="meta"><summary>Was vorab geklärt sein muss</summary>
@@ -465,11 +570,15 @@
 <li><strong>Administratorrechte</strong> auf dem Rechner für die Installation. Falls du selbst keine Adminrechte hast, hol dir vorab die Person dazu, die bei euch Adminrechte vergibt, oder euren IT-Dienstleister.</li>
 </ul>
 </details>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-win--schritt-1-voraussetzungen-pruefen">
 <h3 class="step" id="40-arbeitsplatz-win--schritt-1-voraussetzungen-pruefen">Schritt 1 — Voraussetzungen prüfen</h3>
 <ul>
 <li>Windows 10 oder 11, 64-bit.</li>
 <li><strong>Git for Windows</strong> installieren. Lade es hier herunter und installiere es mit den Standardeinstellungen: <a href="https://git-scm.com/download/win" target="_blank" rel="noopener">git-scm.com/download/win</a> — Git wird benötigt, weil die Code-Funktion von Claude darauf aufsetzt.</li>
 </ul>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-win--schritt-2-claude-desktop-app-installieren">
 <h3 class="step" id="40-arbeitsplatz-win--schritt-2-claude-desktop-app-installieren">Schritt 2 — Claude-Desktop-App installieren</h3>
 <ol>
 <li>Öffne <a href="https://claude.ai/download" target="_blank" rel="noopener">claude.ai/download</a></li>
@@ -477,12 +586,16 @@
 <li>Führe den Installer aus und folge den Anweisungen.</li>
 </ol>
 <p>Die App selbst ist kostenlos. Die Code-Funktion wird über deinen Team-Seat freigeschaltet.</p>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-win--schritt-3-anmelden">
 <h3 class="step" id="40-arbeitsplatz-win--schritt-3-anmelden">Schritt 3 — Anmelden</h3>
 <ol>
 <li>Starte die Claude-Desktop-App.</li>
 <li>Melde dich mit dem <strong>Team-Account</strong> an, dem dein Seat zugewiesen wurde. Falls du eine Einladungs-E-Mail bekommen hast, nutz den darin enthaltenen Zugang.</li>
 </ol>
 <blockquote><p>Remote Control muss für euren Team-Account freigeschaltet sein — das ist eine Organisationseinstellung; im Zweifel <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> fragen.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-win--schritt-4-code-funktion-einrichten">
 <h3 class="step" id="40-arbeitsplatz-win--schritt-4-code-funktion-einrichten">Schritt 4 — Code-Funktion einrichten</h3>
 <ol>
 <li>Klick oben in der App auf den Tab <strong>Code</strong>.</li>
@@ -490,6 +603,8 @@
 <li>Klick auf <strong>Select folder</strong> und wähle einen Projektordner aus (leg dafür z.B. einen Ordner <code>C:\KI-Champ</code> an).</li>
 </ol>
 <p>Der Code-Tab ist eine grafische Oberfläche, du brauchst kein Terminal.</p>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-win--schritt-5-funktionstest">
 <h3 class="step" id="40-arbeitsplatz-win--schritt-5-funktionstest">Schritt 5 — Funktionstest</h3>
 <p>Stell im ausgewählten Ordner eine einfache Aufgabe, zum Beispiel: „Lies die Dateien in diesem Ordner und fasse sie kurz zusammen.&quot;</p>
 <blockquote><p>Wenn Claude antwortet, ist dein Setup einsatzbereit. Damit ist die Einrichtung abgeschlossen.</p></blockquote>
@@ -509,8 +624,10 @@
 <li>Funktionstest erfolgreich (Claude hat geantwortet)</li>
 </ul>
 </details>
+</div>
 </section>
 <section class="block" id="block-30-tenant-app-google" data-block="30-tenant-app-google" hidden>
+<div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Google Workspace)</h2>
 <p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Google-Workspace-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit Zugang zur Google Cloud Console eures Unternehmens — dort wird eine App-Freigabe angelegt (Google nennt das „OAuth-Client&quot;).</p>
 <details class="meta"><summary>Wofür das gut ist</summary>
@@ -524,12 +641,16 @@
 <li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
 </ul>
 </details>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-google--die-redirect-uri">
 <h3 class="step" id="30-tenant-app-google--die-redirect-uri">Die Redirect-URI</h3>
 <p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die <strong>Redirect-URI</strong>. Tippe dazu einmal den Hostnamen eurer VM ein (steht in <strong>hPanel → VPS → Übersicht</strong>, aus Teil 1) — die fertige URL erscheint automatisch hier und in allen weiteren Schritten:</p>
 <div class="ssform" data-form="redirect-uri"></div>
 <div class="codewrap"><pre><code><span class="ph" data-ph="REDIRECT_URI">https://auth.srv123456.hstgr.cloud/oauth2/callback</span></code></pre></div>
 <p>Ein Tippfehler im Hostnamen führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login — im Zweifel den Hostnamen noch einmal mit hPanel abgleichen.</p>
 <blockquote><p>Gut zu wissen: Diese eine URL gilt für <strong>alle</strong> Mitarbeiter und alle Links. Kommt später ein neuer Kollege dazu, muss an der App-Registrierung <strong>nichts</strong> geändert werden.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-google--schritt-b1-zustimmungsbildschirm-konfigurieren">
 <h3 class="step" id="30-tenant-app-google--schritt-b1-zustimmungsbildschirm-konfigurieren">Schritt B1 — Zustimmungsbildschirm konfigurieren</h3>
 <ol>
 <li>Öffne <a href="https://console.cloud.google.com" target="_blank" rel="noopener">https://console.cloud.google.com</a> und wähle oben euer Projekt (oder lege eines an, z.B. <code>Mitarbyte KI-OS</code>).</li>
@@ -538,6 +659,8 @@
 <li>App-Name (<code>Mitarbyte KI-OS Gateway</code>) und Support-E-Mail eintragen, speichern.</li>
 </ol>
 <blockquote><p>Wenn wir für euch schon einen anderen Google-Zugang eingerichtet haben (z.B. Search Console), existiert dieses Projekt samt Zustimmungsbildschirm oft bereits — dann Schritt B1 überspringen und im selben Projekt weitermachen.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-google--schritt-b2-oauth-client-erstellen">
 <h3 class="step" id="30-tenant-app-google--schritt-b2-oauth-client-erstellen">Schritt B2 — OAuth-Client erstellen</h3>
 <ol>
 <li>Links <strong>„APIs &amp; Dienste&quot; → „Anmeldedaten&quot;</strong> → <strong>„+ Anmeldedaten erstellen&quot;</strong> → <strong>„OAuth-Client-ID&quot;</strong>.</li>
@@ -549,10 +672,14 @@
 <details class="meta"><summary>Vorhandener Google-Client aus einem anderen Setup?</summary>
 <p>Ein bestehender Client ist hier <strong>nicht wiederverwendbar</strong>, wenn er vom Typ „Desktop-App&quot; ist — dieser Typ lässt sich nachträglich nicht ändern und akzeptiert keine HTTPS-Weiterleitungs-URI. Erkennen an der heruntergeladenen JSON-Datei: steht dort oben <code>&quot;installed&quot;</code>, ist es ein Desktop-Client (untauglich); <code>&quot;web&quot;</code> ist richtig. Im Zweifel einfach einen neuen Webanwendungs-Client anlegen (Schritt B2).</p>
 </details>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-google--schritt-b3-checkliste-diese-zwei-werte-hast-du-jetzt">
 <h3 class="step" id="30-tenant-app-google--schritt-b3-checkliste-diese-zwei-werte-hast-du-jetzt">Schritt B3 — Checkliste: diese zwei Werte hast du jetzt</h3>
 <div class="codewrap"><pre><code>CLIENT_ID      = 123456789012-abcdefghijklmnop.apps.googleusercontent.com
 CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <p>Eine Tenant-ID gibt es bei Google nicht. <strong>Nichts davon per Mail schicken</strong> — die Übergabe passiert über das Browser-Terminal der VM (<strong>Werte übergeben</strong> unten); der Clientschlüssel bleibt dabei komplett auf eurer VM.</p>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-google--werte-uebergeben-im-browser-terminal-der-vm">
 <h3 class="step" id="30-tenant-app-google--werte-uebergeben-im-browser-terminal-der-vm">Werte übergeben: im Browser-Terminal der VM</h3>
 <p>Die Werte aus B3 (plus die Login-Adressen der Mitarbeiter) übergibst du direkt auf eurer VM — <strong>nichts davon geht per Mail oder Chat</strong>, das Secret verlässt eure VM nie:</p>
 <ol>
@@ -580,8 +707,10 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li>Wir schalten frei und schicken jedem seine zwei Links. Anmeldung = normales Firmen-Login, kein weiteres Passwort.</li>
 </ol>
 </details>
+</div>
 </section>
 <section class="block" id="block-30-tenant-app-m365" data-block="30-tenant-app-m365" hidden>
+<div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Microsoft 365)</h2>
 <p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Microsoft-365-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit dem Recht, in eurem Microsoft 365 neue Apps einzutragen — Microsoft nennt das „App-Registrierung&quot;.</p>
 <details class="meta"><summary>Wofür das gut ist</summary>
@@ -595,12 +724,16 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
 </ul>
 </details>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-m365--die-redirect-uri">
 <h3 class="step" id="30-tenant-app-m365--die-redirect-uri">Die Redirect-URI</h3>
 <p>Für die Einrichtung braucht ihr <strong>eine URL</strong> — die <strong>Redirect-URI</strong>. Tippe dazu einmal den Hostnamen eurer VM ein (steht in <strong>hPanel → VPS → Übersicht</strong>, aus Teil 1) — die fertige URL erscheint automatisch hier und in allen weiteren Schritten:</p>
 <div class="ssform" data-form="redirect-uri"></div>
 <div class="codewrap"><pre><code><span class="ph" data-ph="REDIRECT_URI">https://auth.srv123456.hstgr.cloud/oauth2/callback</span></code></pre></div>
 <p>Ein Tippfehler im Hostnamen führt später zu einem <code>redirect_uri mismatch</code>-Fehler beim Login — im Zweifel den Hostnamen noch einmal mit hPanel abgleichen.</p>
 <blockquote><p>Gut zu wissen: Diese eine URL gilt für <strong>alle</strong> Mitarbeiter und alle Links. Kommt später ein neuer Kollege dazu, muss an der App-Registrierung <strong>nichts</strong> geändert werden.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-m365--schritt-a1-app-registrierung-anlegen">
 <h3 class="step" id="30-tenant-app-m365--schritt-a1-app-registrierung-anlegen">Schritt A1 — App-Registrierung anlegen</h3>
 <ol>
 <li><a href="https://entra.microsoft.com" target="_blank" rel="noopener">https://entra.microsoft.com</a> öffnen und als Admin anmelden. (Alternativ <a href="https://portal.azure.com" target="_blank" rel="noopener">portal.azure.com</a> → Suche <code>App registrations</code>.)</li>
@@ -613,6 +746,8 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 </ul>
 <li><strong>„Registrieren&quot;</strong> klicken.</li>
 </ol>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-m365--schritt-a2-tenant-id-und-client-id-notieren">
 <h3 class="step" id="30-tenant-app-m365--schritt-a2-tenant-id-und-client-id-notieren">Schritt A2 — TENANT_ID und CLIENT_ID notieren</h3>
 <p>Auf der <strong>Übersicht</strong>-Seite der neuen App:</p>
 <ol>
@@ -620,6 +755,8 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li><strong>„Verzeichnis-ID (Mandant)&quot;</strong> kopieren → <strong><code>TENANT_ID</code></strong>.</li>
 </ol>
 <blockquote><p>Typischer Fehler: Nicht die <strong>Objekt-ID</strong> kopieren — das ist eine dritte UUID auf derselben Seite und wird nicht gebraucht.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-m365--schritt-a3-client-secret-erzeugen">
 <h3 class="step" id="30-tenant-app-m365--schritt-a3-client-secret-erzeugen">Schritt A3 — CLIENT_SECRET erzeugen</h3>
 <p>Das Passwort der App — du siehst es <strong>nur einmal</strong>.</p>
 <ol>
@@ -628,6 +765,8 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li><strong>„Hinzufügen&quot;</strong>, dann in der Spalte <strong>„Wert&quot;</strong> das Copy-Icon klicken und den Wert <strong>sofort</strong> in den Passwortmanager einfügen.</li>
 </ol>
 <blockquote><p>Nach dem Verlassen oder Neuladen der Seite ist der Wert maskiert und für immer weg. Wenn das passiert: alten Schlüssel löschen, neuen erzeugen.</p><p><strong>Notier dir das Ablaufdatum.</strong> Läuft das Secret ab, funktioniert der Login für alle nicht mehr. Wir erinnern euch rechtzeitig — der Austausch dauert dann fünf Minuten.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-m365--schritt-a4-berechtigungen-pruefen-und-zustimmung-erteilen">
 <h3 class="step" id="30-tenant-app-m365--schritt-a4-berechtigungen-pruefen-und-zustimmung-erteilen">Schritt A4 — Berechtigungen prüfen und Zustimmung erteilen</h3>
 <ol>
 <li><strong>„API-Berechtigungen&quot;</strong> öffnen: Der Standard-Eintrag <strong><code>User.Read</code></strong> <strong>reicht, es muss nichts hinzugefügt werden</strong> — die App braucht nur Name und E-Mail des Anmeldenden.</li>
@@ -637,6 +776,8 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <li>Ist der Button grau: Dir fehlt das Admin-Recht → bitte einen Global Admin um genau diesen Klick.</li>
 </ul>
 </ol>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-m365--schritt-a5-checkliste-diese-drei-werte-hast-du-jetzt">
 <h3 class="step" id="30-tenant-app-m365--schritt-a5-checkliste-diese-drei-werte-hast-du-jetzt">Schritt A5 — Checkliste: diese drei Werte hast du jetzt</h3>
 <div class="codewrap"><pre><code>TENANT_ID      = 00000000-1111-2222-3333-444444444444
 CLIENT_ID      = b1a2c3d4-e5f6-7890-abcd-ef1234567890
@@ -664,6 +805,8 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 </ol>
 <blockquote><p>Warum eine zweite App? Der Sync meldet sich <strong>pro Mitarbeiter mit dessen eigenem Firmen-Konto</strong> an — jede Änderung erscheint in SharePoint unter dem echten Autor, und jeder erreicht nur, was er ohnehin darf. Getrennte Apps heißen außerdem: ihr könnt den Sync jederzeit abschalten, ohne den VM-Login anzufassen.</p></blockquote>
 </details>
+</div>
+<div class="slide" data-slide="step" data-step="30-tenant-app-m365--werte-uebergeben-im-browser-terminal-der-vm">
 <h3 class="step" id="30-tenant-app-m365--werte-uebergeben-im-browser-terminal-der-vm">Werte übergeben: im Browser-Terminal der VM</h3>
 <p>Alle Werte aus A5 (plus die Login-Adressen der Mitarbeiter) übergibst du direkt auf eurer VM — <strong>nichts davon geht per Mail oder Chat</strong>, das Secret verlässt eure VM nie:</p>
 <ol>
@@ -692,28 +835,213 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>Wir schalten frei und schicken jedem seine zwei Links. Anmeldung = normales Firmen-Login, kein weiteres Passwort.</li>
 </ol>
 </details>
+</div>
+</section>
+<section class="block" id="block-50-verbinden-gateway" data-block="50-verbinden-gateway" hidden>
+<div class="slide" data-slide="intro">
+<h2 class="block-title">Teil 4 — Mit deiner VM verbinden</h2>
+<p>Dieser Teil ist für <strong>jeden Mitarbeiter</strong> — du arbeitest ihn selbst durch, in deinem Tempo. Voraussetzung: Du hast von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> deine persönliche Nachricht mit <strong>zwei Links</strong> bekommen — die <strong>Oberfläche</strong> deiner VM (Cockpit bzw. Agent-Dashboard, der erste Link) und den <strong>VM-Desktop</strong> (der Browser der VM). Alles läuft im Browser, auf deinem Gerät wird nichts installiert. Die Pflicht-Schritte dauern etwa 10 Minuten; die optionalen Schritte am Ende sind für alle, die zusätzlich mit der Desktop-App arbeiten wollen.</p>
+<details class="meta"><summary>Wenn du eine Agent-Adresse (Hermes) hast</summary>
+<p>Heißt dein erster Link <code>…-agent.…</code> statt <code>…-cockpit.…</code>, läuft auf eurer VM der Hermes-Agent. Für dich ändert sich in diesem Teil fast nichts: Die Oberfläche heißt Agent-Dashboard, im VM-Desktop wartet kein Login-Terminal (Schritt 2 ist damit sofort erledigt), und die optionalen Schritte 5–8 gelten dort nicht — die Hermes-Desktop-App verbindet sich stattdessen mit URL + Session-Token, beides bekommst du von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span>.</p>
+</details>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-1-mit-dem-firmen-konto-anmelden">
+<h3 class="step" id="50-verbinden-gateway--schritt-1-mit-dem-firmen-konto-anmelden">Schritt 1 — Mit dem Firmen-Konto anmelden</h3>
+<ol>
+<li>Den <strong>ersten Link</strong> aus deiner Nachricht öffnen (Oberfläche).</li>
+<li>Auf <strong>„Mit Microsoft anmelden&quot;</strong> bzw. <strong>„Mit Google anmelden&quot;</strong> klicken und dich mit deinem <strong>normalen Firmen-Konto</strong> anmelden — inklusive eurer Zwei-Faktor-Anmeldung, falls eingerichtet.</li>
+<li>Erscheint die Oberfläche, ist dein Zugang aktiv: Dein User ist auf der VM angelegt und freigeschaltet.</li>
+</ol>
+<p>Ein Login gilt für <strong>beide</strong> Links — der VM-Desktop verbindet danach automatisch, ein weiteres Passwort gibt es nicht.</p>
+<blockquote><p>Siehst du stattdessen eine Fehlerseite (403)? Dann ist dein Konto noch nicht freigeschaltet oder du hast dich mit einer anderen Adresse angemeldet als der, die <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kennt. Kurz melden — das ist in einer Minute korrigiert.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-2-im-vm-desktop-anmelden">
+<h3 class="step" id="50-verbinden-gateway--schritt-2-im-vm-desktop-anmelden">Schritt 2 — Im VM-Desktop anmelden</h3>
+<ol>
+<li>Den <strong>zweiten Link</strong> (VM-Desktop) öffnen. Du siehst den Bildschirm deiner VM im Browser.</li>
+<li><strong>Wartet dort ein Login-Terminal</strong>, folge ihm: Es zeigt einen Link und einen Code. Link öffnen (gern in einem neuen Tab auf deinem Gerät), mit deinem Claude-Konto anmelden, den Code kopieren und im Terminal einfügen.</li>
+<li>Danach hält sich die Anmeldung von selbst aufrecht. Läuft sie irgendwann ab, erscheint dasselbe Terminal wieder — gleicher Ablauf.</li>
+</ol>
+<p><strong>Erscheint kein Login-Terminal</strong>, ist nichts zu tun — dann ist die Anmeldung für dich bereits eingerichtet.</p>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-3-firmen-tools-im-vm-browser-anmelden">
+<h3 class="step" id="50-verbinden-gateway--schritt-3-firmen-tools-im-vm-browser-anmelden">Schritt 3 — Firmen-Tools im VM-Browser anmelden</h3>
+<p>Im VM-Desktop läuft ein eigener Browser. Dort meldest du dich <strong>einmalig</strong> bei den Firmen-Tools an, mit denen die KI für dich arbeiten soll — Outlook, SharePoint, CRM, was ihr eben nutzt.</p>
+<ul>
+<li><strong>Immer im VM-Browser</strong>, nie auf deinem eigenen Gerät: Nur die Anmeldungen dort kann die VM später selbst nutzen — deine lokalen Logins sieht sie nicht.</li>
+<li>Die Sitzungen bleiben auf der VM erhalten, du musst das nicht wiederholen.</li>
+<li><strong>Keine privaten Logins</strong> (Online-Banking, private Mail) in diesem Browser — die KI hat Zugriff auf alles, was dort angemeldet ist.</li>
+</ul>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-4-lesezeichen-setzen-und-erste-aufgabe">
+<h3 class="step" id="50-verbinden-gateway--schritt-4-lesezeichen-setzen-und-erste-aufgabe">Schritt 4 — Lesezeichen setzen und erste Aufgabe</h3>
+<ol>
+<li><strong>Beide Links</strong> als Lesezeichen anlegen — und dazu <code>claude.ai/code</code>, dort erscheint dein Workspace nach dem Login.</li>
+<li>Eine kleine Testaufgabe stellen, zum Beispiel: „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot; Antwortet die KI, ist dein Arbeitsplatz einsatzbereit.</li>
+</ol>
+<p>Das war der Pflichtteil. Die folgenden Schritte sind <strong>optional</strong> — für alle, die zusätzlich mit der <strong>Claude-Desktop-App</strong> direkt auf der VM arbeiten wollen (Power-User).</p>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-5-skill-installieren">
+<h3 class="step optional" id="50-verbinden-gateway--schritt-5-skill-installieren">Schritt 5 — Skill installieren</h3>
+<p>Der Assistent <code>/user-onboarding</code> richtet die Verbindung von deinem Gerät zur VM ein. Einmal installieren — eine Zeile im Terminal:</p>
+<p><strong>macOS / Linux</strong> (Terminal):</p>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.sh | bash</code></pre></div>
+<p><strong>Windows</strong> (PowerShell):</p>
+<div class="codewrap"><pre><code>irm https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.ps1 | iex</code></pre></div>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-6-user-onboarding-starten">
+<h3 class="step optional" id="50-verbinden-gateway--schritt-6-user-onboarding-starten">Schritt 6 — <code>/user-onboarding</code> starten</h3>
+<ol>
+<li>Claude Code öffnen (Desktop-App oder <code>claude</code> im Terminal), eine <strong>neue Session</strong> starten und einen beliebigen Ordner wählen (z.B. Downloads) — dort wird nichts abgelegt, gearbeitet wird später auf der VM.</li>
+<li><code>/user-onboarding</code> eingeben und die Rückfragen beantworten: <strong>„Eine Cockpit-Adresse&quot;</strong>, dann die VM-Adresse (der Teil hinter <code>-cockpit.</code> in deinem ersten Link, z.B. <code>srv123456.hstgr.cloud</code>) und deinen Username (der Teil davor).</li>
+<li>Der Assistent erzeugt deinen <strong>Zugangsschlüssel</strong> und legt ihn in die Zwischenablage — den brauchst du im nächsten Schritt.</li>
+</ol>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-7-schluessel-selbst-hinterlegen">
+<h3 class="step optional" id="50-verbinden-gateway--schritt-7-schluessel-selbst-hinterlegen">Schritt 7 — Schlüssel selbst hinterlegen</h3>
+<ol>
+<li>Im Cockpit (erster Link) den Tab <strong>System</strong> öffnen → Karte <strong>„SSH-Zugang&quot;</strong>.</li>
+<li>Den Schlüssel aus der Zwischenablage einfügen — die Zeile beginnt mit <code>ssh-ed25519</code> — und <strong>„Key hinterlegen&quot;</strong> klicken.</li>
+<li>Zurück im Assistenten weitermachen: Er prüft die Verbindung sofort, kein Warten auf jemanden.</li>
+</ol>
+<p>Das Feld nimmt nur den <strong>öffentlichen</strong> Schlüssel — niemals die private Schlüsseldatei hochladen oder verschicken. Fehlt die Karte „SSH-Zugang&quot; oder hast du kein Cockpit (Agent-Adresse): Schlüssel an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken, der Assistent hat die Vorlage dafür.</p>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schritt-8-desktop-app-verbinden">
+<h3 class="step optional" id="50-verbinden-gateway--schritt-8-desktop-app-verbinden">Schritt 8 — Desktop-App verbinden</h3>
+<ol>
+<li>Der Assistent trägt die VM als <code>ki-os-vm</code> in deine Claude-Desktop-App ein.</li>
+<li>Die Desktop-App danach <strong>komplett beenden und neu öffnen</strong> — sie liest die Einstellung nur beim Start.</li>
+<li>In der App die VM (<code>ki-os-vm</code> / <code>KI-OS</code>) auswählen — sie erscheint ohne Rückfrage („Trust-Prompt&quot;).</li>
+</ol>
+<details class="meta"><summary>Fertig, wenn …</summary>
+<ul>
+<li>du dich bei beiden Links mit dem Firmen-Konto anmelden kannst,</li>
+<li>im VM-Desktop kein Login-Terminal mehr wartet,</li>
+<li>jedes Firmen-Tool im VM-Browser einmal angemeldet ist und Daten liefert,</li>
+<li>deine Testaufgabe eine Antwort bekommen hat,</li>
+<li>optional: die VM in der Desktop-App auftaucht.</li>
+</ul>
+</details>
+<details class="meta"><summary>Wenn etwas klemmt</summary>
+<ul>
+<li><strong>403 beim Anmelden:</strong> Konto noch nicht freigeschaltet oder falsche Adresse — <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> Bescheid geben.</li>
+<li><strong>Login-Terminal taucht immer wieder auf:</strong> Den Ablauf aus Schritt 2 einmal komplett durchgehen (Link öffnen, anmelden, Code einfügen).</li>
+<li><strong>Optionale Schritte:</strong> <code>/user-onboarding</code> einfach erneut starten — der Assistent richtet nur nach, was fehlt; reparieren ist derselbe Weg wie einrichten.</li>
+<li>Alles andere: kurz bei <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> melden.</li>
+</ul>
+</details>
+<details class="meta"><summary>So arbeitest du danach</summary>
+<p>Die gebookmarkten Links im Browser — von jedem Gerät, auch vom Handy — oder die Desktop-App mit der VM als Projekt. Dateien liegen in eurem Firmenordner (SharePoint / Google Drive) bzw. im Explorer der Oberfläche.</p>
+</details>
+</div>
+</section>
+<section class="block" id="block-50-verbinden-tunnel" data-block="50-verbinden-tunnel" hidden>
+<div class="slide" data-slide="intro">
+<h2 class="block-title">Teil 4 — Mit deiner VM verbinden</h2>
+<p>Dieser Teil ist für <strong>jeden Mitarbeiter</strong> — du arbeitest ihn selbst durch, in deinem Tempo. Voraussetzung: Du hast von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> deine persönliche Nachricht mit der <strong>VM-Adresse (IP)</strong> und deinem <strong>Username</strong> bekommen. Ein Assistent (<code>/user-onboarding</code>) richtet auf deinem Gerät die Verbindungen zur VM ein — du beantwortest nur ein paar Rückfragen. Rechne mit etwa 20 Minuten plus der Wartezeit auf <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> in Schritt 3.</p>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--schritt-1-skill-installieren">
+<h3 class="step" id="50-verbinden-tunnel--schritt-1-skill-installieren">Schritt 1 — Skill installieren</h3>
+<p>Eine Zeile im Terminal installiert den Assistenten:</p>
+<p><strong>macOS / Linux</strong> (Terminal):</p>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.sh | bash</code></pre></div>
+<p><strong>Windows</strong> (PowerShell):</p>
+<div class="codewrap"><pre><code>irm https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.ps1 | iex</code></pre></div>
+<p>Voraussetzung ist Claude Code auf deinem Gerät (Desktop-App aus Teil 2 oder <code>claude</code> im Terminal).</p>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--schritt-2-user-onboarding-starten">
+<h3 class="step" id="50-verbinden-tunnel--schritt-2-user-onboarding-starten">Schritt 2 — <code>/user-onboarding</code> starten</h3>
+<ol>
+<li>Claude Code öffnen, eine <strong>neue Session</strong> starten und einen beliebigen Ordner wählen (z.B. Downloads) — dort wird nichts abgelegt, gearbeitet wird später auf der VM.</li>
+<li><code>/user-onboarding</code> eingeben. Auf die Frage „Was hast du vom Admin bekommen?&quot; <strong>„Nur IP + Username&quot;</strong> wählen, dann IP und Username aus deiner Nachricht eingeben.</li>
+<li>Der Assistent erzeugt deinen <strong>Zugangsschlüssel</strong> (SSH-Key) und legt ihn in die Zwischenablage.</li>
+</ol>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--schritt-3-schluessel-an-ansprechpartner-schicken">
+<h3 class="step wartet" id="50-verbinden-tunnel--schritt-3-schluessel-an-ansprechpartner-schicken">Schritt 3 — Schlüssel an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken</h3>
+<p>Deinen Schlüssel hinterlegt <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> auf der VM — das ist der einzige Schritt, bei dem du kurz auf jemanden wartest.</p>
+<ol>
+<li>Den Schlüssel aus der Zwischenablage per Mail oder Chat schicken — der Assistent zeigt dir eine fertige Vorlage. Die Zeile beginnt mit <code>ssh-ed25519</code> und ist <strong>nicht geheim</strong> (die private Schlüsseldatei bleibt auf deinem Gerät und wird nie verschickt).</li>
+<li>Auf die Bestätigung warten, dass der Schlüssel drauf ist. Bis dahin: unten <strong>„Später erledigen&quot;</strong> — die Seite merkt sich, wo du bist.</li>
+<li>Nach der Bestätigung <code>/user-onboarding</code> erneut starten — der Assistent macht genau da weiter.</li>
+</ol>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--schritt-4-claude-richtet-alles-ein">
+<h3 class="step" id="50-verbinden-tunnel--schritt-4-claude-richtet-alles-ein">Schritt 4 — Claude richtet alles ein</h3>
+<p>Ab hier arbeitet der Assistent, du bestätigst nur:</p>
+<ul>
+<li><strong>Verbindung testen</strong> zur VM.</li>
+<li><strong>Verbindungen einrichten</strong>, die beim Start deines Geräts automatisch aufgebaut werden: zum <strong>VM-Desktop</strong> (im Browser unter <code>localhost:6080</code>) und zur <strong>Oberfläche</strong> (Cockpit unter <code>localhost:3847</code> bzw. Agent-Dashboard unter <code>localhost:9119</code> — der Assistent weiß, was auf eurer VM läuft).</li>
+<li><strong>Ordner-Abgleich:</strong> dein Arbeitsordner <code>~/KI-OS</code> erscheint auf deinem Gerät und bleibt mit der VM synchron (entfällt, wenn eure Dateien ohnehin in SharePoint / Google Drive liegen — das erkennt der Assistent).</li>
+<li><strong>Desktop-App</strong> mit der VM verbinden (danach die App einmal komplett beenden und neu öffnen).</li>
+</ul>
+<p>Nennt der Assistent ein <strong>Passwort für den VM-Desktop</strong>, gleich in den Passwortmanager legen — du brauchst es im nächsten Schritt einmalig.</p>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--schritt-5-einmal-anmelden-im-vm-browser">
+<h3 class="step" id="50-verbinden-tunnel--schritt-5-einmal-anmelden-im-vm-browser">Schritt 5 — Einmal anmelden im VM-Browser</h3>
+<ol>
+<li><code>http://localhost:6080/vnc.html?resize=scale</code> öffnen → <strong>Connect</strong> → das Passwort aus Schritt 4 eingeben. Du siehst den Bildschirm deiner VM.</li>
+<li><strong>Wartet dort ein Login-Terminal</strong>, folge ihm: Link öffnen, mit deinem Claude-Konto anmelden, den Code kopieren und im Terminal einfügen. Danach hält sich die Anmeldung von selbst aufrecht. Erscheint keins, ist nichts zu tun.</li>
+<li>Im selben VM-Browser die <strong>Firmen-Tools anmelden</strong> (Outlook, SharePoint, CRM …) — <strong>immer dort, nie auf deinem eigenen Gerät</strong>: nur diese Anmeldungen kann die VM später selbst nutzen. Keine privaten Logins in diesem Browser.</li>
+</ol>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--schritt-6-lesezeichen-und-ordner">
+<h3 class="step" id="50-verbinden-tunnel--schritt-6-lesezeichen-und-ordner">Schritt 6 — Lesezeichen und Ordner</h3>
+<ol>
+<li>Die beiden lokalen Adressen (VM-Desktop und Oberfläche) als Lesezeichen anlegen.</li>
+<li>Den Ordner <code>~/KI-OS</code> in die Seitenleiste von Finder bzw. Explorer ziehen (falls der Ordner-Abgleich eingerichtet wurde).</li>
+<li>Eine kleine Testaufgabe stellen — in der Desktop-App mit der VM als Projekt, z.B. „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot;</li>
+</ol>
+<details class="meta"><summary>Fertig, wenn …</summary>
+<ul>
+<li>VM-Desktop und Oberfläche unter ihren lokalen Adressen erreichbar sind,</li>
+<li>im VM-Desktop kein Login-Terminal mehr wartet,</li>
+<li>jedes Firmen-Tool im VM-Browser einmal angemeldet ist und Daten liefert,</li>
+<li>die VM in der Desktop-App auftaucht,</li>
+<li>der Ordner <code>~/KI-OS</code> auf deinem Gerät sichtbar ist (falls eingerichtet).</li>
+</ul>
+</details>
+<details class="meta"><summary>Wenn etwas klemmt</summary>
+<ul>
+<li><strong>„Permission denied&quot; beim Verbinden:</strong> Der Schlüssel ist noch nicht hinterlegt — auf die Bestätigung aus Schritt 3 warten.</li>
+<li><strong>Lokale Adresse nicht erreichbar:</strong> Gerät neu starten (die Verbindungen starten automatisch) oder <code>/user-onboarding</code> erneut ausführen.</li>
+<li><strong>Ordner-Abgleich meldet Probleme:</strong> <code>/user-onboarding</code> erneut starten — der Assistent prüft den Abgleich und repariert, was fehlt.</li>
+<li>Alles andere: kurz bei <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> melden. <code>/user-onboarding</code> kannst du jederzeit erneut starten — reparieren ist derselbe Weg wie einrichten.</li>
+</ul>
+</details>
+<details class="meta"><summary>Windows-Hinweis</summary>
+<p>Unter Windows läuft der Assistent nativ (PowerShell, Windows-OpenSSH, geplante Aufgaben). Der Ordner-Abgleich ist dort die vorgesehene Architektur, aber noch nicht im Kundenbetrieb verifiziert — bei Problemen an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span>.</p>
+</details>
+</div>
 </section>
 <section class="block" id="block-90-abschluss" data-block="90-abschluss" hidden>
+<div class="slide" data-slide="intro">
 <h2 class="block-title">Wie es weitergeht</h2>
 <p>Sobald du die Nachricht aus der VM-Registrierung an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> geschickt hast, übernehmen wir:</p>
 <ol>
 <li><strong>Wir richten die VM vollständig ein</strong> — Betriebssystem-Härtung, KI-OS-Plattform, ein Arbeitsbereich pro Mitarbeiter (<span class="ph" data-ph="USERS">imran, philip</span>). Das dauert bei uns typischerweise weniger als einen Arbeitstag.</li>
-<li><strong>Jeder Mitarbeiter bekommt seine Zugangsdaten</strong> — eine kurze persönliche Nachricht mit allem, was er braucht. Je nach Setup sind das direkt nutzbare Browser-Links mit eurem Firmen-Login oder eine kurze lokale Einrichtung mit unserem Assistenten.</li>
+<li><strong>Jeder Mitarbeiter bekommt seine Zugangsdaten</strong> — eine kurze persönliche Nachricht mit allem, was er braucht, und den Link auf <strong>Teil 4 dieser Anleitung</strong> („Mit deiner VM verbinden&quot;), den er selbst durcharbeitet. Je nach Setup sind das direkt nutzbare Browser-Links mit eurem Firmen-Login oder eine kurze lokale Einrichtung mit unserem Assistenten.</li>
 <li><strong>Erste Session</strong> — wir melden uns für den gemeinsamen Einstiegstermin. Dort richten wir das Unternehmenswissen ein und gehen die ersten Arbeitsabläufe durch.</li>
 </ol>
 <p>Danach läuft der Betrieb: Updates und Wartung macht Mitarbyte, ohne dass ihr etwas tun müsst. Den Zugriff könnt ihr jederzeit selbst entziehen (siehe „Zugang jederzeit entziehbar&quot; in den jeweiligen Kapiteln).</p>
 <blockquote><p>Noch offene Punkte aus dieser Anleitung? Kein Problem — Teile lassen sich in beliebiger Reihenfolge nachholen. Gib <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> einfach Bescheid, was noch fehlt.</p></blockquote>
+</div>
 </section>
   </main>
   <div class="pager">
     <button id="prevbtn" type="button">← Zurück</button>
-    <button id="nextbtn" type="button">Weiter: <span id="nextlabel"></span> →</button>
+    <span class="pagerstate" id="pagerstate" hidden></span>
+    <div class="pager-right">
+      <a href="#" id="skipbtn" class="skip" hidden>Später erledigen →</a>
+      <button id="nextbtn" type="button">Weiter →</button>
+    </div>
   </div>
   <footer>
     Mitarbyte KI-OS · Konfiguration und Fortschritt bleiben im Link bzw. in
     deinem Browser; nur beim Absenden des Registrierungs-Formulars werden
-    eure Antworten an Mitarbyte übermittelt (via Web3Forms).
-    · <a href="#" id="showall">Alle Teile auf einer Seite anzeigen</a>
+    eure Antworten an Mitarbyte übermittelt (via Web3Forms). Videos werden
+    erst nach Klick von YouTube geladen (Daten gehen dann an Google).
+    · <a href="#" id="showall">Alle Schritte auf einer Seite anzeigen</a>
   </footer>
 </div>
 <div id="backdrop"></div>
@@ -767,7 +1095,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 
 <script>
 "use strict";
-var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
+var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "50-verbinden-gateway", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "gateway"}]}, {"id": "50-verbinden-tunnel", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "tunnel"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
 /* Web3Forms-Empfaenger, zur Buildzeit aus admins/web3forms.list eingesetzt:
    {always: "<manager>", keys: {"<manager>": "<access-key>"}}. Access-Keys sind
    public by design (Alias auf ein Postfach, kein Secret). Ein Key = ein
@@ -942,16 +1270,36 @@ if (cfg.firma) {
   document.title = "KI-OS Einrichtung — " + cfg.firma;
 }
 
-/* ---- Seiten (Wizard) aus den sichtbaren Bloecken ---- */
-var pages = [];
+/* ---- Rolle: welche Teile zeigt die Seite? ----
+   Teil 1|3 = IT (VM + Firmen-Login), Teil 2|4 = Mitarbeiter (Arbeitsplatz +
+   Verbinden), alles andere immer. Ungewaehlt = alle Kapitel + Chooser-Karte;
+   "alle" ist ein expliziter Wert. Rollen-versteckte Bloecke bleiben im DOM
+   (hidden) — ein Wechsel baut nur das Modell neu, kein Reload. ---- */
+var ROLES = ["it", "mitarbeiter", "alle"];
+function roleOfPart(part) {
+  if (part === "1" || part === "3") return "it";
+  if (part === "2" || part === "4") return "mitarbeiter";
+  return null;
+}
+var role = lsGet(storeKey + ":role") || cfg.role || null;
+if (ROLES.indexOf(role) < 0) role = null;
+function roleAllows(b) {
+  var r = roleOfPart(b.part);
+  return !r || !role || role === "alle" || role === r;
+}
+
+/* ---- Bloecke: when-sichtbar (unsichtbare fliegen raus), NICHT rollen-
+   gefiltert; je Block seine Slides (Kinder mit Klasse .slide) ---- */
+var blocks = [];
 META.forEach(function (meta) {
   var el = document.getElementById("block-" + meta.id);
   if (!el) return;
-  if (visible(meta)) {
-    pages.push({ id: meta.id, title: meta.title, part: String(meta.part), el: el, steps: [] });
-  } else {
-    el.remove();
-  }
+  if (!visible(meta)) { el.remove(); return; }
+  var slideEls = Array.prototype.filter.call(el.children, function (c) {
+    return c.classList.contains("slide");
+  });
+  if (!slideEls.length) { el.remove(); return; }
+  blocks.push({ id: meta.id, title: meta.title, part: String(meta.part), el: el, slideEls: slideEls });
 });
 
 /* ---- Checkliste: Zustand im localStorage (storeKey s. oben) ---- */
@@ -960,8 +1308,15 @@ try { state = JSON.parse(localStorage.getItem(storeKey) || "{}"); } catch (e) { 
 function save() {
   try { localStorage.setItem(storeKey, JSON.stringify(state)); } catch (e) {}
 }
-var steps = Array.prototype.slice.call(document.querySelectorAll("main h3.step"));
-steps.forEach(function (h) {
+function setStepDone(h3, on) {
+  var box = h3.querySelector('input[type="checkbox"]');
+  if (box) box.checked = on;
+  if (on) state[h3.id] = true; else delete state[h3.id];
+  h3.classList.toggle("done", on);
+  save();
+  refresh();
+}
+Array.prototype.forEach.call(document.querySelectorAll("main h3.step"), function (h) {
   var box = document.createElement("input");
   box.type = "checkbox";
   box.checked = !!state[h.id];
@@ -971,20 +1326,51 @@ steps.forEach(function (h) {
   while (h.firstChild) span.appendChild(h.firstChild);
   h.appendChild(box);
   h.appendChild(span);
+  /* Marker leben nur als Klassen am h3 — eine Wahrheit fuer Badge + Modell */
+  if (h.classList.contains("wartet") || h.classList.contains("optional")) {
+    var badge = document.createElement("span");
+    badge.className = "badge" + (h.classList.contains("wartet") ? " wartet" : "");
+    badge.textContent = h.classList.contains("wartet") ? "Wartet auf Mitarbyte" : "optional";
+    h.appendChild(badge);
+  }
   if (box.checked) h.classList.add("done");
-  box.addEventListener("change", function () {
-    state[h.id] = box.checked;
-    if (!box.checked) delete state[h.id];
-    h.classList.toggle("done", box.checked);
-    save();
-    refresh();
-  });
-});
-pages.forEach(function (p) {
-  p.steps = Array.prototype.slice.call(p.el.querySelectorAll("h3.step"));
+  box.addEventListener("change", function () { setStepDone(h, box.checked); });
 });
 
-/* ---- UI-Zustand (letzte Seite + Besucht-Set), separater Key ---- */
+/* ---- Modell: Kapitel (rollen-sichtbar) -> flache Slide-Liste.
+   Intro-Slide traegt die Block-ID (alte p=<block-id>-Links + gespeicherte
+   ui.page-Werte treffen ohne Migration), Schritt-Slide die Step-ID. ---- */
+var chapters = [], slides = [], slideIndex = {}, chapterFirst = {};
+function rebuildModel() {
+  chapters = []; slides = []; slideIndex = {}; chapterFirst = {};
+  blocks.forEach(function (b) {
+    if (!roleAllows(b)) return;
+    var c = { id: b.id, title: b.title, part: b.part, el: b.el, slides: [], steps: [] };
+    b.slideEls.forEach(function (el) {
+      var isStep = el.getAttribute("data-slide") === "step";
+      var h3 = isStep ? el.querySelector("h3.step") : null;
+      if (isStep && !h3) return;
+      var st = h3 && h3.querySelector(".steptext");
+      var s = {
+        id: isStep ? el.getAttribute("data-step") : b.id,
+        kind: isStep ? "step" : "intro",
+        chapter: c, el: el, h3: h3,
+        optional: !!h3 && h3.classList.contains("optional"),
+        wartet: !!h3 && h3.classList.contains("wartet"),
+        title: isStep ? (st ? st.textContent : h3.textContent) : b.title
+      };
+      c.slides.push(s);
+      if (isStep) c.steps.push(s);
+    });
+    if (!c.slides.length) return;
+    chapters.push(c);
+    c.slides.forEach(function (s) { slideIndex[s.id] = slides.length; slides.push(s); });
+    chapterFirst[c.id] = slideIndex[c.slides[0].id];
+  });
+}
+rebuildModel();
+
+/* ---- UI-Zustand (letzte Slide + Besucht-Set), separater Key ---- */
 var uiKey = storeKey + ":ui";
 var ui = { page: null, visited: {} };
 try {
@@ -998,25 +1384,63 @@ function saveUi() {
   try { localStorage.setItem(uiKey, JSON.stringify(ui)); } catch (e) {}
 }
 
-/* ---- Fortschritt pro Seite / gesamt ---- */
+/* ---- Fortschritt: Leisten und Zaehler zaehlen nur Pflicht-Schritte,
+   optionale laufen als Suffix mit ---- */
 function stepsDone(list) {
   var n = 0;
-  list.forEach(function (h) { if (state[h.id]) n++; });
+  list.forEach(function (s) { if (state[s.id]) n++; });
   return n;
 }
-function pageDone(p) {
-  if (!p.steps.length) return !!ui.visited[p.id];
-  return stepsDone(p.steps) === p.steps.length;
+function requiredSteps(c) { return c.steps.filter(function (s) { return !s.optional; }); }
+function optionalSteps(c) { return c.steps.filter(function (s) { return s.optional; }); }
+function chapterDone(c) {
+  var req = requiredSteps(c);
+  if (!req.length) return !!ui.visited[c.id];
+  return stepsDone(req) === req.length;
+}
+function allRequired() {
+  var out = [];
+  chapters.forEach(function (c) { out = out.concat(requiredSteps(c)); });
+  return out;
+}
+function allOptional() {
+  var out = [];
+  chapters.forEach(function (c) { out = out.concat(optionalSteps(c)); });
+  return out;
 }
 
-/* ---- Router: p=<block-id> zusaetzlich im Fragment ---- */
+/* ---- Router: p=<slide-id> zusaetzlich im Fragment (Slide- oder Block-ID) ---- */
 function readPageParam() {
   var m = (location.hash || "").match(/[#&]p=([A-Za-z0-9_-]+)/);
   return m ? m[1] : null;
 }
-function findPage(id) {
-  for (var i = 0; i < pages.length; i++) if (pages[i].id === id) return i;
+function resolveSlide(id) {
+  if (id == null) return -1;
+  if (Object.prototype.hasOwnProperty.call(slideIndex, id)) return slideIndex[id];
+  if (Object.prototype.hasOwnProperty.call(chapterFirst, id)) return chapterFirst[id];
   return -1;
+}
+/* Block zu einer Slide-/Block-ID per DOM-Aufstieg — auch fuer Bloecke, die
+   die Rolle gerade versteckt (die sind noch im DOM). */
+function blockOfSlideId(id) {
+  var el = document.getElementById(id) || document.getElementById("block-" + id);
+  while (el && !(el.tagName === "SECTION" && el.hasAttribute("data-block"))) el = el.parentElement;
+  if (!el) return null;
+  for (var i = 0; i < blocks.length; i++) if (blocks[i].el === el) return blocks[i];
+  return null;
+}
+/* Deep-Link gewinnt: zeigt p= in ein rollen-verstecktes Kapitel, wird die
+   passende Rolle gesetzt und gespeichert. true = Modell wurde neu gebaut. */
+function roleForDeepLink(pid) {
+  if (!pid || resolveSlide(pid) >= 0) return false;
+  var b = blockOfSlideId(pid);
+  if (!b || roleAllows(b)) return false;
+  var r = roleOfPart(b.part);
+  if (!r) return false;
+  role = r;
+  lsSet(storeKey + ":role", r);
+  rebuildModel();
+  return true;
 }
 function writePageParam(id) {
   var h = location.hash || "";
@@ -1036,99 +1460,224 @@ var showAll = false;
 var printTemp = false;
 
 function applyVisibility() {
-  pages.forEach(function (p, i) {
-    p.el.hidden = showAll ? false : (i !== current);
+  var cur = slides[current];
+  blocks.forEach(function (b) {
+    var allowed = roleAllows(b);
+    b.el.hidden = !allowed || (!showAll && !(cur && cur.chapter.id === b.id));
+    b.slideEls.forEach(function (el) {
+      el.hidden = !showAll && !(cur && cur.el === el);
+    });
   });
 }
 function closeNav() { document.body.classList.remove("nav-open"); }
 
 function go(id, fromHash) {
-  if (!pages.length) return;
-  var idx = findPage(id);
-  if (idx < 0 && ui.page) idx = findPage(ui.page);
+  if (!slides.length) return;
+  var idx = typeof id === "number" ? id : resolveSlide(id);
+  if (idx < 0 && ui.page) idx = resolveSlide(ui.page);
   if (idx < 0) idx = 0;
   current = idx;
-  var p = pages[current];
+  var s = slides[current];
   applyVisibility();
-  document.getElementById("pagetitle").textContent = p.title;
-  ui.page = p.id;
-  ui.visited[p.id] = true;
+  document.getElementById("pagetitle").textContent = s.chapter.title;
+  ui.page = s.id;
+  ui.visited[s.id] = true;
   saveUi();
-  if (!fromHash) writePageParam(p.id);
+  if (!fromHash) writePageParam(s.id);
   window.scrollTo(0, 0);
   closeNav();
   refresh();
 }
 
-/* ---- Sidebar + Progress-Anzeigen ---- */
+/* ---- Sidebar: Kapitelzeilen; unter dem aktiven Kapitel Ueberblick +
+   Schritte ---- */
 var navEl = document.getElementById("pagenav");
+function makeBadge(s, cls) {
+  if (!s.optional && !s.wartet) return null;
+  var b = document.createElement("span");
+  b.className = (cls || "badge") + (s.wartet ? " wartet" : "");
+  b.textContent = s.wartet ? "wartet" : "optional";
+  return b;
+}
 function renderNav() {
   navEl.textContent = "";
-  pages.forEach(function (p, i) {
+  var cur = slides[current];
+  chapters.forEach(function (c) {
+    var active = !!cur && cur.chapter === c;
     var b = document.createElement("button");
     b.type = "button";
-    b.className = "navitem" + (i === current ? " active" : "") + (pageDone(p) ? " done" : "");
+    b.className = "navitem" + (active ? " active" : "") + (chapterDone(c) ? " done" : "");
     var ico = document.createElement("span");
     ico.className = "nav-ico";
     var title = document.createElement("span");
     title.className = "nav-title";
-    title.textContent = p.title;
+    title.textContent = c.title;
     var count = document.createElement("span");
     count.className = "nav-count";
-    if (p.steps.length) count.textContent = stepsDone(p.steps) + "/" + p.steps.length;
+    var req = requiredSteps(c);
+    if (req.length) count.textContent = stepsDone(req) + "/" + req.length;
     b.appendChild(ico);
     b.appendChild(title);
     b.appendChild(count);
-    b.addEventListener("click", function () { go(p.id); });
+    b.addEventListener("click", function () { go(c.id); });
     navEl.appendChild(b);
+    if (!active || c.slides.length < 2) return;
+    var sub = document.createElement("div");
+    sub.className = "navsteps";
+    c.slides.forEach(function (s) {
+      var nb = document.createElement("button");
+      nb.type = "button";
+      nb.className = "navstep" + (s === cur ? " active" : "")
+        + (s.kind === "step" && state[s.id] ? " done" : "");
+      var nico = document.createElement("span");
+      nico.className = "nav-ico";
+      var nt = document.createElement("span");
+      nt.className = "nav-title";
+      nt.textContent = s.kind === "intro" ? "Überblick" : s.title;
+      nb.appendChild(nico);
+      nb.appendChild(nt);
+      var badge = makeBadge(s);
+      if (badge) nb.appendChild(badge);
+      nb.addEventListener("click", function () { go(s.id); });
+      sub.appendChild(nb);
+    });
+    navEl.appendChild(sub);
   });
 }
 
+/* ---- Intro-Slide jedes Kapitels: klickbare Schrittliste mit Live-Haken ---- */
+function renderStepList(c) {
+  var intro = c.slides[0].kind === "intro" ? c.slides[0] : null;
+  if (!intro || !c.steps.length) return;
+  var box = intro.el.querySelector(".steplist");
+  if (!box) {
+    box = document.createElement("div");
+    box.className = "steplist";
+    intro.el.appendChild(box);
+  }
+  box.textContent = "";
+  var h = document.createElement("div");
+  h.className = "steplist-title";
+  h.textContent = "Die Schritte in diesem Teil";
+  box.appendChild(h);
+  c.steps.forEach(function (s) {
+    var card = document.createElement("button");
+    card.type = "button";
+    card.className = "ovcard" + (state[s.id] ? " done" : "");
+    var ico = document.createElement("span");
+    ico.className = "ov-ico";
+    var t = document.createElement("span");
+    t.className = "ov-title";
+    t.textContent = s.title;
+    card.appendChild(ico);
+    card.appendChild(t);
+    var badge = makeBadge(s);
+    if (badge) card.appendChild(badge);
+    card.addEventListener("click", function () { go(s.id); });
+    box.appendChild(card);
+  });
+}
+
+/* ---- Topbar, Gesamtleiste, Pager ---- */
 var prevBtn = document.getElementById("prevbtn");
 var nextBtn = document.getElementById("nextbtn");
+var skipBtn = document.getElementById("skipbtn");
+var stateEl = document.getElementById("pagerstate");
+function partPrefix(c) { return /^[1-8]$/.test(c.part) ? "Teil " + c.part + " · " : ""; }
+function firstOpenRequired() {
+  var req = allRequired();
+  for (var i = 0; i < req.length; i++) if (!state[req[i].id]) return req[i];
+  return null;
+}
 function refresh() {
-  /* Gesamt (Sidebar-Footer) */
-  var done = stepsDone(steps);
+  /* Gesamt (Sidebar-Footer): nur Pflicht-Schritte, optionale als Suffix */
+  var req = allRequired(), opt = allOptional();
+  var done = stepsDone(req);
   document.getElementById("totalfill").style.width =
-    steps.length ? (100 * done / steps.length) + "%" : "0";
+    req.length ? (100 * done / req.length) + "%" : "0";
   document.getElementById("totalcount").textContent =
-    done + " / " + steps.length + " Schritten";
-  /* Aktuelle Seite (Topbar) */
-  var p = pages[current];
+    done + " / " + req.length + " Schritten"
+    + (opt.length ? " · " + stepsDone(opt) + " von " + opt.length + " optionalen" : "");
+  /* Position im Kapitel (Topbar) */
+  var s = slides[current];
   var prog = document.getElementById("pageprog");
-  if (p && p.steps.length) {
+  if (s && s.chapter.steps.length) {
+    var c = s.chapter, n = c.steps.length, k = s.kind === "step" ? c.steps.indexOf(s) + 1 : 0;
     prog.hidden = false;
-    document.getElementById("pagefill").style.width =
-      (100 * stepsDone(p.steps) / p.steps.length) + "%";
+    document.getElementById("pagefill").style.width = (100 * k / n) + "%";
     document.getElementById("pagecount").textContent =
-      stepsDone(p.steps) + " / " + p.steps.length;
+      partPrefix(c) + (k ? "Schritt " + k + " von " + n : "Überblick");
   } else {
     prog.hidden = true;
   }
   /* Pager */
+  var last = current >= slides.length - 1;
+  var openStep = !!s && s.kind === "step" && !state[s.id];
+  var next = last ? null : slides[current + 1];
   prevBtn.hidden = current <= 0;
-  if (current >= 0 && current < pages.length - 1) {
+  skipBtn.hidden = !(openStep && !last);
+  if (openStep) {
     nextBtn.hidden = false;
-    document.getElementById("nextlabel").textContent = pages[current + 1].title;
+    nextBtn.textContent = last ? "Erledigt ✓" : "Erledigt & weiter →";
+  } else if (next) {
+    nextBtn.hidden = false;
+    if (s.kind === "intro" && s.chapter.steps.length) nextBtn.textContent = "Los geht's →";
+    else if (next.chapter !== s.chapter) nextBtn.textContent = "Weiter: " + next.chapter.title + " →";
+    else nextBtn.textContent = "Weiter →";
   } else {
     nextBtn.hidden = true;
   }
+  stateEl.hidden = !last;
+  if (last) {
+    stateEl.textContent = "";
+    var open = firstOpenRequired();
+    if (!open) {
+      stateEl.textContent = "Fertig 🎉 — alle Schritte erledigt";
+    } else {
+      var k2 = req.length - done;
+      var lb = document.createElement("button");
+      lb.type = "button";
+      lb.textContent = "Noch offen: " + k2 + (k2 === 1 ? " Schritt" : " Schritte");
+      lb.addEventListener("click", function () { go(open.id); });
+      stateEl.appendChild(lb);
+    }
+  }
+  chapters.forEach(renderStepList);
   renderNav();
 }
 prevBtn.addEventListener("click", function () {
-  if (current > 0) go(pages[current - 1].id);
+  if (current > 0) go(current - 1);
 });
 nextBtn.addEventListener("click", function () {
-  if (current < pages.length - 1) go(pages[current + 1].id);
+  var s = slides[current];
+  if (s && s.kind === "step" && !state[s.id]) setStepDone(s.h3, true);
+  if (current < slides.length - 1) go(current + 1);
+});
+skipBtn.addEventListener("click", function (e) {
+  e.preventDefault();
+  if (current < slides.length - 1) go(current + 1);
+});
+/* Pfeiltasten blaettern nur (nie abhaken), nicht in Eingabefeldern */
+window.addEventListener("keydown", function (e) {
+  if (showAll || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  var t = e.target, tag = t && t.tagName;
+  if (tag === "TEXTAREA" || tag === "SELECT" || (tag === "INPUT" && t.type !== "checkbox")
+      || (t && t.isContentEditable)) return;
+  if (e.key === "ArrowRight" && current < slides.length - 1) { e.preventDefault(); go(current + 1); }
+  else if (e.key === "ArrowLeft" && current > 0) { e.preventDefault(); go(current - 1); }
 });
 
 window.addEventListener("hashchange", function () {
   var pid = readPageParam();
-  if (pid && (current < 0 || !pages[current] || pid !== pages[current].id)) go(pid, true);
+  if (!pid) return;
+  if (roleForDeepLink(pid)) { renderRoleChooser(); renderOverview(); }
+  if (current < 0 || !slides[current] || pid !== slides[current].id) go(pid, true);
 });
 
-/* ---- Intro-Landing: Chooser (os/idp) + klickbare Teile-Uebersicht ---- */
-function chooserCard(title, opts, key) {
+/* ---- Intro-Landing: Rollen-Chooser, Chooser (os/idp), Teile-Uebersicht ----
+   os/idp laufen weiter ueber location.reload() (visible() liest cfg); die
+   Rolle nur ueber den Callback. ---- */
+function chooserCard(title, opts, key, cb) {
   var div = document.createElement("div");
   div.className = "chooser";
   var h = document.createElement("div");
@@ -1143,6 +1692,7 @@ function chooserCard(title, opts, key) {
     b.className = "chbtn";
     b.textContent = o.label;
     b.addEventListener("click", function () {
+      if (cb) { cb(o.value); return; }
       lsSet(storeKey + ":" + key, o.value);
       location.reload();
     });
@@ -1151,7 +1701,7 @@ function chooserCard(title, opts, key) {
   div.appendChild(row);
   return div;
 }
-function changeLink(text, key) {
+function changeLink(text, key, cb) {
   var p = document.createElement("p");
   p.className = "ch-change";
   var a = document.createElement("a");
@@ -1159,53 +1709,99 @@ function changeLink(text, key) {
   a.textContent = text;
   a.addEventListener("click", function (e) {
     e.preventDefault();
+    if (cb) { cb(); return; }
     lsDel(storeKey + ":" + key);
     location.reload();
   });
   p.appendChild(a);
   return p;
 }
-var intro = document.getElementById("block-00-intro");
-if (intro) {
+var roleBox = null, ovEl = null;
+function roleLabel(r) {
+  if (r === "it") return "IT: VM + Firmen-Login";
+  if (r === "mitarbeiter") return "Mitarbeiter: Arbeitsplatz + Verbinden";
+  return "alle Teile";
+}
+function renderRoleChooser() {
+  if (!roleBox) return;
+  roleBox.textContent = "";
+  if (!role) {
+    roleBox.appendChild(chooserCard(
+      "Was richtest du ein? Danach bleiben links nur die passenden Teile.",
+      [{ label: "VM + Firmen-Login (IT)", value: "it" },
+       { label: "Meinen Arbeitsplatz (Mitarbeiter)", value: "mitarbeiter" },
+       { label: "Alles anzeigen", value: "alle" }], "role", setRole));
+  } else {
+    roleBox.appendChild(changeLink("Rolle ändern (aktuell: " + roleLabel(role) + ")",
+      "role", function () { setRole(null); }));
+  }
+}
+function renderOverview() {
+  if (!ovEl) return;
+  ovEl.textContent = "";
+  chapters.forEach(function (c) {
+    if (c.part === "0") return;
+    var card = document.createElement("button");
+    card.type = "button";
+    card.className = "ovcard";
+    var t = document.createElement("span");
+    t.className = "ov-title";
+    t.textContent = c.title;
+    var s = document.createElement("span");
+    s.className = "ov-steps";
+    var req = requiredSteps(c), opt = optionalSteps(c);
+    s.textContent = c.steps.length
+      ? req.length + " Schritte" + (opt.length ? " (+" + opt.length + " optional)" : "")
+      : "ohne Checkliste";
+    card.appendChild(t);
+    card.appendChild(s);
+    card.addEventListener("click", function () { go(c.id); });
+    ovEl.appendChild(card);
+  });
+}
+function setRole(r) {
+  role = r;
+  if (r) lsSet(storeKey + ":role", r); else lsDel(storeKey + ":role");
+  var keep = slides[current] ? slides[current].id : null;
+  rebuildModel();
+  renderRoleChooser();
+  renderOverview();
+  go(keep != null && resolveSlide(keep) >= 0 ? keep : slides[0].id);
+}
+
+/* Deep-Link gewinnt — vor dem Start, damit Chooser + Uebersicht die Rolle
+   schon kennen */
+roleForDeepLink(readPageParam());
+
+var introSlide = document.querySelector("#block-00-intro > .slide");
+if (introSlide) {
+  roleBox = document.createElement("div");
+  roleBox.id = "rolebox";
+  introSlide.appendChild(roleBox);
   if (osChooser === true) {
-    intro.appendChild(chooserCard(
+    introSlide.appendChild(chooserCard(
       "Womit arbeitet ihr? Danach richtet sich Teil 2 der Anleitung.",
       [{ label: "Mac", value: '["mac"]' },
        { label: "Windows", value: '["win"]' },
        { label: "Beides", value: '["mac","win"]' }], "os"));
   }
   if (idpChooser === true) {
-    intro.appendChild(chooserCard(
+    introSlide.appendChild(chooserCard(
       "Nutzt ihr Microsoft 365 oder Google Workspace? Danach richtet sich Teil 3.",
       [{ label: "Microsoft 365", value: "m365" },
        { label: "Google Workspace", value: "google" }], "idp"));
   }
-  if (osChooser === "set") intro.appendChild(changeLink("Betriebssystem ändern", "os"));
-  if (idpChooser === "set") intro.appendChild(changeLink("Firmen-Login (M365/Google) ändern", "idp"));
-  var ov = document.createElement("div");
-  ov.className = "overview";
-  pages.forEach(function (p) {
-    if (p.part === "0") return;
-    var card = document.createElement("button");
-    card.type = "button";
-    card.className = "ovcard";
-    var t = document.createElement("span");
-    t.className = "ov-title";
-    t.textContent = p.title;
-    var s = document.createElement("span");
-    s.className = "ov-steps";
-    s.textContent = p.steps.length
-      ? p.steps.length + " Schritte"
-      : "ohne Checkliste";
-    card.appendChild(t);
-    card.appendChild(s);
-    card.addEventListener("click", function () { go(p.id); });
-    ov.appendChild(card);
-  });
-  if (ov.firstChild) intro.appendChild(ov);
+  if (osChooser === "set") introSlide.appendChild(changeLink("Betriebssystem ändern", "os"));
+  if (idpChooser === "set") introSlide.appendChild(changeLink("Firmen-Login (M365/Google) ändern", "idp"));
+  ovEl = document.createElement("div");
+  ovEl.className = "overview";
+  ovEl.id = "overview";
+  introSlide.appendChild(ovEl);
+  renderRoleChooser();
+  renderOverview();
 }
 
-/* ---- "Alle Teile anzeigen" + Druck ---- */
+/* ---- "Alle Schritte anzeigen" + Druck ---- */
 var showallLink = document.getElementById("showall");
 function setShowAll(on) {
   showAll = on;
@@ -1213,7 +1809,7 @@ function setShowAll(on) {
   applyVisibility();
   showallLink.textContent = on
     ? "Zurück zur Seitenansicht"
-    : "Alle Teile auf einer Seite anzeigen";
+    : "Alle Schritte auf einer Seite anzeigen";
 }
 showallLink.addEventListener("click", function (e) {
   e.preventDefault();
@@ -1449,7 +2045,7 @@ function initRegForm(slot) {
     submitTo(to[0]).then(function () {
       var when = new Date().toLocaleDateString("de-DE");
       lsSet(storeKey + ":form", when);
-      showStatus("ok", "Gesendet ✓ — wir haben eure Registrierung erhalten und melden uns. Weiter mit Teil 2.");
+      showStatus("ok", "Gesendet ✓ — wir haben eure Registrierung erhalten und melden uns. Weiter geht's mit dem nächsten Schritt.");
       btn.textContent = "Erneut senden";
       btn.disabled = false;
     }).catch(function () {
@@ -1471,8 +2067,59 @@ Array.prototype.forEach.call(document.querySelectorAll(".ssform"), function (slo
 });
 updateRedirectSpans();
 
-/* ---- Start: p= aus dem Fragment, sonst letzte Seite, sonst erste ---- */
-go(readPageParam() || ui.page || (pages[0] && pages[0].id));
+/* ---- Video-Fassade: vor dem Klick keine Anfrage an YouTube/Google (kein
+   Thumbnail, kein iframe) — die Kachel ist rein lokal gestylt. Erst der
+   Klick laedt den Player (Privacy-Enhanced-Embed); YT_EMBED ist die
+   einzige Fundstelle des Hosts. ---- */
+var YT_EMBED = "https://www.youtube-nocookie.com/embed/";
+function initVideo(slot) {
+  var id = slot.getAttribute("data-yt") || "";
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id)) { slot.hidden = true; return; }
+  var slide = slot.parentElement;
+  while (slide && !(slide.classList && slide.classList.contains("slide"))) slide = slide.parentElement;
+  var label = slot.getAttribute("data-label") || "";
+  if (!label && slide) {
+    var t = slide.querySelector(".steptext") || slide.querySelector("h2");
+    label = t ? t.textContent : "";
+  }
+  label = label || "Video";
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "video-poster";
+  btn.setAttribute("aria-label", "Video abspielen: " + label);
+  var play = document.createElement("span");
+  play.className = "video-play";
+  play.textContent = "▶";
+  var lab = document.createElement("span");
+  lab.className = "video-label";
+  lab.textContent = label;
+  var kick = document.createElement("span");
+  kick.className = "video-kicker";
+  kick.textContent = "Video · YouTube";
+  btn.appendChild(play);
+  btn.appendChild(lab);
+  btn.appendChild(kick);
+  var note = document.createElement("p");
+  note.className = "video-note";
+  note.textContent = "Klick lädt das Video von YouTube — dabei werden Daten (z.B. deine IP-Adresse) an Google übertragen.";
+  slot.appendChild(btn);
+  slot.appendChild(note);
+  btn.addEventListener("click", function () {
+    var f = document.createElement("iframe");
+    f.src = YT_EMBED + id + "?autoplay=1&rel=0";
+    f.title = label;
+    f.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share");
+    f.setAttribute("allowfullscreen", "");
+    f.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    slot.textContent = "";
+    slot.appendChild(f);
+    slot.classList.add("playing");
+  });
+}
+Array.prototype.forEach.call(document.querySelectorAll(".video[data-yt]"), initVideo);
+
+/* ---- Start: p= aus dem Fragment, sonst letzte Slide, sonst erste ---- */
+go(readPageParam() || ui.page || (slides[0] && slides[0].id));
 </script>
 </body>
 </html>
