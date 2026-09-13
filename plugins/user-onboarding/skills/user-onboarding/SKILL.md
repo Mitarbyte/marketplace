@@ -143,7 +143,7 @@ bash "$SKILL_DIR/scripts/get-vm-values.sh"
 ```
 
 Liefert `SSH_OK` + `ACCESS_MODE=` + `ENGINE=` + `HUB_BACKEND=` (+
-`COMPANY_LOCAL=` nur auf cloud) + `AGENT_PORT=` / `COCKPIT_PORT=` /
+`COMPANY_LOCAL=` nur auf cloud) + `LAYOUT=` + `AGENT_PORT=` / `COCKPIT_PORT=` /
 `NOVNC_PORT=` / `NOVNC_PASS=`, im gateway-Modus zusätzlich
 `GATEWAY_COCKPIT_URL=` / `GATEWAY_NOVNC_URL=` (/ `GATEWAY_AGENT_URL=` auf
 hermes **und** hybrid). Werte merken.

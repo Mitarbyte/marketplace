@@ -22,7 +22,7 @@ Transport ist die bestehende SSH-Verbindung (`ki-os-vm`-Alias aus
 > Suchen.** Dort liegt nur ein automatisch eingeschleuster Agent unter
 > `~/.mutagen/`; ein `mutagen`-Kommando gibt es auf **keiner** VM, auch nicht
 > bei einem kerngesunden Sync. Wer auf der VM prüft, bekommt drei korrekte
-> Messwerte und eine falsche Diagnose (`lessons § 96`): kein `mutagen`, keine
+> Messwerte und eine falsche Diagnose (`lessons § 151`): kein `mutagen`, keine
 > Session, keine Sync-Konfiguration unter `~/.config/ki-os/` (dort liegt der
 > Display-Stack). Was die VM **wirklich** verrät: existiert
 > `~/.mutagen/agents/`, war der Sync je eingerichtet; läuft ein
@@ -102,7 +102,7 @@ nichts; jeder andere Zustand → `mutagen sync resume ki-os` (no-op auf laufende
 Session, heilt aber `paused`/`halted`). Fehlt die Session ganz, greift der
 Watchdog **nicht** (Neuanlegen braucht den VM-Pfad) → dann `/user-onboarding`
 erneut laufen lassen. **Genau dieser Fall lief 2026-09-07 zwei Tage
-unbemerkt** (`lessons § 96`) — deshalb prüft `mitarbyte doctor` den Sync jetzt
+unbemerkt** (`lessons § 151`) — deshalb prüft `mitarbyte doctor` den Sync jetzt
 VM-seitig mit (Check `sync`) und meldet ihn, sobald er ≥ 24 h stumm ist und im
 Workspace seither weitergearbeitet wurde. Manuell prüfen: `mutagen sync list ki-os` ·
 Guard-Logs (macOS) `~/Library/Logs/ki-os-mutagen-watchdog*.log` ·
@@ -262,12 +262,19 @@ Deshalb muss die Gruppe explizit gesetzt werden.
 
 **`.claude/skills` — macOS/Linux vs. Windows:**
 
-- **macOS/Linux: wird bewusst mitgesynct** (kein Ignore). `sync-skills.sh`
-  baut die Skill-Symlinks **relativ** in den Sync-Root
+- **macOS/Linux auf Layout v2: wird bewusst mitgesynct** (kein Ignore).
+  `sync-skills.sh` baut die Skill-Symlinks **relativ** in den Sync-Root
   (`../../hub/Skills/<cat>/<skill>`), sie lösen lokal korrekt auf
   `~/KI-OS/hub/Skills/…` auf → klickbare Skill-Ansicht. `.skill-profile`
   (ebenfalls gesynct) bleibt die Quelle, *welche* Skills aktiv sind. Der
   Default-Symlink-Modus (`portable`) toleriert relative In-Root-Links.
+- **Auf Layout v3: `--ignore="/.claude/skills"`** (setzt `setup-mutagen.sh`
+  selbst, `LAYOUT` kommt aus `get-vm-values.sh`). Die verwaltete Skill-Menge
+  liegt dort VM-zentral unter `/opt/mitarbyte/skills` (ADR 21) — die Links
+  sind **absolut** und zeigen aus dem Sync-Root heraus, was `portable` in
+  jedem Zyklus als *Transition problem* ablehnt. Verloren geht nichts: die
+  Ziele liegen lokal ohnehin nicht vor. Welche Skills aktiv sind, zeigt
+  `.skill-profile` und die Cockpit-Skill-Overview.
 - **Windows: `--ignore=".claude/skills"` **und** `--symlink-mode=ignore`.**
   Symlinks brauchen dort `SeCreateSymbolicLinkPrivilege` (Developer-Mode oder
   Admin); ohne das scheitert **jeder** Symlink als *Transition problem*.
@@ -292,9 +299,11 @@ Deshalb muss die Gruppe explizit gesetzt werden.
   längst konvergiert sind. `mutagen sync list` verschluckt den Problems-Block
   meist; `mutagen sync list ki-os --long` bzw. `sync monitor` zeigen ihn.
 
-  **Opt-in für die klickbare Skill-Ansicht:** Windows-Developer-Mode
-  aktivieren (Einstellungen → System → Für Entwickler), dann die Session ohne
-  `--symlink-mode=ignore` **und** ohne den `.claude/skills`-Ignore neu anlegen.
+  **Opt-in für die klickbare Skill-Ansicht (nur Layout v2):**
+  Windows-Developer-Mode aktivieren (Einstellungen → System → Für Entwickler),
+  dann die Session ohne `--symlink-mode=ignore` **und** ohne den
+  `.claude/skills`-Ignore neu anlegen. Auf v3 bringt das nichts — die Links
+  sind dort absolut und zeigen auf einen Pfad, den es lokal nicht gibt.
 
 **Ignore-Änderungen wirken nur beim Anlegen:** Eine bestehende Session
 übernimmt neue Ignores nicht — einmalig neu anlegen
@@ -473,7 +482,7 @@ weisen genau darauf hin.
 | „Conflicts" in `mutagen sync list` | `mutagen sync list ki-os --long` zeigt die Dateien; VM-Version gewinnt beim nächsten Sync — lokale Änderung vorher wegsichern, falls gebraucht |
 | Daemon läuft nach Reboot nicht | macOS: `mutagen daemon register` + `start` erneut · Linux: Linger/Unit prüfen (`loginctl enable-linger`) · Windows: `ki-os-vm-watchdog`-Task prüfen (`AtLogOn` feuert nur beim echten Login) |
 | Sync tot nach VM-Idle-Suspend, kommt nicht wieder (VM-seitig toter `mutagen-agent`) | Session steckt in `paused`/`halted` — der Session-Watchdog resumt binnen ~2 min; sofort: `mutagen sync resume ki-os`, bei `halted` `mutagen sync reset ki-os` (rescan, danach `resume`). Watchdog fehlt? `setup-mutagen.sh` erneut laufen lassen |
-| Sync steht still, VM-seitig ist alles gesund, `mitarbyte doctor` meldet `Datei-Sync: seit N Tagen nicht verbunden` | Der Ausfall liegt lokal. **Zuerst die ENDPUNKTE lesen, nicht den Status** — `mutagen sync list ki-os` kann `Watching for changes` melden, während seit Tagen kein Agent die VM erreicht (hv-roman 08.09., `lessons § 96`): nennt Alpha nicht `ki-os-vm:/home/<user>/KI-OS`, zeigt die Session gar nicht hierher; nennt Beta einen anderen lokalen Ordner, füllt der User den falschen. Erst wenn die Endpunkte stimmen, nach Status triagieren: `Paused`/`Halted` → `resume` (bei `halted` erst `reset`), toter Transport → „Recovery" (Hard-Restart, `resume` ist dort ein No-op). **Kein `--recreate` nach längerer Divergenz** (verwirft den Ancestor, s.u.). Überbrückung für den User: Cockpit, Reiter „Workspace" (Datei hineinziehen oder „Hochladen", bis 25 MB) |
+| Sync steht still, VM-seitig ist alles gesund, `mitarbyte doctor` meldet `Datei-Sync: seit N Tagen nicht verbunden` | Der Ausfall liegt lokal. **Zuerst die ENDPUNKTE lesen, nicht den Status** — `mutagen sync list ki-os` kann `Watching for changes` melden, während seit Tagen kein Agent die VM erreicht (hv-roman 08.09., `lessons § 151`): nennt Alpha nicht `ki-os-vm:/home/<user>/KI-OS`, zeigt die Session gar nicht hierher; nennt Beta einen anderen lokalen Ordner, füllt der User den falschen. Erst wenn die Endpunkte stimmen, nach Status triagieren: `Paused`/`Halted` → `resume` (bei `halted` erst `reset`), toter Transport → „Recovery" (Hard-Restart, `resume` ist dort ein No-op). **Kein `--recreate` nach längerer Divergenz** (verwirft den Ancestor, s.u.). Überbrückung für den User: Cockpit, Reiter „Workspace" (Datei hineinziehen oder „Hochladen", bis 25 MB) |
 | Session steht auf `[Paused]` | `mutagen sync resume ki-os` (macht der Watchdog automatisch) |
 | Daemon-Unit failed: „daemon already running" (Linux) | `mutagen daemon stop`, dann `systemctl --user restart mutagen-daemon.service` |
 | Watchdog-Task „beendet sich sofort" (Windows) | Erwartet: der 2-Min-Tick sieht laufende Tunnel + Daemon und beendet sich — die Prozesse selbst laufen weiter (`Get-Process mutagen`) |

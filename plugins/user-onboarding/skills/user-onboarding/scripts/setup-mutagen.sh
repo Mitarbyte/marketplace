@@ -71,6 +71,16 @@ if [ -z "$VM_USER" ] || [ "$SHARED_GROUP_SET" -eq 0 ]; then
     fi
 fi
 
+# Struktur-Version der VM (v2|v3) — entscheidet ueber den Skill-Symlink-Ignore
+# unten. Kommt normalerweise als Env aus get-vm-values.sh; fehlt sie, einmal
+# nachfragen statt raten. Ein SSH-Fehler laesst v2 stehen: der Ignore ist dann
+# nicht gesetzt, das ist das Bestandsverhalten.
+if [ -z "${LAYOUT:-}" ]; then
+    LAYOUT="$(ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm \
+        "/usr/local/bin/ki-os-layout" 2>/dev/null | tr -d '[:space:]')"
+fi
+case "${LAYOUT:-}" in v2|v3) ;; *) LAYOUT=v2 ;; esac
+
 # --- 1. Installieren ----------------------------------------------------------
 if ! command -v mutagen >/dev/null 2>&1; then
     case "$OS" in
@@ -155,7 +165,13 @@ create_session() {
     _beta="${2:-$HOME/KI-OS}"
 
     # VM ist Alpha (gewinnt bei Konflikten), lokal ist Beta. .claude/skills wird
-    # bewusst mitgesynct (relative Skill-Symlinks → klickbare Skill-Ansicht).
+    # bewusst mitgesynct (relative Skill-Symlinks → klickbare Skill-Ansicht) —
+    # AUSSER auf Layout v3: dort liegt die verwaltete Skill-Menge VM-zentral
+    # (ADR 21), die Links sind absolut und zeigen aus dem Sync-Root heraus. Der
+    # portable-Symlink-Modus lehnt genau die ab, und Mutagen retryt sie in jedem
+    # Zyklus — die Session stuende dauerhaft auf "Applying changes" mit
+    # Transition problems (references/mutagen.md). Verloren geht nichts: die
+    # Ziele liegen ohnehin nicht lokal, der Link waere hier so oder so tot.
     #
     # Cloud-Sync-Ordner (root-verankert, fuehrender Slash) gehoeren dem VM-seitigen
     # Cloud-Sync und duerfen NICHT zusaetzlich durch Mutagen laufen — sonst haengen an
@@ -197,6 +213,11 @@ create_session() {
     # als Env uebergeben, weil der Name pro Kunde verschieden ist.
     if [ -n "${COMPANY_LOCAL:-}" ]; then
         set -- "$@" --ignore="/${COMPANY_LOCAL}"
+    fi
+    # Skill-Symlinks: siehe oben. Root-verankert, damit ein gleichnamiger
+    # Unterordner im Baum nicht mitausgeschlossen wird.
+    if [ "${LAYOUT:-v2}" = "v3" ]; then
+        set -- "$@" --ignore="/.claude/skills"
     fi
     # Shared-Group fuer den geteilten Bind-Mount `Workspaces`: Dateien, die
     # Mutagen VM-seitig anlegt, muessen fuer die anderen Mitarbeiter der Gruppe
@@ -251,9 +272,14 @@ if "$MUTAGEN_BIN" sync list ki-os >/dev/null 2>&1; then
         # Umbenennung auf 'Ablage' angelegt wurden, kennen nur '/SharePoint'.
         # Das ist erst dann ein echter Ausfall, wenn der jeweilige Ordner auf
         # der VM auch benutzt wird — deshalb Hinweis statt Alarm.
+        # `/.claude/skills` auf v3: fehlt der Ignore, steht die Session dauerhaft
+        # auf "Applying changes" — die absoluten Skill-Links (ADR 21) scheitern
+        # im portable-Modus in jedem Zyklus neu.
+        _ign_skills=""
+        [ "${LAYOUT:-v2}" = "v3" ] && _ign_skills="/.claude/skills"
         for _ign in "/Ablage" "/SharePoint" "/Sharepoint" "/Google Drive" \
                     "/Geteilte-Arbeitsplaetze" "/Meine-Arbeitsplaetze" "/dev" \
-                    "/Apps" ${COMPANY_LOCAL:+"/${COMPANY_LOCAL}"}; do
+                    "/Apps" ${COMPANY_LOCAL:+"/${COMPANY_LOCAL}"} ${_ign_skills:+"${_ign_skills}"}; do
             if ! printf '%s\n' "$CFG" | grep -qE "^[[:space:]]+${_ign}[[:space:]]*\$"; then
                 DRIFT="${DRIFT}  - Ignore '${_ign}' fehlt (Cloud-Sync-Ordner wuerde doppelt gesynct, falls auf dieser VM genutzt)\n"
             fi

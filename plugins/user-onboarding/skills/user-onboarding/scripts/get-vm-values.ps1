@@ -16,6 +16,9 @@
 #                HUB_BACKEND= (git|cloud - cloud: Mutagen ENTFAELLT komplett,
 #                der Skill richtet nur SSH/Tunnel/Desktop-App ein),
 #                COMPANY_LOCAL= (Firmenordner-Name im Workspace, nur cloud),
+#                LAYOUT= (v2|v3 - auf v3 liegt die verwaltete Skill-Menge
+#                VM-zentral, die Symlinks in .claude/skills zeigen absolut aus
+#                dem Sync-Root heraus und bekommen einen Mutagen-Ignore),
 #                AGENT_PORT= (Hermes-Dashboard-Port, Hermes-Stack hermes|hybrid),
 #                COCKPIT_PORT= / NOVNC_PORT= /
 #                NOVNC_PASS= (NOT_NEEDED im gateway-Modus: x11vnc laeuft dort
@@ -47,6 +50,13 @@ echo "HUB_BACKEND=${hb}"
 if [ "$hb" = "cloud" ]; then
     echo "COMPANY_LOCAL=${hrel}"
 fi
+# Struktur-Version (v2|v3). Fehlt der Resolver, gilt v2.
+lay="v2"
+if [ -x /usr/local/bin/ki-os-layout ]; then
+    lay="$(/usr/local/bin/ki-os-layout 2>/dev/null || echo v2)"
+fi
+case "$lay" in v2|v3) ;; *) lay=v2 ;; esac
+echo "LAYOUT=${lay}"
 echo "AGENT_PORT=$((9119 + $(id -u) - 1000))"
 cp="$(mitarbyte cockpit-port 2>/dev/null | grep -oE '3[0-9]{4}' | head -1 || true)"
 if [ -z "$cp" ]; then

@@ -367,7 +367,8 @@ if ($LASTEXITCODE -eq 0) {
             if ($drift -match 'symlink|\.claude/skills') {
                 Write-Host '  -> Hinweis: Wenn du den Windows-Developer-Mode bewusst nutzt (klickbare'
                 Write-Host '     Skill-Ansicht, references/mutagen.md), sind die Symlink-Zeilen erwartet'
-                Write-Host '     und kein Fehler - dann hier nichts tun.'
+                Write-Host '     und kein Fehler - dann hier nichts tun. Auf Layout v3 bringt der'
+                Write-Host '     Opt-in nichts: die Skill-Links zeigen dort auf einen VM-Pfad.'
             }
         } else {
             Write-Host 'OK: Session-Konfiguration entspricht dem Template.'

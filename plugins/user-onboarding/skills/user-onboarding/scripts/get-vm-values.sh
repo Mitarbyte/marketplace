@@ -19,6 +19,10 @@
 #          komplett (Datei-Einsicht ueber den Cloud-Client der Firma bzw.
 #          Cockpit/Dashboard), der Skill richtet nur SSH/Tunnel/Desktop-App ein.
 #   COMPANY_LOCAL=<name>         Firmenordner-Name im Workspace (nur cloud)
+#   LAYOUT=<v2|v3>               Struktur-Version der VM. Auf v3 liegt die
+#          verwaltete Skill-Menge VM-zentral (ADR 21) — die Symlinks in
+#          `.claude/skills/` zeigen dorthin, also ABSOLUT und aus dem
+#          Sync-Root heraus; Mutagen bekommt dafuer einen Ignore.
 #   AGENT_PORT=<n>               Hermes-Dashboard-Port (Hermes-Stack: hermes|hybrid)
 #   COCKPIT_PORT=<n>  NOVNC_PORT=<n|MISSING>
 #   NOVNC_PASS=<pass|MISSING|NOT_NEEDED>   (NOT_NEEDED im gateway-Modus:
@@ -50,6 +54,12 @@ if [ -x /usr/local/bin/ki-os-hub-dir ]; then
 fi
 echo "HUB_BACKEND=${hb}"
 [ "$hb" = "cloud" ] && echo "COMPANY_LOCAL=${hrel}"
+# Struktur-Version (v2|v3). Fehlt der Resolver, gilt v2 — er ist auf einem
+# Teil des Bestands nicht installiert (lessons § 105).
+lay="v2"
+[ -x /usr/local/bin/ki-os-layout ] && lay="$(/usr/local/bin/ki-os-layout 2>/dev/null || echo v2)"
+case "$lay" in v2|v3) ;; *) lay=v2 ;; esac
+echo "LAYOUT=${lay}"
 echo "AGENT_PORT=$((9119 + $(id -u) - 1000))"
 cp="$(mitarbyte cockpit-port 2>/dev/null | grep -oE '3[0-9]{4}' | head -1 || true)"
 if [ -z "$cp" ]; then
