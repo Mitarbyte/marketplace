@@ -18,6 +18,18 @@ den lokalen Ordner `~/KI-OS` (Windows: `%USERPROFILE%\KI-OS`):
 Transport ist die bestehende SSH-Verbindung (`ki-os-vm`-Alias aus
 `~/.ssh/config`) — kein extra Dienst, kein extra Account.
 
+> **Mutagen läuft auf dem Rechner des Users — die VM ist der falsche Ort zum
+> Suchen.** Dort liegt nur ein automatisch eingeschleuster Agent unter
+> `~/.mutagen/`; ein `mutagen`-Kommando gibt es auf **keiner** VM, auch nicht
+> bei einem kerngesunden Sync. Wer auf der VM prüft, bekommt drei korrekte
+> Messwerte und eine falsche Diagnose (`lessons § 96`): kein `mutagen`, keine
+> Session, keine Sync-Konfiguration unter `~/.config/ki-os/` (dort liegt der
+> Display-Stack). Was die VM **wirklich** verrät: existiert
+> `~/.mutagen/agents/`, war der Sync je eingerichtet; läuft ein
+> `mutagen-agent synchronizer`-Prozess, ist er gerade verbunden; die mtime der
+> Datei in `~/.mutagen/caches/` ist der letzte Sync-Lauf. Genau diese drei liest
+> seit 2026-09-07 der doctor-Check `sync`.
+
 > **Keepalives:** Mutagen setzt für seinen **eigenen** Agent-Transport eigene
 > Werte auf der Kommandozeile (`-oConnectTimeout=5 -oServerAliveInterval=10
 > -oServerAliveCountMax=1`) und **überstimmt damit den `ServerAliveInterval`
@@ -89,7 +101,10 @@ Der Guard ist idempotent: Steht die Session auf `Watching for changes`, tut er
 nichts; jeder andere Zustand → `mutagen sync resume ki-os` (no-op auf laufender
 Session, heilt aber `paused`/`halted`). Fehlt die Session ganz, greift der
 Watchdog **nicht** (Neuanlegen braucht den VM-Pfad) → dann `/user-onboarding`
-erneut laufen lassen. Manuell prüfen: `mutagen sync list ki-os` ·
+erneut laufen lassen. **Genau dieser Fall lief 2026-09-07 zwei Tage
+unbemerkt** (`lessons § 96`) — deshalb prüft `mitarbyte doctor` den Sync jetzt
+VM-seitig mit (Check `sync`) und meldet ihn, sobald er ≥ 24 h stumm ist und im
+Workspace seither weitergearbeitet wurde. Manuell prüfen: `mutagen sync list ki-os` ·
 Guard-Logs (macOS) `~/Library/Logs/ki-os-mutagen-watchdog*.log` ·
 (Linux) `journalctl --user -u ki-os-mutagen-watchdog`.
 
@@ -458,6 +473,7 @@ weisen genau darauf hin.
 | „Conflicts" in `mutagen sync list` | `mutagen sync list ki-os --long` zeigt die Dateien; VM-Version gewinnt beim nächsten Sync — lokale Änderung vorher wegsichern, falls gebraucht |
 | Daemon läuft nach Reboot nicht | macOS: `mutagen daemon register` + `start` erneut · Linux: Linger/Unit prüfen (`loginctl enable-linger`) · Windows: `ki-os-vm-watchdog`-Task prüfen (`AtLogOn` feuert nur beim echten Login) |
 | Sync tot nach VM-Idle-Suspend, kommt nicht wieder (VM-seitig toter `mutagen-agent`) | Session steckt in `paused`/`halted` — der Session-Watchdog resumt binnen ~2 min; sofort: `mutagen sync resume ki-os`, bei `halted` `mutagen sync reset ki-os` (rescan, danach `resume`). Watchdog fehlt? `setup-mutagen.sh` erneut laufen lassen |
+| Sync steht still, VM-seitig ist alles gesund, `mitarbyte doctor` meldet `Datei-Sync: seit N Tagen nicht verbunden` | Der Ausfall liegt lokal. **Zuerst die ENDPUNKTE lesen, nicht den Status** — `mutagen sync list ki-os` kann `Watching for changes` melden, während seit Tagen kein Agent die VM erreicht (hv-roman 08.09., `lessons § 96`): nennt Alpha nicht `ki-os-vm:/home/<user>/KI-OS`, zeigt die Session gar nicht hierher; nennt Beta einen anderen lokalen Ordner, füllt der User den falschen. Erst wenn die Endpunkte stimmen, nach Status triagieren: `Paused`/`Halted` → `resume` (bei `halted` erst `reset`), toter Transport → „Recovery" (Hard-Restart, `resume` ist dort ein No-op). **Kein `--recreate` nach längerer Divergenz** (verwirft den Ancestor, s.u.). Überbrückung für den User: Cockpit, Reiter „Workspace" (Datei hineinziehen oder „Hochladen", bis 25 MB) |
 | Session steht auf `[Paused]` | `mutagen sync resume ki-os` (macht der Watchdog automatisch) |
 | Daemon-Unit failed: „daemon already running" (Linux) | `mutagen daemon stop`, dann `systemctl --user restart mutagen-daemon.service` |
 | Watchdog-Task „beendet sich sofort" (Windows) | Erwartet: der 2-Min-Tick sieht laufende Tunnel + Daemon und beendet sich — die Prozesse selbst laufen weiter (`Get-Process mutagen`) |
