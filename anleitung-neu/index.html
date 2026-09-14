@@ -951,6 +951,17 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 </ol>
 <p><strong>Keine privaten Logins</strong> in diesem Browser, also kein Online-Banking und keine private Mail: Die KI hat Zugriff auf alles, was dort angemeldet ist.</p>
 </div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--outlook-fuer-die-ki-freischalten" data-when="tool=outlook">
+<h3 class="step" id="50-verbinden-gateway--outlook-fuer-die-ki-freischalten">Outlook für die KI freischalten</h3>
+<p>Damit die KI mit deinen Mails und Terminen arbeiten kann, meldest du dich einmal bei Outlook an. Das ist ein eigener Login für die KI, zusätzlich zu dem im VM-Browser.</p>
+<ol>
+<li>Sag deinem Assistenten: <strong>„Melde mich bei Outlook an&quot;</strong>.</li>
+<li>Im <strong>VM-Desktop</strong> öffnet sich die Microsoft-Anmeldung. Melde dich mit deinem <strong>Firmen-Konto</strong> an, inklusive Zwei-Faktor-Anmeldung, und bestätige den Zugriff.</li>
+<li>Fertig. Die geteilten Postfächer, auf die du Zugriff hast, sind damit automatisch dabei.</li>
+</ol>
+<p>Bitte <strong>nacheinander</strong>, nicht gleichzeitig mit Kollegen: Die Anmeldung läuft auf der VM über einen gemeinsamen Anschluss. Ist gerade jemand anderes dran, sagt dir der Assistent das, versuch es dann ein paar Minuten später.</p>
+<blockquote><p>Nutzt ihr ein <strong>Assistenten-Postfach</strong> und du bist dafür eingetragen? Dann zusätzlich einmal: <strong>„Melde mich beim Assistenten-Postfach an&quot;</strong> und im VM-Desktop die Zugangsdaten <strong>dieses</strong> Postfachs eingeben, nicht deine eigenen.</p></blockquote>
+</div>
 <div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-setzen-und-erste-aufgabe" data-when="engine=claude">
 <h3 class="step" id="50-verbinden-gateway--lesezeichen-setzen-und-erste-aufgabe">Lesezeichen setzen und erste Aufgabe</h3>
 <ol>
@@ -1014,6 +1025,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>du dich bei allen Links mit dem Firmen-Konto anmelden kannst,</li>
 <li>im VM-Desktop kein Login-Terminal mehr wartet,</li>
 <li>jedes Firmen-Tool im VM-Browser einmal angemeldet ist und Daten liefert,</li>
+<li>Outlook für die KI freigeschaltet ist, falls ihr es angebunden habt,</li>
 <li>deine Testaufgabe eine Antwort bekommen hat,</li>
 <li>optional: die VM in der Desktop-App auftaucht.</li>
 </ul>
@@ -1096,6 +1108,17 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>Die Sitzungen bleiben auf der VM erhalten, du musst das nicht wiederholen. <strong>Keine privaten Logins</strong> in diesem Browser: Die KI hat Zugriff auf alles, was dort angemeldet ist.</li>
 </ol>
 </div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--outlook-fuer-die-ki-freischalten" data-when="tool=outlook">
+<h3 class="step" id="50-verbinden-tunnel--outlook-fuer-die-ki-freischalten">Outlook für die KI freischalten</h3>
+<p>Damit die KI mit deinen Mails und Terminen arbeiten kann, meldest du dich einmal bei Outlook an. Das ist ein eigener Login für die KI, zusätzlich zu dem im VM-Browser.</p>
+<ol>
+<li>Sag deinem Assistenten: <strong>„Melde mich bei Outlook an&quot;</strong>.</li>
+<li>Im <strong>VM-Desktop</strong> (<code>localhost:6080</code>) öffnet sich die Microsoft-Anmeldung. Melde dich mit deinem <strong>Firmen-Konto</strong> an, inklusive Zwei-Faktor-Anmeldung, und bestätige den Zugriff.</li>
+<li>Fertig. Die geteilten Postfächer, auf die du Zugriff hast, sind damit automatisch dabei.</li>
+</ol>
+<p>Bitte <strong>nacheinander</strong>, nicht gleichzeitig mit Kollegen: Die Anmeldung läuft auf der VM über einen gemeinsamen Anschluss. Ist gerade jemand anderes dran, sagt dir der Assistent das, versuch es dann ein paar Minuten später.</p>
+<blockquote><p>Nutzt ihr ein <strong>Assistenten-Postfach</strong> und du bist dafür eingetragen? Dann zusätzlich einmal: <strong>„Melde mich beim Assistenten-Postfach an&quot;</strong> und im VM-Desktop die Zugangsdaten <strong>dieses</strong> Postfachs eingeben, nicht deine eigenen.</p></blockquote>
+</div>
 <div class="slide" data-slide="step" data-step="50-verbinden-tunnel--lesezeichen-und-ordner">
 <h3 class="step" id="50-verbinden-tunnel--lesezeichen-und-ordner">Lesezeichen und Ordner</h3>
 <ol>
@@ -1118,6 +1141,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>VM-Desktop und Oberfläche unter ihren lokalen Adressen erreichbar sind,</li>
 <li>im VM-Desktop kein Login-Terminal mehr wartet,</li>
 <li>jedes Firmen-Tool im VM-Browser einmal angemeldet ist und Daten liefert,</li>
+<li>Outlook für die KI freigeschaltet ist, falls ihr es angebunden habt,</li>
 <li>die VM in der Desktop-App auftaucht (Claude-VMs),</li>
 <li>der Ordner <code>~/KI-OS</code> auf deinem Gerät sichtbar ist (falls eingerichtet).</li>
 </ul>
@@ -1135,7 +1159,169 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 </details>
 </div>
 </section>
-<section class="block" id="block-tool-messdienst-mcp" data-block="tool-messdienst-mcp" hidden>
+<section class="block" id="block-35-anbindungen-m365" data-block="35-anbindungen-m365" hidden>
+<div class="slide" data-slide="intro">
+<h2 class="block-title">Teil 5 — Outlook &amp; SharePoint anbinden</h2>
+<p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Microsoft-365-Admin gemacht. Zeitaufwand: <strong>20–30 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit dem Recht, in eurem Microsoft 365 neue Apps einzutragen („App-Registrierung&quot;) und Berechtigungen freizugeben. Du kannst diesen Teil vor oder nach der Einrichtung der VM erledigen. Kommt er später, rollt Mitarbyte die Anbindung nachträglich aus, ohne dass die Mitarbeiter etwas neu einrichten müssen.</p>
+<details class="meta"><summary>Was die KI damit kann</summary>
+<ul>
+<li><strong>Outlook:</strong> Die KI liest und schreibt Mails und Termine <strong>im Namen des Mitarbeiters</strong>, der sie gerade nutzt. Jeder meldet sich dafür in Teil 4 einmal selbst an. Die KI sieht also genau das, was der Mitarbeiter ohnehin sieht, nicht mehr.</li>
+<li><strong>SharePoint:</strong> Die KI arbeitet mit Dateien, aber <strong>nur auf den Sites, die ihr ausdrücklich freigebt</strong>. Alle anderen Sites bleiben für sie unsichtbar.</li>
+<li>Beides läuft über <strong>eine eigene App</strong> („Mitarbyte KI-OS M365&quot;), getrennt von der Login-App aus Teil 3. Ihr könnt die Anbindung also jederzeit abschalten, ohne den Zugang zur VM anzufassen.</li>
+<li>Die Werte bleiben auf <strong>eurer VM</strong>. Nichts davon geht per Mail an Mitarbyte.</li>
+</ul>
+</details>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--sites-und-postfaecher-festlegen">
+<h3 class="step" id="35-anbindungen-m365--sites-und-postfaecher-festlegen">Sites und Postfächer festlegen</h3>
+<p>Überlegt vorab kurz, was die KI erreichen soll, und notiert es in einer kleinen Tabelle:</p>
+<div class="tablewrap"><table><thead><tr><th>Was</th><th>Beispiel</th><th>Wofür</th></tr></thead><tbody><tr><td>SharePoint-Sites</td><td><code>https://firma.sharepoint.com/sites/Verwaltung</code></td><td>Dokumente, mit denen die KI arbeiten soll</td></tr><tr><td>Nur lesen oder auch schreiben?</td><td>nur lesen</td><td>Muss zur Freigabe weiter unten passen</td></tr><tr><td>Geteilte Postfächer je Mitarbeiter</td><td>Max: <code>info@firma.de</code>, <code>service@firma.de</code></td><td>Postfächer, die der Mitarbeiter schon heute mitbenutzt</td></tr><tr><td>Assistenten-Postfach (optional)</td><td><code>ki-os@firma.de</code></td><td>Eine eigene Adresse, unter der die KI sichtbar sendet</td></tr></tbody></table></div>
+<p>Der Unterschied zwischen den beiden Postfach-Arten:</p>
+<ul>
+<li><strong>Geteiltes Postfach:</strong> Der Mitarbeiter hat heute schon Zugriff darauf (Freigabe in Exchange). Die KI nutzt es über seine Anmeldung mit, es braucht <strong>keinen eigenen Login</strong>.</li>
+<li><strong>Assistenten-Postfach:</strong> Ein Konto <strong>mit eigener Anmeldung</strong>, also mit Lizenz oder als freigegebenes Postfach mit gesetztem Kennwort. Die KI meldet sich damit selbst an und schreibt unter dieser Adresse.</li>
+</ul>
+<p>Die Adresse einer SharePoint-Site kopierst du am einfachsten aus der Adresszeile, wenn ihre Startseite offen ist: alles bis einschließlich des Site-Namens.</p>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--app-registrierung-anlegen">
+<h3 class="step" id="35-anbindungen-m365--app-registrierung-anlegen">App-Registrierung anlegen</h3>
+<ol>
+<li><a href="https://entra.microsoft.com" target="_blank" rel="noopener">https://entra.microsoft.com</a> öffnen und als Admin anmelden.</li>
+<li><strong>Anwendungen → App-Registrierungen</strong> → <strong>„+ Neue Registrierung&quot;</strong>.</li>
+<li>Felder:</li>
+<ul>
+<li><strong>Name:</strong> <code>Mitarbyte KI-OS M365</code></li>
+<li><strong>Unterstützte Kontotypen:</strong> <strong>„Nur Konten in diesem Organisationsverzeichnis&quot;</strong> („Single tenant&quot;).</li>
+<li><strong>Umleitungs-URI:</strong> Plattform <strong>„Web&quot;</strong>, daneben:</li>
+</ul>
+</ol>
+<div class="codewrap"><pre><code>http://localhost:3333/auth/callback</code></pre></div>
+<ol start="4">
+<li><strong>„Registrieren&quot;</strong> klicken.</li>
+</ol>
+<blockquote><p>Ja, <code>localhost</code> ist hier richtig: Die Anmeldung der Mitarbeiter läuft später im Browser <strong>auf der VM</strong>, und dort ist die Adresse genau diese. Ein Tippfehler zeigt sich erst beim ersten Outlook-Login als <code>redirect_uri mismatch</code>.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--tenant-id-und-client-id-notieren">
+<h3 class="step" id="35-anbindungen-m365--tenant-id-und-client-id-notieren">TENANT_ID und CLIENT_ID notieren</h3>
+<p>Auf der <strong>Übersicht</strong>-Seite der neuen App:</p>
+<ol>
+<li><strong>„Anwendungs-ID (Client)&quot;</strong> kopieren → <strong><code>CLIENT_ID</code></strong>.</li>
+<li><strong>„Verzeichnis-ID (Mandant)&quot;</strong> kopieren → <strong><code>TENANT_ID</code></strong>. Habt ihr Teil 3 schon gemacht, ist das dieselbe wie dort.</li>
+</ol>
+<blockquote><p>Nicht die <strong>Objekt-ID</strong> kopieren — das ist eine dritte UUID auf derselben Seite und wird nicht gebraucht.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--client-secret-erzeugen">
+<h3 class="step" id="35-anbindungen-m365--client-secret-erzeugen">CLIENT_SECRET erzeugen</h3>
+<ol>
+<li><strong>„Zertifikate &amp; Geheimnisse&quot;</strong> → Tab <strong>„Geheime Clientschlüssel&quot;</strong> → <strong>„+ Neuer geheimer Clientschlüssel&quot;</strong>.</li>
+<li><strong>Beschreibung:</strong> beliebig. <strong>Gültig bis:</strong> Empfehlung <strong><code>24 Monate</code></strong>.</li>
+<li><strong>„Hinzufügen&quot;</strong>, dann in der Spalte <strong>„Wert&quot;</strong> das Copy-Icon klicken und den Wert <strong>sofort</strong> in den Passwortmanager einfügen.</li>
+</ol>
+<blockquote><p>Der Wert ist nur jetzt sichtbar. Nach dem Neuladen ist er maskiert — dann alten Schlüssel löschen und einen neuen erzeugen. <strong>Notier dir das Ablaufdatum:</strong> läuft das Secret ab, stehen Outlook und SharePoint für alle still.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--berechtigungen-fuer-outlook" data-when="tool=outlook">
+<h3 class="step" id="35-anbindungen-m365--berechtigungen-fuer-outlook">Berechtigungen für Outlook</h3>
+<ol>
+<li><strong>„API-Berechtigungen&quot;</strong> → <strong>„+ Berechtigung hinzufügen&quot;</strong> → <strong>Microsoft Graph</strong> → <strong>„Delegierte Berechtigungen&quot;</strong>.</li>
+<li>Nacheinander suchen und ankreuzen:</li>
+</ol>
+<div class="codewrap"><pre><code>offline_access  User.Read
+Mail.Read  Mail.ReadWrite  Mail.Send
+Mail.Read.Shared  Mail.ReadWrite.Shared  Mail.Send.Shared
+Calendars.Read  Calendars.ReadWrite
+Files.Read  Files.ReadWrite</code></pre></div>
+<ol start="3">
+<li><strong>„Berechtigungen hinzufügen&quot;</strong>, danach über der Tabelle <strong>„Administratorzustimmung für [Organisation] erteilen&quot;</strong> klicken und bestätigen.</li>
+</ol>
+<blockquote><p>„Delegiert&quot; heißt: Die KI handelt immer <strong>als der angemeldete Mitarbeiter</strong>. Die <code>.Shared</code>-Berechtigungen öffnen kein fremdes Postfach, sie erlauben nur, was Exchange dem Mitarbeiter ohnehin freigegeben hat.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--berechtigung-fuer-sharepoint" data-when="tool=sharepoint">
+<h3 class="step" id="35-anbindungen-m365--berechtigung-fuer-sharepoint">Berechtigung für SharePoint</h3>
+<ol>
+<li><strong>„API-Berechtigungen&quot;</strong> → <strong>„+ Berechtigung hinzufügen&quot;</strong> → <strong>Microsoft Graph</strong> → diesmal <strong>„Anwendungsberechtigungen&quot;</strong>.</li>
+<li><strong><code>Sites.Selected</code></strong> suchen und ankreuzen. Optional dazu <code>User.Read.All</code>, damit die KI Autoren von Dokumenten mit Namen nennen kann.</li>
+<li><strong>„Berechtigungen hinzufügen&quot;</strong> und <strong>„Administratorzustimmung … erteilen&quot;</strong> klicken.</li>
+</ol>
+<blockquote><p>Warum nicht <code>Sites.Read.All</code>? Das gäbe der App Zugriff auf <strong>jede</strong> Site eures Unternehmens. <code>Sites.Selected</code> erlaubt dagegen <strong>nichts</strong>, bis ihr eine Site im nächsten Schritt einzeln freigebt. Genau deshalb fehlt der App nach diesem Schritt allein noch jeder Zugriff, das ist so gewollt.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--sharepoint-sites-freigeben" data-when="tool=sharepoint">
+<h3 class="step" id="35-anbindungen-m365--sharepoint-sites-freigeben">SharePoint-Sites freigeben</h3>
+<p>Die Freigabe pro Site setzt ihr im <strong>Graph Explorer</strong>, einer Web-Oberfläche von Microsoft. Es braucht dafür keine PowerShell.</p>
+<ol>
+<li><a href="https://developer.microsoft.com/de-de/graph/graph-explorer" target="_blank" rel="noopener">Graph Explorer</a> öffnen und oben rechts mit dem <strong>Admin-Konto</strong> anmelden.</li>
+<li>Unter dem Adressfeld den Tab <strong>„Berechtigungen ändern&quot;</strong> öffnen und bei <strong><code>Sites.Read.All</code></strong> und <strong><code>Sites.FullControl.All</code></strong> jeweils <strong>„Zustimmen&quot;</strong> klicken. Im Dialog von Microsoft <strong>„Im Namen Ihrer Organisation zustimmen&quot;</strong> anhaken (sieht nur ein Globaler Administrator).</li>
+<li>Methode <strong><code>GET</code></strong>, Adresse wie unten mit eurem Firmen- und Site-Namen, <strong>„Abfrage ausführen&quot;</strong>. Aus der Antwort das Feld <strong><code>id</code></strong> komplett kopieren, es hat die Form <code>firma.sharepoint.com,&lt;guid&gt;,&lt;guid&gt;</code>.</li>
+</ol>
+<div class="codewrap"><pre><code>https://graph.microsoft.com/v1.0/sites/firma.sharepoint.com:/sites/Verwaltung</code></pre></div>
+<ol start="4">
+<li>Methode auf <strong><code>POST</code></strong> stellen, Adresse mit der eben kopierten <code>id</code>:</li>
+</ol>
+<div class="codewrap"><pre><code>https://graph.microsoft.com/v1.0/sites/&lt;id&gt;/permissions</code></pre></div>
+<ol start="5">
+<li>Im Tab <strong>„Anforderungstext&quot;</strong> das hier einsetzen, eure <code>CLIENT_ID</code> eintragen und <strong>„Abfrage ausführen&quot;</strong>. Die Antwort <strong>201 Created</strong> heißt: freigegeben. Soll die KI auf dieser Site auch <strong>Dateien anlegen oder ändern</strong>, <code>&quot;write&quot;</code> statt <code>&quot;read&quot;</code> eintragen.</li>
+</ol>
+<div class="codewrap"><pre><code>{
+  &quot;roles&quot;: [&quot;read&quot;],
+  &quot;grantedToIdentities&quot;: [
+    { &quot;application&quot;: { &quot;id&quot;: &quot;&lt;CLIENT_ID&gt;&quot;, &quot;displayName&quot;: &quot;Mitarbyte KI-OS M365&quot; } }
+  ]
+}</code></pre></div>
+<ol start="6">
+<li>Punkte 3 bis 5 für <strong>jede weitere Site</strong> aus eurer Tabelle wiederholen.</li>
+<li><strong>Aufräumen:</strong> In Entra unter <strong>Unternehmensanwendungen → „Graph Explorer&quot; → Berechtigungen</strong> die Zustimmung aus Punkt 2 wieder entziehen. Die Freigaben der Sites bleiben davon unberührt.</li>
+</ol>
+<blockquote><p><strong>404 bei <code>GET</code></strong> heißt fast immer: Site-Pfad falsch geschrieben (Groß-/Kleinschreibung zählt), nicht fehlende Rechte. Die Adresse der Site in der Adresszeile des Browsers ist die Vorlage.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--freigaben-fuer-geteilte-postfaecher" data-when="tool=outlook">
+<h3 class="step optional" id="35-anbindungen-m365--freigaben-fuer-geteilte-postfaecher">Freigaben für geteilte Postfächer</h3>
+<p>Nur nötig, wenn ihr in der Tabelle oben geteilte Postfächer oder ein Assistenten-Postfach eingetragen habt.</p>
+<ol>
+<li><a href="https://admin.exchange.microsoft.com" target="_blank" rel="noopener">Exchange Admin Center</a> → <strong>Empfänger → Postfächer</strong> → das geteilte Postfach anklicken → <strong>Delegierung</strong>.</li>
+<li>Für jeden Mitarbeiter, der das Postfach mit der KI nutzen soll: <strong>„Vollzugriff&quot;</strong> und <strong>„Senden als&quot;</strong> hinzufügen.</li>
+<li><strong>Assistenten-Postfach:</strong> braucht keine Delegierung, aber eine eigene Anmeldung. Das Konto muss sich also mit Kennwort und, falls bei euch üblich, mit Zwei-Faktor-Anmeldung einloggen können.</li>
+</ol>
+<blockquote><p>Exchange braucht für neue Freigaben manchmal bis zu einer Stunde. Meldet ein Mitarbeiter direkt danach „kein Zugriff&quot;, später noch einmal versuchen.</p></blockquote>
+</div>
+<div class="slide" data-slide="step" data-step="35-anbindungen-m365--werte-uebergeben-im-browser-terminal-der-vm">
+<h3 class="step" id="35-anbindungen-m365--werte-uebergeben-im-browser-terminal-der-vm">Werte übergeben: im Browser-Terminal der VM</h3>
+<p>Die Werte gibst du direkt auf eurer VM ein. <strong>Nichts davon geht per Mail oder Chat</strong>, das Secret verlässt eure VM nie.</p>
+<ol>
+<li>In <strong>hPanel → VPS → Übersicht</strong> das <strong>Browser-Terminal</strong> öffnen und als <code>root</code> anmelden.</li>
+<li>Diese Zeile einfügen und Enter drücken:</li>
+</ol>
+<div class="codewrap"><pre><code>curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/main/selfservice.sh -o /root/mitarbyte.sh &amp;&amp; bash /root/mitarbyte.sh m365</code></pre></div>
+<ol start="3">
+<li>Das Skript fragt der Reihe nach: <code>TENANT_ID</code> (Vorschlag aus Teil 3, falls vorhanden), <code>CLIENT_ID</code>, <code>CLIENT_SECRET</code> (die Eingabe bleibt unsichtbar), ob Outlook und SharePoint angebunden werden, die <strong>Site-Adressen</strong> und ob die KI dort nur lesen darf, <strong>pro Mitarbeiter</strong> (<span class="ph" data-ph="USERS">imran, philip</span>) die geteilten Postfächer und zum Schluss das Assistenten-Postfach samt der Mitarbeiter, die es nutzen.</li>
+<li>Danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> <strong>kurz Bescheid geben</strong> („Teil 5 ist erledigt&quot;). Neue Site oder neues Secret? Einfach denselben Befehl noch einmal ausführen, er übernimmt die bisherigen Werte als Vorschlag.</li>
+</ol>
+<blockquote><p>Fallback, falls das Browser-Terminal nicht will: Werte ausnahmsweise über <a href="https://onetimesecret.com/" target="_blank" rel="noopener">onetimesecret.com</a> an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken, das <code>CLIENT_SECRET</code> nie per normaler Mail.</p></blockquote>
+<details class="meta"><summary>Anmeldung der Mitarbeiter</summary>
+<ul>
+<li><strong>Outlook:</strong> Jeder Mitarbeiter meldet sich einmal selbst an, in Teil 4 („Outlook für die KI freischalten&quot;): Er sagt seinem Assistenten „Melde mich bei Outlook an&quot; und loggt sich im VM-Desktop mit seinem Firmen-Konto ein. <strong>Nacheinander</strong>, nicht gleichzeitig mit Kollegen.</li>
+<li><strong>Geteilte Postfächer</strong> sind damit automatisch dabei, sie brauchen keinen weiteren Login.</li>
+<li><strong>Assistenten-Postfach:</strong> Jeder Mitarbeiter, der es nutzt, sagt einmal „Melde mich beim Assistenten-Postfach an&quot; und gibt die Zugangsdaten <strong>dieses</strong> Postfachs ein.</li>
+<li><strong>SharePoint</strong> braucht keinen Login der Mitarbeiter.</li>
+</ul>
+</details>
+<details class="meta"><summary>Zugang jederzeit entziehbar</summary>
+<ul>
+<li><strong>Ganz abschalten:</strong> In Entra die App <code>Mitarbyte KI-OS M365</code> löschen oder nur ihr Secret. Outlook und SharePoint sind dann sofort für alle getrennt, der Zugang zur VM (Teil 3) bleibt.</li>
+<li><strong>Einzelne Site:</strong> im Graph Explorer <code>GET …/sites/&lt;id&gt;/permissions</code>, dann die Freigabe mit <code>DELETE …/sites/&lt;id&gt;/permissions/&lt;permission-id&gt;</code> entfernen.</li>
+<li><strong>Einzelner Mitarbeiter:</strong> Delegierung im Exchange Admin Center entfernen bzw. kurze Nachricht an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span>.</li>
+</ul>
+</details>
+<details class="meta"><summary>TL;DR</summary>
+<ol>
+<li>Tabelle: welche Sites (nur lesen?), welche geteilten Postfächer je Mitarbeiter, optional ein Assistenten-Postfach.</li>
+<li>Entra → neue App <code>Mitarbyte KI-OS M365</code>, Single tenant, Redirect-URI <strong>Web</strong> <code>http://localhost:3333/auth/callback</code>. <code>TENANT_ID</code>, <code>CLIENT_ID</code> notieren, Secret (24 Monate) erzeugen.</li>
+<li>Outlook: 12 <strong>delegierte</strong> Graph-Berechtigungen + Admin-Zustimmung. SharePoint: <strong>Anwendungsberechtigung</strong> <code>Sites.Selected</code> + Admin-Zustimmung, dann jede Site im Graph Explorer einzeln freigeben (<code>read</code> oder <code>write</code>).</li>
+<li>Geteilte Postfächer: Vollzugriff + Senden als für die Mitarbeiter.</li>
+<li>Werte auf der VM hinterlegen: <code>bash /root/mitarbyte.sh m365</code>, danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> Bescheid geben. Jeder Mitarbeiter meldet sich in Teil 4 einmal bei Outlook an.</li>
+</ol>
+</details>
+</div>
+</section>
+<section class="block" id="block-tool-messdienst" data-block="tool-messdienst" hidden>
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Was der Kunde bei seinen Messdienstleistern beantragen muss</h2>
 <p>Kundenanleitung für <code>messdienst-mcp</code>. Ziel: die Werte für <code>.env</code> beschaffen — <strong>je Messdienstleister einmal</strong>.</p>
@@ -1263,7 +1449,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 
 <script>
 "use strict";
-var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "50-verbinden-gateway", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "gateway"}], "gate": "ready"}, {"id": "50-verbinden-tunnel", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "tunnel"}], "gate": "ready"}, {"id": "tool-messdienst-mcp", "title": "Was der Kunde bei seinen Messdienstleistern beantragen muss", "part": "5", "when": [{"k": "tool", "v": "messdienst-mcp"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
+var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "50-verbinden-gateway", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "gateway"}], "gate": "ready"}, {"id": "50-verbinden-tunnel", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "tunnel"}], "gate": "ready"}, {"id": "35-anbindungen-m365", "title": "Teil 5 — Outlook & SharePoint anbinden", "part": "5", "when": [{"k": "tool", "v": "outlook|sharepoint"}]}, {"id": "tool-messdienst", "title": "Was der Kunde bei seinen Messdienstleistern beantragen muss", "part": "5", "when": [{"k": "tool", "v": "messdienst"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
 /* Web3Forms-Empfaenger, zur Buildzeit aus admins/web3forms.list eingesetzt:
    {always: "<manager>", keys: {"<manager>": "<access-key>"}}. Access-Keys sind
    public by design (Alias auf ein Postfach, kein Secret). Ein Key = ein
@@ -1307,7 +1493,12 @@ function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
    versteckt damit beide Varianten, bis gewaehlt wurde. ---- */
 var origIdp = cfg.idp;
 var osChooser = false, idpChooser = false;
-if (!listVal(cfg.os).length) {
+/* Nur fragen, wenn es fuer diese Config ueberhaupt einen os-Baustein gibt
+   (engine=hermes + gateway: kein Teil 2, also keine OS-Frage). */
+var osRelevant = META.some(function (m) {
+  return m.when.some(function (c) { return c.k === "os"; }) && visibleAnyOs(m);
+});
+if (osRelevant && !listVal(cfg.os).length) {
   var storedOs = null;
   try { storedOs = JSON.parse(lsGet(storeKey + ":os") || "null"); } catch (e) {}
   if (storedOs && storedOs.length) { cfg.os = storedOs; osChooser = "set"; }
@@ -1348,11 +1539,28 @@ function visible(meta) {
       var os = listVal(cfg.os);
       if (os.length && os.indexOf(c.v) < 0) return false;
     } else if (c.k === "tool") {
+      /* Oder-Werte "a|b": sichtbar, wenn EINES der Tools im Intake steht.
+         Ohne tools bleibt es unsichtbar — Anbindungen gibt es nur auf Ansage. */
       var tools = listVal(cfg.tools);
-      if (tools.indexOf(c.v) < 0) return false;
+      if (!c.v.split("|").some(function (t) { return tools.indexOf(t) >= 0; })) return false;
     }
   }
+  /* unless: unsichtbar, wenn EINE Gruppe vollstaendig trifft. Ein fehlender
+     Config-Wert trifft nie — alte Links ohne engine zeigen den Block weiter. */
+  var groups = meta.unless || [];
+  for (var g = 0; g < groups.length; g++) {
+    if (groups[g].every(function (u) {
+      var v = cfg[u.k];
+      return !!v && v !== "__keins__" && u.v.split("|").indexOf(v) >= 0;
+    })) return false;
+  }
   return true;
+}
+/* Sichtbar, wenn man die os-Bedingungen weglaesst? Fuer OS-Frage und
+   Sprung-Links: "os noch ungewaehlt" soll keinen Teil als fehlend gelten lassen. */
+function visibleAnyOs(meta) {
+  return visible({ when: meta.when.filter(function (c) { return c.k !== "os"; }),
+                   unless: meta.unless });
 }
 
 /* ---- Onboarding-Manager: welche Bootstrap-Keys zeigt die Seite? ----
@@ -1455,13 +1663,13 @@ if (cfg.firma) {
 }
 
 /* ---- Rolle: welche Teile zeigt die Seite? ----
-   Teil 1|3 = IT (VM + Firmen-Login), Teil 2|4 = Mitarbeiter (Arbeitsplatz +
-   Verbinden), alles andere immer. Ungewaehlt = alle Kapitel + Chooser-Karte;
+   Teil 1|3|5 = IT (VM, Firmen-Login, Anbindungen), Teil 2|4 = Mitarbeiter
+   (Arbeitsplatz + Verbinden), alles andere immer. Ungewaehlt = alle Kapitel + Chooser-Karte;
    "alle" ist ein expliziter Wert. Rollen-versteckte Bloecke bleiben im DOM
    (hidden) — ein Wechsel baut nur das Modell neu, kein Reload. ---- */
 var ROLES = ["it", "mitarbeiter", "alle"];
 function roleOfPart(part) {
-  if (part === "1" || part === "3") return "it";
+  if (part === "1" || part === "3" || part === "5") return "it";
   if (part === "2" || part === "4") return "mitarbeiter";
   return null;
 }
@@ -1508,6 +1716,16 @@ META.forEach(function (meta) {
   }
   if (!b.slideEls.length) { el.remove(); return; }
   blocks.push(b);
+});
+
+/* Sprung-Link auf einen Teil, den es fuer diese Config gar nicht gibt
+   (unless/when, nicht Rolle oder ungewaehltes os): der ganze Satz faellt weg,
+   ein "dead"-Text waere eine Anweisung ins Leere. */
+Array.prototype.forEach.call(document.querySelectorAll("a.jump[data-teil]"), function (a) {
+  var teil = a.getAttribute("data-teil");
+  if (META.some(function (m) { return String(m.part) === teil && visibleAnyOs(m); })) return;
+  var p = a.closest("p");
+  if (p) p.remove();
 });
 
 /* ---- Checkliste: Zustand im localStorage (storeKey s. oben) ---- */

@@ -26,6 +26,13 @@
 #                        per @vm:-Referenz (ssh, Heredoc). Laeuft auch OHNE
 #                        vorherige Registrierung (Formular-Pfad): dann werden
 #                        IdP-Typ + User-Namen interaktiv abgefragt.
+#   m365                 Anleitung Teil 5: Outlook/SharePoint-App (Tenant-/
+#                        Client-ID, Client-Secret via read -s), SharePoint-
+#                        Sites + nur-lesen, geteilte Postfaecher je User,
+#                        optional Assistenten-Postfach → root-only m365.env +
+#                        mailboxes-m365.txt. Secret bleibt auf der VM wie bei
+#                        idp; `ki-os-fleet intake pull` + `mcp enable` holen
+#                        die Werte per SSH.
 #   revoke               Mitarbyte-Zugang entziehen: Bootstrap-Keys aus
 #                        authorized_keys entfernen + /etc/ssh/ki-os_admin_keys
 #                        leeren.
@@ -57,6 +64,8 @@ ss_init_paths() {
     SS_REG="${SS_DIR}/registration.json"
     SS_IDP="${SS_DIR}/idp.env"
     SS_USERS_IDP="${SS_DIR}/users-idp.txt"
+    SS_M365="${SS_DIR}/m365.env"
+    SS_MAILBOXES_M365="${SS_DIR}/mailboxes-m365.txt"
     SS_AUTH_KEYS="${SS_PREFIX}/root/.ssh/authorized_keys"
     SS_ADMIN_KEYS="${SS_PREFIX}/etc/ssh/ki-os_admin_keys"
 }
@@ -79,6 +88,18 @@ ss_valid_guid() {
 
 ss_valid_email() {
     printf '%s' "$1" | grep -Eq '^[^ @]+@[^ @]+\.[^ @]+$'
+}
+
+# SharePoint-Site-URL: https://<tenant>.sharepoint.com/(sites|teams)/<Name>
+ss_valid_sp_site() {
+    printf '%s' "$1" | grep -Eq '^https://[A-Za-z0-9-]+\.sharepoint\.com/(sites|teams)/[^ ,/]+$'
+}
+
+# Postfach-Adresse → Instanz-Slug (Local-Part, a-z0-9-). Byte-identisch zu
+# _mcp_mailbox_slug in scripts/fleet-lib/mcp.sh (tests/mcp.bats haelt beide fest).
+ss_mailbox_slug() {
+    printf '%s' "${1%%@*}" | tr '[:upper:]' '[:lower:]' \
+        | sed -e 's/[^a-z0-9]\{1,\}/-/g' -e 's/^-\{1,\}//' -e 's/-\{1,\}$//'
 }
 
 # Firmenname → Slug-Vorschlag (Umlaute transliteriert, Rest → '-')
@@ -338,7 +359,7 @@ ss_register() {
     echo ""
     echo "[ok] Registrierung gespeichert (${SS_REG})."
     ss_bell_message "$REG_COMPANY" "$REG_KUNDE" "${REG_IP:-$REG_HOSTNAME}"
-    echo "Fertig — weiter mit Teil 2 der Anleitung."
+    echo "Fertig — weiter mit dem nächsten Teil der Anleitung."
 }
 
 # --- Modus: idp (Anleitung Teil 3) -------------------------------------------
@@ -487,6 +508,238 @@ ss_idp() {
     echo "Fertig! Gib deinem Mitarbyte-Ansprechpartner kurz Bescheid — dann geht's bei uns weiter."
 }
 
+# --- Modus: m365 (Anleitung Teil 5) ------------------------------------------
+
+# $1 = Frage, $2 = Default (j|n) → rc 0 bei ja
+ss_ask_yn() {
+    local d="$2" hint
+    [ "$d" = "j" ] && hint="J/n" || hint="j/N"
+    while :; do
+        printf '%s (%s): ' "$1" "$hint"
+        IFS= read -r SS_ANSWER || SS_ANSWER=""
+        case "$(printf '%s' "${SS_ANSWER:-$d}" | tr '[:upper:]' '[:lower:]')" in
+            j|ja|y|yes) return 0 ;;
+            n|nein|no)  return 1 ;;
+        esac
+        echo "     Bitte j oder n eingeben."
+    done
+}
+
+# Wert aus einer KEY=VALUE-Datei (erste Fundstelle)
+ss_env_get() {
+    [ -f "$1" ] || return 0
+    sed -n "s/^$2=//p" "$1" | head -1
+}
+
+ss_m365() {
+    local users=""
+    if [ -f "$SS_REG" ]; then
+        users="$(ss_json_get_users "$SS_REG")"
+    elif [ -f "$SS_USERS_IDP" ]; then
+        users="$(awk '{print $1}' "$SS_USERS_IDP" | tr '\n' ' ' | tr -s ' ')"
+    fi
+    if [ -z "$(printf '%s' "$users" | tr -d ' ')" ]; then
+        echo ""
+        echo "[i]  Keine Mitarbeiter-Liste auf dieser VM gefunden — eine kurze Frage vorab:"
+        while :; do
+            ss_ask "User-Namen wie im Registrierungs-Formular angegeben, durch Komma getrennt (z.B. max, erika)" ""
+            users="$(printf '%s' "$SS_ANSWER" | tr ',' ' ' | tr -s ' ')"
+            local ok=1 u
+            [ -n "$(printf '%s' "$users" | tr -d ' ')" ] || ok=0
+            for u in $users; do
+                ss_valid_username "$u" || { echo "     '${u}' ist ungueltig (Kleinbuchstaben/Ziffern/Bindestrich, 2-31 Zeichen, beginnt mit Buchstabe)."; ok=0; }
+            done
+            [ "$ok" = 1 ] && break
+        done
+    fi
+
+    echo ""
+    echo "== Mitarbyte KI-OS — Outlook & SharePoint anbinden (Teil 5) =="
+    echo "   Die Werte bleiben auf DIESER VM (root-only) — nichts davon wird gemailt."
+    echo ""
+
+    # Defaults: Re-Run aus m365.env, Tenant sonst aus Teil 3 (idp.env)
+    local d_tenant d_client d_secret d_tools d_sites d_ro d_asst d_asst_users idp_client
+    d_tenant="$(ss_env_get "$SS_M365" TENANT_ID)"
+    d_client="$(ss_env_get "$SS_M365" CLIENT_ID)"
+    d_secret="$(ss_env_get "$SS_M365" CLIENT_SECRET)"
+    d_tools="$(ss_env_get "$SS_M365" TOOLS)"
+    d_sites="$(ss_env_get "$SS_M365" SHAREPOINT_SITES)"
+    d_ro="$(ss_env_get "$SS_M365" SHAREPOINT_READONLY)"
+    d_asst="$(ss_env_get "$SS_M365" ASSISTANT_MAILBOX)"
+    d_asst_users="$(ss_env_get "$SS_M365" ASSISTANT_USERS)"
+    idp_client="$(ss_env_get "$SS_IDP" CLIENT_ID)"
+    if [ -f "$SS_M365" ]; then
+        echo "[i]  Bestehende Werte gefunden — Enter uebernimmt sie."
+    elif [ -z "$d_tenant" ]; then
+        d_tenant="$(ss_env_get "$SS_IDP" TENANT_ID)"
+    fi
+
+    local tenant client secret
+    while :; do
+        ss_ask "TENANT_ID (Verzeichnis-ID der App aus Teil 5)" "$d_tenant"
+        tenant="$SS_ANSWER"
+        ss_valid_guid "$tenant" && break
+        echo "     Das ist keine GUID (Muster: 8-4-4-4-12 Hex-Zeichen) — bitte pruefen (nicht die Objekt-ID!)."
+    done
+    while :; do
+        ss_ask "CLIENT_ID (Anwendungs-ID der App 'Mitarbyte KI-OS M365')" "$d_client"
+        client="$SS_ANSWER"
+        if ! ss_valid_guid "$client"; then
+            echo "     Das ist keine GUID — bitte die 'Anwendungs-ID (Client)' kopieren."
+            continue
+        fi
+        if [ -n "$idp_client" ] && [ "$client" = "$idp_client" ]; then
+            echo "     ACHTUNG: Das ist die App aus Teil 3 (Firmen-Login). Fuer Outlook & SharePoint"
+            echo "     gehoert eine EIGENE App her (Teil 5), sonst haengt der VM-Login daran."
+            ss_ask_yn "     Trotzdem diese App verwenden?" n || continue
+        fi
+        break
+    done
+    while :; do
+        if [ -n "$d_secret" ]; then
+            printf 'CLIENT_SECRET (Eingabe unsichtbar; Enter = gespeicherten Wert behalten): '
+        else
+            printf 'CLIENT_SECRET (Eingabe bleibt unsichtbar): '
+        fi
+        IFS= read -rs secret || secret=""
+        echo ""
+        [ -z "$secret" ] && secret="$d_secret"
+        [ -n "$secret" ] && break
+        echo "     Das Secret darf nicht leer sein (Teil 5, CLIENT_SECRET erzeugen)."
+    done
+
+    local want_ol want_sp d_ol=j d_sp=j tools=""
+    if [ -n "$d_tools" ]; then
+        case ",$d_tools," in *,outlook,*) d_ol=j ;; *) d_ol=n ;; esac
+        case ",$d_tools," in *,sharepoint,*) d_sp=j ;; *) d_sp=n ;; esac
+    fi
+    while :; do
+        want_ol=0; want_sp=0
+        ss_ask_yn "Outlook anbinden?" "$d_ol" && want_ol=1
+        ss_ask_yn "SharePoint anbinden?" "$d_sp" && want_sp=1
+        [ "$want_ol" = 1 ] || [ "$want_sp" = 1 ] && break
+        echo "     Mindestens eines von beiden — sonst gibt es nichts anzubinden."
+    done
+    [ "$want_ol" = 1 ] && tools="outlook"
+    [ "$want_sp" = 1 ] && tools="${tools:+${tools},}sharepoint"
+
+    # SharePoint: Sites + nur lesen
+    local sites="" readonly_v="" site bad
+    if [ "$want_sp" = 1 ]; then
+        echo ""
+        while :; do
+            ss_ask "SharePoint-Sites aus eurer Tabelle, durch Komma getrennt (https://<firma>.sharepoint.com/sites/<Name>)" "$d_sites"
+            sites="$(printf '%s' "$SS_ANSWER" | tr -d ' ' | sed -e 's#/,#,#g' -e 's#/$##')"
+            bad=0
+            [ -n "$sites" ] || bad=1
+            for site in $(printf '%s' "$sites" | tr ',' ' '); do
+                ss_valid_sp_site "$site" || { echo "     '${site}' ist keine Site-Adresse (Muster: https://firma.sharepoint.com/sites/Name)."; bad=1; }
+            done
+            [ "$bad" = 0 ] && break
+        done
+        local d_ro_yn=j
+        [ "$d_ro" = "false" ] && d_ro_yn=n
+        if ss_ask_yn "Soll die KI dort nur lesen (keine Dateien anlegen/aendern)? Muss zur Freigabe im Graph Explorer passen" "$d_ro_yn"; then
+            readonly_v=true
+        else
+            readonly_v=false
+        fi
+    fi
+
+    # Outlook: geteilte Postfaecher je User + Assistenten-Postfach
+    local mb_lines="" asst="" asst_users="" u d_mb mb list slug taken
+    if [ "$want_ol" = 1 ]; then
+        echo ""
+        echo "Jetzt die GETEILTEN Postfaecher je Mitarbeiter (z.B. info@, service@) —"
+        echo "Voraussetzung ist die Exchange-Freigabe (Vollzugriff + Senden als). Enter = keine."
+        taken=" assistent $users "
+        local slugmap=""   # "slug=upn " — ein Slug darf nur EIN Postfach meinen
+        for u in $users; do
+            d_mb=""
+            [ -f "$SS_MAILBOXES_M365" ] && d_mb="$(awk -v u="$u" '$1==u {printf "%s%s", sep, $2; sep=","}' "$SS_MAILBOXES_M365")"
+            while :; do
+                ss_ask "Geteilte Postfaecher fuer '${u}'" "$d_mb"
+                list="$(printf '%s' "$SS_ANSWER" | tr -d ' ' | tr '[:upper:]' '[:lower:]')"
+                case "$list" in -|keine) list="" ;; esac
+                bad=0
+                local ulines="" umap="$slugmap"
+                for mb in $(printf '%s' "$list" | tr ',' ' '); do
+                    if ! ss_valid_email "$mb"; then
+                        echo "     '${mb}' sieht nicht nach einer E-Mail-Adresse aus."; bad=1; continue
+                    fi
+                    slug="$(ss_mailbox_slug "$mb")"
+                    case "$taken" in *" ${slug} "*)
+                        echo "     '${mb}' ergibt den Kurznamen '${slug}' — der ist schon ein Mitarbeiter-Name oder reserviert."; bad=1; continue ;;
+                    esac
+                    case " $umap " in
+                        *" ${slug}=${mb} "*) ;;
+                        *" ${slug}="*) echo "     '${mb}' kollidiert mit einem anderen Postfach mit Kurznamen '${slug}'."; bad=1; continue ;;
+                        *) umap="${umap} ${slug}=${mb}" ;;
+                    esac
+                    ulines="${ulines}${u} ${mb}
+"
+                done
+                if [ "$bad" = 0 ]; then
+                    mb_lines="${mb_lines}${ulines}"
+                    slugmap="$umap"
+                    break
+                fi
+            done
+        done
+
+        echo ""
+        echo "Optional: ein ASSISTENTEN-Postfach — die eigene Adresse der KI (z.B. ki-os@firma.de),"
+        echo "ein Konto mit eigener Anmeldung."
+        while :; do
+            ss_ask "Adresse des Assistenten-Postfachs (Enter = keins)" "$d_asst"
+            asst="$(printf '%s' "$SS_ANSWER" | tr -d ' ' | tr '[:upper:]' '[:lower:]')"
+            case "$asst" in -|keins) asst="" ;; esac
+            [ -z "$asst" ] && break
+            ss_valid_email "$asst" && break
+            echo "     Das sieht nicht nach einer E-Mail-Adresse aus."
+        done
+        if [ -n "$asst" ]; then
+            while :; do
+                ss_ask "Welche Mitarbeiter nutzen es? Komma-getrennt (Enter = alle)" "$d_asst_users"
+                asst_users="$(printf '%s' "$SS_ANSWER" | tr -d ' ')"
+                bad=0
+                for u in $(printf '%s' "$asst_users" | tr ',' ' '); do
+                    case " $users " in *" $u "*) ;; *) echo "     '${u}' ist kein Mitarbeiter dieser VM (${users})."; bad=1 ;; esac
+                done
+                [ "$bad" = 0 ] && break
+            done
+        fi
+    fi
+
+    # Schreiben (root-only)
+    mkdir -p "$SS_DIR"
+    chmod 700 "$SS_DIR" 2>/dev/null || true
+    umask 077
+    {
+        echo "TENANT_ID=${tenant}"
+        echo "CLIENT_ID=${client}"
+        echo "CLIENT_SECRET=${secret}"
+        echo "TOOLS=${tools}"
+        [ -n "$sites" ] && echo "SHAREPOINT_SITES=${sites}"
+        [ -n "$readonly_v" ] && echo "SHAREPOINT_READONLY=${readonly_v}"
+        [ -n "$asst" ] && echo "ASSISTANT_MAILBOX=${asst}"
+        [ -n "$asst" ] && echo "ASSISTANT_USERS=${asst_users}"
+    } > "$SS_M365"
+    chmod 600 "$SS_M365"
+    printf '%s' "$mb_lines" > "$SS_MAILBOXES_M365"
+    chmod 600 "$SS_MAILBOXES_M365"
+
+    echo ""
+    echo "[ok] Werte gespeichert — sie bleiben auf dieser VM (nur root kann sie lesen)."
+    if [ "$want_ol" = 1 ]; then
+        echo "     Outlook: jeder Mitarbeiter sagt nach der Einrichtung seinem Assistenten"
+        echo "     \"Melde mich bei Outlook an\" (Teil 4) — nacheinander, nicht gleichzeitig."
+    fi
+    echo ""
+    echo "Fertig! Gib deinem Mitarbyte-Ansprechpartner kurz Bescheid — dann geht's bei uns weiter."
+}
+
 # --- Modus: revoke -----------------------------------------------------------
 
 ss_revoke() {
@@ -509,12 +762,12 @@ ss_revoke() {
 # --- Entry -------------------------------------------------------------------
 
 ss_usage() {
-    echo "Nutzung: bash /root/mitarbyte.sh [register|idp|revoke]" >&2
+    echo "Nutzung: bash /root/mitarbyte.sh [register|idp|m365|revoke]" >&2
 }
 
 main() {
     local mode="${1:-register}"
-    case "$mode" in register|idp|revoke) ;; *) ss_usage; exit 1 ;; esac
+    case "$mode" in register|idp|m365|revoke) ;; *) ss_usage; exit 1 ;; esac
     ss_init_paths
 
     if [ -z "${SELFSERVICE_PREFIX:-}" ] && [ "$(id -u)" != "0" ]; then
@@ -536,6 +789,7 @@ main() {
     case "$mode" in
         register) ss_register ;;
         idp)      ss_idp ;;
+        m365)     ss_m365 ;;
         revoke)   ss_revoke ;;
     esac
 }
