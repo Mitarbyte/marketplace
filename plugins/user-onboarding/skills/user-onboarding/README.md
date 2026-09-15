@@ -14,7 +14,8 @@ dann genau einen von zwei Pfaden:
 | SSH-Key | trägst du **selbst im Cockpit** ein (Tab System → „SSH-Zugang") | geht **an den Admin** |
 | Tunnel | entfallen — noVNC/Cockpit laufen über die Gateway-URLs | noVNC (`localhost:6080`) + Cockpit (`3847`) bzw. Hermes-Dashboard (`9119`) |
 | Datei-Sync (Mutagen) | entfällt — Dateien über Cockpit-Explorer bzw. den Cloud-Client der Firma | `~/KI-OS` als lokaler Spiegel (Obsidian, Finder/Explorer) |
-| Desktop-App | ja (nur `engine=claude`) | ja (nur `engine=claude`) |
+| Claude-Desktop-App | ja (nur `engine=claude\|hybrid`) | ja (nur `engine=claude\|hybrid`) |
+| Hermes-Desktop-App | **Pflicht** auf `engine=hermes\|hybrid` (URL + Session-Token) | **Pflicht** auf `engine=hermes\|hybrid` (`127.0.0.1:9119` + Session-Token) |
 
 Die zweite Achse ist die **Engine** der VM (`claude` | `hermes`) — die liest
 der Skill selbst von der VM: auf `hermes` gibt es kein Cockpit, die Oberfläche
@@ -72,9 +73,10 @@ Update.
 
 `engine=hermes`:
 
-- **Agent-Dashboard:** gateway `https://<user>-agent.…`, tunnel
-  `http://localhost:9119` — oder die **Hermes-Desktop-App** (URL +
-  Session-Token vom Admin, `references/hermes-desktop-app.md`)
+- **Hermes-Desktop-App** (Pflicht): URL + Session-Token vom Admin,
+  `references/hermes-desktop-app.md`
+- **Agent-Dashboard** im Browser als Fallback: gateway `https://<user>-agent.…`,
+  tunnel `http://localhost:9119`
 
 Beide Engines:
 

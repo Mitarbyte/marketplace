@@ -1,4 +1,4 @@
-# Hermes-Desktop-App verbinden (nur engine=hermes)
+# Hermes-Desktop-App verbinden (engine=hermes|hybrid)
 
 Gegenstück zu `desktop-app.md`: auf `engine=hermes` gibt es **keine lokale
 Registrierung** — keine `ssh_configs.json`, kein `~/.claude.json`-Eintrag.
@@ -7,7 +7,9 @@ direkt mit dem Dashboard auf der VM: eine URL + ein Session-Token, fertig.
 
 ## Verbinden
 
-In der App **Remote gateway** wählen und eintragen:
+Download: https://hermes-agent.nousresearch.com/desktop (macOS, Windows,
+Linux; installiert in Teil 2 der Anleitung). In der App unter
+**Settings → Gateways → Remote gateway** eintragen:
 
 | Zugangs-Modus der VM | URL |
 |---|---|
@@ -59,8 +61,10 @@ Danke!
 
 ## Abgrenzung
 
-- Browser reicht völlig: das Dashboard läuft auch ohne App (tunnel:
-  `http://localhost:9119`; gateway: Agent-URL + Firmen-Login). Die App ist
-  Komfort, kein Muss.
-- `desktop-app.md` (Claude-Code-Desktop-App) gilt hier **nicht** — es gibt
-  auf hermes nichts lokal zu registrieren.
+- Auf `engine=hermes|hybrid` ist die App **Pflicht**: dort arbeitet der
+  Mitarbeiter mit dem Agenten. Der Browser bleibt Fallback, wenn die App
+  gerade nicht verbindet (tunnel: `http://localhost:9119`; gateway:
+  Agent-URL + Firmen-Login).
+- `desktop-app.md` (Claude-Code-Desktop-App) gilt auf `hermes` **nicht** —
+  es gibt dort nichts lokal zu registrieren. Auf `hybrid` kommt sie
+  zusätzlich dazu.

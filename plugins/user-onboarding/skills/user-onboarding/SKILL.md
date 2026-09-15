@@ -225,8 +225,9 @@ Kundenbetrieb verifiziert — bei Problemen an den Admin.)
 
 ### Schritt 10 — Desktop-App vorkonfigurieren
 
-**`ENGINE=hermes` → überspringen** (`hybrid` läuft wie `claude`). Es gibt lokal nichts zu registrieren: die
-**Hermes-Desktop-App** wird als „Remote gateway" mit URL + **Session-Token**
+**`ENGINE=hermes` → Registrierung überspringen** (`hybrid` läuft wie `claude`). Es gibt lokal nichts zu registrieren: die
+**Hermes-Desktop-App** ist auf `hermes|hybrid` **Pflicht** (installiert in
+Anleitung Teil 2) und wird als „Remote gateway" mit URL + **Session-Token**
 verbunden (Token vom Admin: `ki-os-fleet vm hermes-token --user <VM_USER>`);
 URL = die öffentliche `…-agent.…`-Adresse (gateway) bzw.
 `http://127.0.0.1:9119` durch den Tunnel (tunnel). Token wie ein Passwort
@@ -302,7 +303,7 @@ Statustabelle aus dem `verify`-Output zeigen, dann die nächsten Schritte:
 4. **Dateien:** gateway → Cockpit-Explorer bzw. der Cloud-Client der Firma;
    tunnel → `~/KI-OS` als lokaler Spiegel (Obsidian-Vault, Finder/Explorer).
 
-**`ENGINE=hybrid`:** beides — Hermes-Dashboard ist der primäre Einstieg (wie
+**`ENGINE=hybrid`:** beides — Hermes-Desktop-App ist der primäre Einstieg (wie
 `hermes`, Punkt 2), daneben Cockpit + Claude-Desktop-App (wie `claude`); der
 Claude-Login ist einmalig nötig. Geplante Aufgaben: `hermes cron` (Dashboard)
 **und** `mitarbyte scheduler` (Cockpit) laufen parallel — Jobs der anderen
@@ -312,8 +313,9 @@ Engine nicht anfassen.
 
 1. **Browser-Logins (einmalig):** siehe unten. Einen Claude-/Modell-Login gibt
    es hier **nicht** — die Provider-Anmeldung hat der Admin eingerichtet.
-2. **Arbeiten** — **Agent-Dashboard** (gateway: `<GATEWAY_AGENT_URL>`; tunnel:
-   `http://localhost:9119`) oder die **Hermes-Desktop-App** (Schritt 10).
+2. **Arbeiten** — in der **Hermes-Desktop-App** (Pflicht, Schritt 10); das
+   **Agent-Dashboard** im Browser (gateway: `<GATEWAY_AGENT_URL>`; tunnel:
+   `http://localhost:9119`) bleibt Fallback.
 3. **Geplante Aufgaben:** Scheduler im Dashboard bzw. `hermes cron` auf der VM
    — nicht `mitarbyte scheduler` (Claude-only).
 4. **Dateien:** wie oben.

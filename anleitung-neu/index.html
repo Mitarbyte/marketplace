@@ -573,6 +573,47 @@
 </details>
 </div>
 </section>
+<section class="block" id="block-40-arbeitsplatz-hermes" data-block="40-arbeitsplatz-hermes" hidden>
+<div class="slide" data-slide="intro">
+<h2 class="block-title">Teil 2 — Hermes-Desktop-App installieren</h2>
+<p>Mit der Hermes-Desktop-App arbeitest du später mit dem Agenten auf deiner VM. Installier sie jetzt schon auf deinem eigenen Gerät. Verbunden wird sie erst in Teil 4, wenn deine VM steht. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
+<details class="meta"><summary>Was vorab geklärt sein muss</summary>
+<ul>
+<li><strong>Installationsrechte</strong> auf deinem Gerät. Falls euer IT-Dienstleister die Geräte verwaltet, hol ihn vorab dazu.</li>
+<li>Ein eigenes Konto brauchst du für die App nicht. Der Agent und das Modell laufen auf der VM.</li>
+</ul>
+</details>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-hermes--schritt-1-app-herunterladen-und-installieren">
+<h3 class="step" id="40-arbeitsplatz-hermes--schritt-1-app-herunterladen-und-installieren">Schritt 1 — App herunterladen und installieren</h3>
+<ol>
+<li>Öffne <a href="https://hermes-agent.nousresearch.com/desktop" target="_blank" rel="noopener">hermes-agent.nousresearch.com/desktop</a> und lade die Version für dein Betriebssystem herunter.</li>
+<li><strong>Mac:</strong> Öffne die Datei und zieh die App in den Programme-Ordner.</li>
+<li><strong>Windows:</strong> Führ den Installer aus und folge den Schritten.</li>
+</ol>
+</div>
+<div class="slide" data-slide="step" data-step="40-arbeitsplatz-hermes--schritt-2-app-einmal-starten">
+<h3 class="step" id="40-arbeitsplatz-hermes--schritt-2-app-einmal-starten">Schritt 2 — App einmal starten</h3>
+<ol>
+<li>Starte die Hermes-App einmal, damit du weißt, dass sie läuft.</li>
+<li>Richte noch nichts ein und starte keinen lokalen Agenten. Die Verbindung zu deiner VM kommt in Teil 4.</li>
+</ol>
+<details class="meta"><summary>Falls etwas nicht funktioniert</summary>
+<ul>
+<li><strong>Mac: Die App lässt sich nicht öffnen („nicht verifiziert&quot;):</strong> Rechtsklick auf die App → „Öffnen&quot; → bestätigen.</li>
+<li><strong>Windows: SmartScreen warnt:</strong> „Weitere Informationen&quot; → „Trotzdem ausführen&quot;.</li>
+<li><strong>Die Installation verlangt Adminrechte, die du nicht hast:</strong> Hol euren IT-Dienstleister dazu.</li>
+</ul>
+<p>Wenn dein Problem hier nicht aufgeführt ist, notier kurz, was passiert, und bring es mit in die erste Session.</p>
+</details>
+<details class="meta"><summary>Checkliste</summary>
+<ul>
+<li>Hermes-Desktop-App installiert</li>
+<li>App startet</li>
+</ul>
+</details>
+</div>
+</section>
 <section class="block" id="block-40-arbeitsplatz-mac" data-block="40-arbeitsplatz-mac" hidden>
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 2 — Claude auf dem Mac einrichten</h2>
@@ -914,7 +955,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <section class="block" id="block-50-verbinden-gateway" data-block="50-verbinden-gateway" hidden>
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 4 — Mit deiner VM verbinden</h2>
-<p>Diesen Teil arbeitet jeder Mitarbeiter selbst durch, in seinem Tempo. Du brauchst dafür die persönliche Nachricht von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> mit deinen Links: der <strong>Oberfläche</strong> deiner VM (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>) und dem <strong>VM-Desktop</strong>, dem Browser der VM. Alles läuft im Browser, auf deinem Gerät wird nichts installiert. Rechne mit etwa 10 Minuten. Die optionalen Schritte am Ende brauchst du nur, wenn du zusätzlich mit einer Desktop-App arbeiten willst.</p>
+<p>Diesen Teil arbeitet jeder Mitarbeiter selbst durch, in seinem Tempo. Du brauchst dafür die persönliche Nachricht von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> mit deinen Links: der <strong>Oberfläche</strong> deiner VM (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>) und dem <strong>VM-Desktop</strong>, dem Browser der VM. Die meisten Schritte laufen im Browser. Hast du in Teil 2 die Hermes-Desktop-App installiert, verbindest du sie hier mit deiner VM. Rechne mit etwa 10 Minuten. Die optionalen Schritte am Ende brauchst du nur, wenn du zusätzlich mit der Claude-Desktop-App arbeiten willst.</p>
 </div>
 <div class="slide" data-slide="gate" data-gate="ready">
 <h3 class="gate">Deine VM wird gerade eingerichtet</h3>
@@ -968,15 +1009,23 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>Leg beide Links als Lesezeichen an, dazu <code>claude.ai/code</code>. Dort erscheint dein Workspace nach dem Login.</li>
 <li>Stell eine kleine Testaufgabe, zum Beispiel: „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot; Antwortet die KI, ist dein Arbeitsplatz einsatzbereit.</li>
 </ol>
-<p>Das war der Pflichtteil. Die folgenden Schritte sind optional und richten sich an alle, die zusätzlich mit der Desktop-App direkt auf der VM arbeiten wollen.</p>
+<p>Das war der Pflichtteil. Die folgenden Schritte sind optional und richten sich an alle, die zusätzlich mit der Claude-Desktop-App direkt auf der VM arbeiten wollen.</p>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-und-erste-aufgabe-im-agent-dashboard" data-when="engine=hermes|hybrid">
-<h3 class="step" id="50-verbinden-gateway--lesezeichen-und-erste-aufgabe-im-agent-dashboard">Lesezeichen und erste Aufgabe im Agent-Dashboard</h3>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--hermes-desktop-app-verbinden" data-when="engine=hermes|hybrid">
+<h3 class="step" id="50-verbinden-gateway--hermes-desktop-app-verbinden">Hermes-Desktop-App verbinden</h3>
+<p>Die App aus Teil 2 verbindet sich direkt mit dem Agent-Dashboard auf der VM.</p>
+<ol>
+<li>Öffne die Hermes-App, geh auf <strong>Settings → Gateways</strong>, wähl <strong>„Remote gateway&quot;</strong> und trag als URL deinen Agent-Dashboard-Link aus der Nachricht ein.</li>
+<li>Trag dazu den <strong>Session-Token</strong> ein. Den bekommst du von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> über einen geschützten Kanal, etwa eine 1Password- oder Bitwarden-Freigabe, nie per Klartext-Mail.</li>
+<li>Behandle den Token wie ein Passwort: ab in den Passwortmanager, nicht in Chats oder Notizen liegen lassen. Bei Verdacht auf einen Leak tauscht <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> ihn aus, danach verbindest du die App einmal neu.</li>
+</ol>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-und-erste-aufgabe" data-when="engine=hermes|hybrid">
+<h3 class="step" id="50-verbinden-gateway--lesezeichen-und-erste-aufgabe">Lesezeichen und erste Aufgabe</h3>
 <ol>
 <li>Leg alle Links aus deiner Nachricht als Lesezeichen an, Oberfläche und VM-Desktop.</li>
-<li>Schreib im <strong>Agent-Dashboard</strong> eine kleine Testaufgabe in den Chat, zum Beispiel: „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot; Antwortet die KI, ist dein Arbeitsplatz einsatzbereit.</li>
+<li>Schreib in der <strong>Hermes-Desktop-App</strong> eine kleine Testaufgabe in den Chat, zum Beispiel: „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot; Antwortet die KI, ist dein Arbeitsplatz einsatzbereit.</li>
 </ol>
-<p>Das war der Pflichtteil. Die folgenden Schritte sind optional und richten sich an alle, die zusätzlich mit einer Desktop-App direkt auf der VM arbeiten wollen.</p>
 </div>
 <div class="slide" data-slide="step" data-step="50-verbinden-gateway--skill-installieren" data-when="engine=claude|hybrid">
 <h3 class="step optional" id="50-verbinden-gateway--skill-installieren">Skill installieren</h3>
@@ -1010,16 +1059,6 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>Beende die Desktop-App danach komplett und öffne sie neu. Sie liest die Einstellung nur beim Start.</li>
 <li>Wähl in der App die VM (<code>ki-os-vm</code> / <code>KI-OS</code>) aus. Sie erscheint ohne Rückfrage („Trust-Prompt&quot;).</li>
 </ol>
-</div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--hermes-desktop-app-verbinden" data-when="engine=hermes|hybrid">
-<h3 class="step optional" id="50-verbinden-gateway--hermes-desktop-app-verbinden">Hermes-Desktop-App verbinden</h3>
-<p>Auf deinem Gerät ist dafür nichts zu installieren. Die App verbindet sich direkt mit dem Agent-Dashboard auf der VM.</p>
-<ol>
-<li>Wähl in der App <strong>„Remote gateway&quot;</strong> und trag als URL deinen Agent-Dashboard-Link aus der Nachricht ein.</li>
-<li>Trag dazu den <strong>Session-Token</strong> ein. Den bekommst du von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> über einen geschützten Kanal, etwa eine 1Password- oder Bitwarden-Freigabe, nie per Klartext-Mail.</li>
-<li>Behandle den Token wie ein Passwort: ab in den Passwortmanager, nicht in Chats oder Notizen liegen lassen. Bei Verdacht auf einen Leak tauscht <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> ihn aus, danach verbindest du die App einmal neu.</li>
-</ol>
-<p>Der Browser reicht übrigens völlig: Das Dashboard läuft auch ohne App.</p>
 <details class="meta"><summary>Fertig, wenn …</summary>
 <ul>
 <li>du dich bei allen Links mit dem Firmen-Konto anmelden kannst,</li>
@@ -1027,7 +1066,8 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li>jedes Firmen-Tool im VM-Browser einmal angemeldet ist und Daten liefert,</li>
 <li>Outlook für die KI freigeschaltet ist, falls ihr es angebunden habt,</li>
 <li>deine Testaufgabe eine Antwort bekommen hat,</li>
-<li>optional: die VM in der Desktop-App auftaucht.</li>
+<li>die Hermes-Desktop-App mit deiner VM verbunden ist (Hermes-VMs),</li>
+<li>optional: die VM in der Claude-Desktop-App auftaucht (Claude-VMs).</li>
 </ul>
 </details>
 <details class="meta"><summary>Wenn etwas klemmt</summary>
@@ -1039,7 +1079,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 </ul>
 </details>
 <details class="meta"><summary>So arbeitest du danach</summary>
-<p>Über die gebookmarkten Links im Browser, von jedem Gerät, auch vom Handy. Oder über die Desktop-App mit der VM als Projekt. Deine Dateien liegen in eurem Firmenordner (SharePoint / Google Drive) bzw. im Explorer der Oberfläche.</p>
+<p>Über die gebookmarkten Links im Browser, von jedem Gerät, auch vom Handy. Oder über die Hermes-Desktop-App bzw. die Claude-Desktop-App mit der VM als Projekt. Deine Dateien liegen in eurem Firmenordner (SharePoint / Google Drive) bzw. im Explorer der Oberfläche.</p>
 </details>
 </div>
 </section>
@@ -1119,30 +1159,30 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <p>Bitte <strong>nacheinander</strong>, nicht gleichzeitig mit Kollegen: Die Anmeldung läuft auf der VM über einen gemeinsamen Anschluss. Ist gerade jemand anderes dran, sagt dir der Assistent das, versuch es dann ein paar Minuten später.</p>
 <blockquote><p>Nutzt ihr ein <strong>Assistenten-Postfach</strong> und du bist dafür eingetragen? Dann zusätzlich einmal: <strong>„Melde mich beim Assistenten-Postfach an&quot;</strong> und im VM-Desktop die Zugangsdaten <strong>dieses</strong> Postfachs eingeben, nicht deine eigenen.</p></blockquote>
 </div>
+<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--hermes-desktop-app-verbinden" data-when="engine=hermes|hybrid">
+<h3 class="step" id="50-verbinden-tunnel--hermes-desktop-app-verbinden">Hermes-Desktop-App verbinden</h3>
+<p>Die App aus Teil 2 verbindet sich mit dem Agent-Dashboard auf der VM, über den Tunnel, den der Assistent schon eingerichtet hat.</p>
+<ol>
+<li>Öffne die Hermes-App, geh auf <strong>Settings → Gateways</strong>, wähl <strong>„Remote gateway&quot;</strong> und trag als URL <code>http://127.0.0.1:9119</code> ein.</li>
+<li>Trag dazu den <strong>Session-Token</strong> ein. Den bekommst du von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> über einen geschützten Kanal, etwa eine 1Password- oder Bitwarden-Freigabe, nie per Klartext-Mail.</li>
+<li>Behandle den Token wie ein Passwort: ab in den Passwortmanager, nicht in Chats oder Notizen liegen lassen. Bei Verdacht auf einen Leak tauscht <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> ihn aus, danach verbindest du die App einmal neu.</li>
+</ol>
+</div>
 <div class="slide" data-slide="step" data-step="50-verbinden-tunnel--lesezeichen-und-ordner">
 <h3 class="step" id="50-verbinden-tunnel--lesezeichen-und-ordner">Lesezeichen und Ordner</h3>
 <ol>
 <li>Leg die beiden lokalen Adressen als Lesezeichen an, VM-Desktop und Oberfläche.</li>
 <li>Zieh den Ordner <code>~/KI-OS</code> in die Seitenleiste von Finder bzw. Explorer, falls der Ordner-Abgleich eingerichtet wurde.</li>
-<li>Stell eine kleine Testaufgabe, über die Oberfläche (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>) oder die Desktop-App mit der VM als Projekt, z.B. „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot;</li>
+<li>Stell eine kleine Testaufgabe, in der Hermes-Desktop-App (Hermes-VMs), über die Oberfläche (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>) oder die Claude-Desktop-App mit der VM als Projekt, z.B. „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot;</li>
 </ol>
-</div>
-<div class="slide" data-slide="step" data-step="50-verbinden-tunnel--hermes-desktop-app-verbinden" data-when="engine=hermes|hybrid">
-<h3 class="step optional" id="50-verbinden-tunnel--hermes-desktop-app-verbinden">Hermes-Desktop-App verbinden</h3>
-<p>Auf deinem Gerät ist dafür nichts zu installieren. Die App verbindet sich mit dem Agent-Dashboard auf der VM, über den Tunnel, den der Assistent schon eingerichtet hat.</p>
-<ol>
-<li>Wähl in der App <strong>„Remote gateway&quot;</strong> und trag als URL <code>http://127.0.0.1:9119</code> ein.</li>
-<li>Trag dazu den <strong>Session-Token</strong> ein. Den bekommst du von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> über einen geschützten Kanal, etwa eine 1Password- oder Bitwarden-Freigabe, nie per Klartext-Mail.</li>
-<li>Behandle den Token wie ein Passwort: ab in den Passwortmanager, nicht in Chats oder Notizen liegen lassen. Bei Verdacht auf einen Leak tauscht <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> ihn aus, danach verbindest du die App einmal neu.</li>
-</ol>
-<p>Der Browser reicht übrigens völlig: Das Dashboard läuft auch unter <code>http://localhost:9119</code>.</p>
 <details class="meta"><summary>Fertig, wenn …</summary>
 <ul>
 <li>VM-Desktop und Oberfläche unter ihren lokalen Adressen erreichbar sind,</li>
 <li>im VM-Desktop kein Login-Terminal mehr wartet,</li>
 <li>jedes Firmen-Tool im VM-Browser einmal angemeldet ist und Daten liefert,</li>
 <li>Outlook für die KI freigeschaltet ist, falls ihr es angebunden habt,</li>
-<li>die VM in der Desktop-App auftaucht (Claude-VMs),</li>
+<li>die Hermes-Desktop-App mit der VM verbunden ist (Hermes-VMs),</li>
+<li>die VM in der Claude-Desktop-App auftaucht (Claude-VMs),</li>
 <li>der Ordner <code>~/KI-OS</code> auf deinem Gerät sichtbar ist (falls eingerichtet).</li>
 </ul>
 </details>
@@ -1449,7 +1489,7 @@ Files.Read  Files.ReadWrite</code></pre></div>
 
 <script>
 "use strict";
-var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "50-verbinden-gateway", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "gateway"}], "gate": "ready"}, {"id": "50-verbinden-tunnel", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "tunnel"}], "gate": "ready"}, {"id": "35-anbindungen-m365", "title": "Teil 5 — Outlook & SharePoint anbinden", "part": "5", "when": [{"k": "tool", "v": "outlook|sharepoint"}]}, {"id": "tool-messdienst", "title": "Was der Kunde bei seinen Messdienstleistern beantragen muss", "part": "5", "when": [{"k": "tool", "v": "messdienst"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
+var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-hermes", "title": "Teil 2 — Hermes-Desktop-App installieren", "part": "2", "when": [{"k": "engine", "v": "hermes|hybrid"}]}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "50-verbinden-gateway", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "gateway"}], "gate": "ready"}, {"id": "50-verbinden-tunnel", "title": "Teil 4 — Mit deiner VM verbinden", "part": "4", "when": [{"k": "mode", "v": "tunnel"}], "gate": "ready"}, {"id": "35-anbindungen-m365", "title": "Teil 5 — Outlook & SharePoint anbinden", "part": "5", "when": [{"k": "tool", "v": "outlook|sharepoint"}]}, {"id": "tool-messdienst", "title": "Was der Kunde bei seinen Messdienstleistern beantragen muss", "part": "5", "when": [{"k": "tool", "v": "messdienst"}]}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
 /* Web3Forms-Empfaenger, zur Buildzeit aus admins/web3forms.list eingesetzt:
    {always: "<manager>", keys: {"<manager>": "<access-key>"}}. Access-Keys sind
    public by design (Alias auf ein Postfach, kein Secret). Ein Key = ein
