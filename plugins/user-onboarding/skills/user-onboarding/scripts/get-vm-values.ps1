@@ -7,6 +7,8 @@
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File get-vm-values.ps1
+# Nicht auf Pfad H (gateway auf reiner Hermes-VM, ADR 22 Nr. 10): dort gibt es
+# keinen SSH-Zugang vom Geraet - die URLs kommen aus `ki-os-fleet vm hermes-token`.
 #
 # Output-Marker: SSH_OK | SSH_FAIL, ACCESS_MODE=,
 #                ENGINE= (claude|hybrid|hermes - auf hermes gibt es KEIN Cockpit;
@@ -20,11 +22,12 @@
 #                VM-zentral, die Symlinks in .claude/skills zeigen absolut aus
 #                dem Sync-Root heraus und bekommen einen Mutagen-Ignore),
 #                AGENT_PORT= (Hermes-Dashboard-Port, Hermes-Stack hermes|hybrid),
+#                ARTIFACTS_PORT= (Artefakt-Dienst; tunnel lokal 29000, B-215),
 #                COCKPIT_PORT= / NOVNC_PORT= /
 #                NOVNC_PASS= (NOT_NEEDED im gateway-Modus: x11vnc laeuft dort
 #                mit -nopw, ADR 5.6 - das Passwort wird bewusst nicht gelesen),
 #                GATEWAY_COCKPIT_URL= / GATEWAY_NOVNC_URL= (nur gateway),
-#                GATEWAY_AGENT_URL= (nur gateway + Hermes-Stack hermes|hybrid)
+#                GATEWAY_AGENT_URL= / GATEWAY_APPS_URL= (nur gateway + Hermes-Stack hermes|hybrid)
 # =============================================================================
 $ErrorActionPreference = 'Continue'
 
@@ -58,6 +61,9 @@ fi
 case "$lay" in v2|v3) ;; *) lay=v2 ;; esac
 echo "LAYOUT=${lay}"
 echo "AGENT_PORT=$((9119 + $(id -u) - 1000))"
+ap="$(/usr/local/bin/ki-os-engine --port artifacts 2>/dev/null || true)"
+case "$ap" in *[!0-9]*|"") ap="" ;; esac   # nur eine Zahl ist ein Port
+echo "ARTIFACTS_PORT=${ap:-$((29000 + $(id -u) - 1000))}"
 cp="$(mitarbyte cockpit-port 2>/dev/null | grep -oE '3[0-9]{4}' | head -1 || true)"
 if [ -z "$cp" ]; then
     cp=$((30000 + $(id -u)))
@@ -73,13 +79,14 @@ if [ "${am:-tunnel}" = "gateway" ]; then
     gc="$(grep '^GATEWAY_COCKPIT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     gn="$(grep '^GATEWAY_NOVNC_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     ga="$(grep '^GATEWAY_AGENT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
+    gp="$(grep '^GATEWAY_APPS_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     echo "GATEWAY_COCKPIT_URL=${gc:-MISSING}"
     echo "GATEWAY_NOVNC_URL=${gn:-MISSING}"
     # Als `if`, nicht als `[ ... ] && echo`: das Remote-Skript endet hier, und
     # eine falsche Bedingung waere sein Exit-Code - der $LASTEXITCODE-Check
     # meldete dann bei jedem claude-User faelschlich SSH_FAIL.
     case "$eng" in
-        hermes|hybrid) echo "GATEWAY_AGENT_URL=${ga:-MISSING}" ;;
+        hermes|hybrid) echo "GATEWAY_AGENT_URL=${ga:-MISSING}"; echo "GATEWAY_APPS_URL=${gp:-MISSING}" ;;
     esac
 else
     pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
@@ -132,4 +139,7 @@ if (($eng -in @('claude','hybrid')) -and ($out -match 'GATEWAY_COCKPIT_URL=MISSI
 }
 if (($eng -in @('hermes','hybrid')) -and ($out -match 'GATEWAY_AGENT_URL=MISSING')) {
     Write-Host "WARN: gateway-VM, aber kein Gateway-Mapping (Agent-Dashboard) fuer diesen User - Admin kontaktieren (ki-os-fleet vm gateway-grant)."
+}
+if (($eng -in @('hermes','hybrid')) -and ($out -match 'GATEWAY_APPS_URL=MISSING')) {
+    Write-Host "WARN: gateway-VM, aber kein Apps-Mapping (Artefakte) fuer diesen User - Admin kontaktieren (ki-os-fleet vm gateway-grant)."
 }

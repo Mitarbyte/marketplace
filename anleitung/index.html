@@ -1021,11 +1021,12 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 </div>
 <div class="slide" data-slide="step" data-step="50-verbinden-gateway--hermes-desktop-app-verbinden" data-when="engine=hermes|hybrid">
 <h3 class="step" id="50-verbinden-gateway--hermes-desktop-app-verbinden">Hermes-Desktop-App verbinden</h3>
-<p>Die App aus Teil 2 verbindet sich direkt mit dem Agent-Dashboard auf der VM.</p>
+<p>Die App aus Teil 2 verbindet sich direkt mit dem Dashboard auf der VM. Dafür brauchst du nichts auf deinem Gerät einzurichten: keinen Schlüssel, keinen Tunnel, kein Passwort zum Aufbewahren — nur die beiden Links aus deiner Nachricht (Dashboard-Link, VM-Desktop-Link).</p>
 <ol>
-<li>Öffne die Hermes-App, geh auf <strong>Settings → Gateways</strong>, wähl <strong>„Remote gateway&quot;</strong> und trag als URL deinen Agent-Dashboard-Link aus der Nachricht ein.</li>
-<li>Trag dazu den <strong>Session-Token</strong> ein. Den bekommst du von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> über einen geschützten Kanal, etwa eine 1Password- oder Bitwarden-Freigabe, nie per Klartext-Mail.</li>
-<li>Behandle den Token wie ein Passwort: ab in den Passwortmanager, nicht in Chats oder Notizen liegen lassen. Bei Verdacht auf einen Leak tauscht <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> ihn aus, danach verbindest du die App einmal neu.</li>
+<li>Öffne die Hermes-App, geh auf <strong>Settings → Gateways</strong>, wähl <strong>„Remote gateway&quot;</strong> und trag als URL deinen Dashboard-Link aus der Nachricht ein.</li>
+<li>Melde dich an: die App öffnet dafür deinen Browser mit dem gewohnten <strong>Firmen-Login</strong>. Nach der Anmeldung springt sie von selbst zurück, und du bist verbunden — dieselbe Anmeldung wie im Browser, es gibt keinen zusätzlichen Zugangscode.</li>
+<li>Läuft deine Anmeldung irgendwann ab, meldest du dich in der App einfach neu an. Soll ein Zugang enden, wird er dort entzogen, wo auch deine anderen Firmen-Zugänge liegen.</li>
+<li>Im Dashboard findest du unter <strong>KI-OS → Anmeldungen</strong> den Stand deiner Datenquellen; <strong>„Anmelden&quot;</strong> öffnet den Login im VM-Desktop. Unter <strong>KI-OS → Artefakte</strong> stehen deine Dashboards und kleinen Web-Apps unter festen Links.</li>
 </ol>
 </div>
 <div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-und-erste-aufgabe" data-when="engine=hermes|hybrid">
@@ -1136,7 +1137,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <p>Ab hier arbeitet der Assistent, du bestätigst nur:</p>
 <ul>
 <li>Er testet die <strong>Verbindung</strong> zur VM.</li>
-<li>Er richtet die <strong>Verbindungen</strong> ein, die beim Start deines Geräts automatisch aufgebaut werden: zum <strong>VM-Desktop</strong> (im Browser unter <code>localhost:6080</code>) und zur <strong>Oberfläche</strong>, also Cockpit unter <code>localhost:3847</code> und/oder Agent-Dashboard unter <code>localhost:9119</code>, je nachdem, was auf eurer VM läuft (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>).</li>
+<li>Er richtet die <strong>Verbindungen</strong> ein, die beim Start deines Geräts automatisch aufgebaut werden: zum <strong>VM-Desktop</strong> (im Browser unter <code>localhost:6080</code>) und zur <strong>Oberfläche</strong>, also Cockpit unter <code>localhost:3847</code> und/oder Agent-Dashboard unter <code>localhost:9119</code>, je nachdem, was auf eurer VM läuft (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>); auf VMs mit Agent-Dashboard zusätzlich zu den <strong>Artefakten</strong> unter <code>localhost:29000</code> (kleine Web-Apps und Dashboards, die der Agent für euch veröffentlicht).</li>
 <li>Er richtet den <strong>Ordner-Abgleich</strong> ein: Dein Arbeitsordner <code>~/KI-OS</code> erscheint auf deinem Gerät und bleibt mit der VM synchron. Das entfällt, wenn eure Dateien ohnehin in SharePoint / Google Drive liegen; das erkennt der Assistent.</li>
 <li>Er verbindet die <strong>Claude-Desktop-App</strong> mit der VM, aber nur auf VMs mit Claude Code, sonst überspringt er den Punkt. Danach die App einmal komplett beenden und neu öffnen.</li>
 </ul>

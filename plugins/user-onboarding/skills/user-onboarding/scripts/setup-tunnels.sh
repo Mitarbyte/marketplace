@@ -5,7 +5,11 @@
 #   Agenten-Tunnel je Stack (docs/betrieb/vm-management.md § 8, ADR 18):
 #     Claude-Stack (engine claude|hybrid)  Cockpit:       lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
 #     Hermes-Stack (engine hermes|hybrid)  Hermes-Agent:  lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
-#   hybrid richtet also DREI Tunnel ein; der Tunnel eines nicht vorhandenen
+#     Hermes-Stack (engine hermes|hybrid)  Artefakte:     lokal 29000 -> VM 127.0.0.1:<ARTIFACTS_PORT>
+#       (Artefakt-Dienst ki-os-artifacts@<user>, ADR 22 Nr. 5 — das Plugin nennt
+#        im tunnel-Modus http://localhost:29000/a/<slug>/; auf claude liefert der
+#        Cockpit-Proxy 3847/a/, dort braucht es keinen eigenen Tunnel — B-215)
+#   hybrid richtet also VIER Tunnel ein; der Tunnel eines nicht vorhandenen
 #   Stacks wird als Leiche abgeraeumt (Engine-Wechsel).
 #   Lokal 9119 ist bewusst der Hermes-Default: die Desktop-App schlaegt
 #   127.0.0.1:9119 von selbst vor, der Mitarbeiter muss nichts umtippen.
@@ -16,8 +20,8 @@
 # Begruendung: references/tunnels.md.
 #
 # Usage:  setup-tunnels.sh --novnc-port <VM_PORT> --cockpit-port <VM_PORT>
-#         setup-tunnels.sh --novnc-port <VM_PORT> --agent-port <VM_PORT> --engine hermes
-#         setup-tunnels.sh --novnc-port <VM_PORT> --cockpit-port <VM_PORT> --agent-port <VM_PORT> --engine hybrid
+#         setup-tunnels.sh --novnc-port <VM_PORT> --agent-port <VM_PORT> --artifacts-port <VM_PORT> --engine hermes
+#         setup-tunnels.sh --novnc-port <VM_PORT> --cockpit-port <VM_PORT> --agent-port <VM_PORT> --artifacts-port <VM_PORT> --engine hybrid
 #         setup-tunnels.sh --remove
 #
 # --remove baut beide Tunnel-Autostarts idempotent ab (gateway-Modus: die VM
@@ -25,12 +29,13 @@
 # Tunnel sind obsolet). Mutagen/SSH bleiben unangetastet.
 set -euo pipefail
 
-NOVNC_PORT="" COCKPIT_PORT="" AGENT_PORT="" ENGINE="claude" REMOVE=0
+NOVNC_PORT="" COCKPIT_PORT="" AGENT_PORT="" ARTIFACTS_PORT="" ENGINE="claude" REMOVE=0
 while [ $# -gt 0 ]; do
     case "$1" in
-        --novnc-port)   NOVNC_PORT="$2"; shift 2 ;;
-        --cockpit-port) COCKPIT_PORT="$2"; shift 2 ;;
-        --agent-port)   AGENT_PORT="$2"; shift 2 ;;
+        --novnc-port)     NOVNC_PORT="$2"; shift 2 ;;
+        --cockpit-port)   COCKPIT_PORT="$2"; shift 2 ;;
+        --agent-port)     AGENT_PORT="$2"; shift 2 ;;
+        --artifacts-port) ARTIFACTS_PORT="$2"; shift 2 ;;
         --engine)       ENGINE="$2"; shift 2 ;;
         --remove)       REMOVE=1; shift ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
@@ -38,19 +43,19 @@ while [ $# -gt 0 ]; do
 done
 case "$ENGINE" in claude|hybrid|hermes) ;; *) echo "FAIL: --engine erlaubt nur claude|hybrid|hermes" >&2; exit 2 ;; esac
 
-# Agenten-Tunnel nach Stack: WANT_COCKPIT (Claude-Stack) und WANT_AGENT
-# (Hermes-Stack) — hybrid hat beide. Alles Weitere (Backends, Haertung,
-# --remove) ist identisch.
-WANT_COCKPIT=0; WANT_AGENT=0
+# Agenten-Tunnel nach Stack: WANT_COCKPIT (Claude-Stack) und WANT_AGENT +
+# WANT_ARTIFACTS (Hermes-Stack) — hybrid hat alle. Alles Weitere (Backends,
+# Haertung, --remove) ist identisch.
+WANT_COCKPIT=0; WANT_AGENT=0; WANT_ARTIFACTS=0
 case "$ENGINE" in claude|hybrid) WANT_COCKPIT=1 ;; esac
-case "$ENGINE" in hermes|hybrid) WANT_AGENT=1 ;; esac
+case "$ENGINE" in hermes|hybrid) WANT_AGENT=1; WANT_ARTIFACTS=1 ;; esac
 
 remove_macos_tunnels() {
     local name label plist
     # BEIDE moeglichen Zweit-Tunnel abraeumen, nicht nur den der aktuellen
     # Engine: nach einem Engine-Wechsel liegt der andere sonst als Leiche herum
     # und tunnelt auf einen Port, an dem nichts mehr lauscht.
-    for name in novnc cockpit agent; do
+    for name in novnc cockpit agent artifacts; do
         label="com.$(id -un).ssh-tunnel.ki-os-vm-${name}"
         plist="$HOME/Library/LaunchAgents/${label}.plist"
         launchctl bootout "gui/$(id -u)/${label}" 2>/dev/null || true
@@ -61,7 +66,7 @@ remove_macos_tunnels() {
 
 remove_linux_tunnels() {
     local name unit
-    for name in novnc cockpit agent; do
+    for name in novnc cockpit agent artifacts; do
         unit="ki-os-vm-${name}-tunnel.service"
         systemctl --user disable --now "${unit}" 2>/dev/null || true
         [ -f "$HOME/.config/systemd/user/${unit}" ] \
@@ -75,8 +80,9 @@ remove_linux_tunnels() {
 # eine Leiche: er tunnelt weiter auf einen Port, an dem nichts (mehr) lauscht,
 # und belegt dabei 3847 bzw. 9119 lokal. Beim Einrichten also gezielt entfernen.
 stale_names() {   # Tunnel-Namen, die diese Engine NICHT hat
-    [ "$WANT_COCKPIT" = "1" ] || echo cockpit
-    [ "$WANT_AGENT" = "1" ]   || echo agent
+    [ "$WANT_COCKPIT" = "1" ]   || echo cockpit
+    [ "$WANT_AGENT" = "1" ]     || echo agent
+    [ "$WANT_ARTIFACTS" = "1" ] || echo artifacts
 }
 remove_stale_second_macos() {
     local other label plist
@@ -119,6 +125,9 @@ if [ "$WANT_COCKPIT" = "1" ] && ! [[ "$COCKPIT_PORT" =~ ^[0-9]+$ ]]; then
 fi
 if [ "$WANT_AGENT" = "1" ] && ! [[ "$AGENT_PORT" =~ ^[0-9]+$ ]]; then
     echo "FAIL: --agent-port fehlt/ungueltig (engine=${ENGINE} hat den Hermes-Stack)" >&2; exit 2
+fi
+if [ "$WANT_ARTIFACTS" = "1" ] && ! [[ "$ARTIFACTS_PORT" =~ ^[0-9]+$ ]]; then
+    echo "FAIL: --artifacts-port fehlt/ungueltig (engine=${ENGINE} hat den Hermes-Stack; Wert ARTIFACTS_PORT aus get-vm-values)" >&2; exit 2
 fi
 
 SSH_OPTS="-o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o ConnectTimeout=10 -o TCPKeepAlive=yes -o StrictHostKeyChecking=accept-new"
@@ -195,14 +204,16 @@ case "$(uname -s)" in
     Darwin)
         remove_stale_second_macos
         setup_macos_tunnel novnc 6080 "$NOVNC_PORT"
-        [ "$WANT_COCKPIT" = "1" ] && setup_macos_tunnel cockpit 3847 "$COCKPIT_PORT"
-        [ "$WANT_AGENT" = "1" ]   && setup_macos_tunnel agent   9119 "$AGENT_PORT"
+        [ "$WANT_COCKPIT" = "1" ]   && setup_macos_tunnel cockpit   3847  "$COCKPIT_PORT"
+        [ "$WANT_AGENT" = "1" ]     && setup_macos_tunnel agent     9119  "$AGENT_PORT"
+        [ "$WANT_ARTIFACTS" = "1" ] && setup_macos_tunnel artifacts 29000 "$ARTIFACTS_PORT"
         ;;
     Linux)
         remove_stale_second_linux
         setup_linux_tunnel novnc 6080 "$NOVNC_PORT"
-        [ "$WANT_COCKPIT" = "1" ] && setup_linux_tunnel cockpit 3847 "$COCKPIT_PORT"
-        [ "$WANT_AGENT" = "1" ]   && setup_linux_tunnel agent   9119 "$AGENT_PORT"
+        [ "$WANT_COCKPIT" = "1" ]   && setup_linux_tunnel cockpit   3847  "$COCKPIT_PORT"
+        [ "$WANT_AGENT" = "1" ]     && setup_linux_tunnel agent     9119  "$AGENT_PORT"
+        [ "$WANT_ARTIFACTS" = "1" ] && setup_linux_tunnel artifacts 29000 "$ARTIFACTS_PORT"
         # Linger: User-Services auch ohne aktive Login-Session
         # grep ohne -q (liest bis EOF): 'grep -q' beendet die Pipe frueh, loginctl
         # stirbt an SIGPIPE und unter pipefail wird ein Treffer zu "false" — dann
@@ -218,13 +229,17 @@ esac
 
 # --- Kurz-Verifikation --------------------------------------------------------
 sleep "${KI_OS_TUNNEL_VERIFY_WAIT:-4}"
+# Paar = port:pfad:label[:extra_ok] — der Artefakt-Dienst hat keine Wurzelseite
+# (404 unter /a/ heisst: Dienst antwortet, Tunnel steht).
 VERIFY_PAIRS="6080:/vnc.html:noVNC"
-[ "$WANT_COCKPIT" = "1" ] && VERIFY_PAIRS="${VERIFY_PAIRS} 3847::Cockpit"
-[ "$WANT_AGENT" = "1" ]   && VERIFY_PAIRS="${VERIFY_PAIRS} 9119::Hermes-Dashboard"
+[ "$WANT_COCKPIT" = "1" ]   && VERIFY_PAIRS="${VERIFY_PAIRS} 3847::Cockpit"
+[ "$WANT_AGENT" = "1" ]     && VERIFY_PAIRS="${VERIFY_PAIRS} 9119::Hermes-Dashboard"
+[ "$WANT_ARTIFACTS" = "1" ] && VERIFY_PAIRS="${VERIFY_PAIRS} 29000:/a/:Artefakte:404"
 for pair in ${VERIFY_PAIRS}; do
-    port="${pair%%:*}"; rest="${pair#*:}"; path="${rest%%:*}"; label="${rest#*:}"
-    code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "http://localhost:${port}${path}" 2>/dev/null || true)"
-    if [ "$code" = "200" ] || [ "${code:0:1}" = "3" ]; then
+    port="${pair%%:*}"; rest="${pair#*:}"; path="${rest%%:*}"; rest="${rest#*:}"; label="${rest%%:*}"
+    extra_ok=""; case "$rest" in *:*) extra_ok="${rest#*:}" ;; esac
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://localhost:${port}${path}" 2>/dev/null || true)"
+    if [ "$code" = "200" ] || [ "${code:0:1}" = "3" ] || { [ -n "$extra_ok" ] && [ "$code" = "$extra_ok" ]; }; then
         echo "VERIFY_OK: ${label} erreichbar (localhost:${port}, HTTP ${code})"
     else
         echo "VERIFY_PENDING: ${label} (localhost:${port}) noch nicht erreichbar — Tunnel braucht ggf. ein paar Sekunden; sonst references/tunnels.md -> Troubleshooting."

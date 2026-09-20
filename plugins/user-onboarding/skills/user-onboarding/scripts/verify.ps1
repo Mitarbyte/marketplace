@@ -2,13 +2,14 @@
 # verify.ps1 - Abschluss-Verifikation aller Komponenten (natives Windows)
 #
 # Prueft: SSH, noVNC-Tunnel (6080), Agent-Tunnel (Cockpit 3847 bzw. Hermes 9119),
-# Mutagen-Session, Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL/WARN aus;
+# auf dem Hermes-Stack den Artefakt-Tunnel (29000, B-215), Mutagen-Session,
+# Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL/WARN aus;
 # Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File verify.ps1 -VmUser <VM_USER> `
 #       [-Mode tunnel|gateway] [-Engine claude|hybrid|hermes] [-HubBackend git|cloud]
-#       [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>] [-GatewayAgentUrl <url>]
+#       [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>] [-GatewayAgentUrl <url>] [-GatewayAppsUrl <url>]
 #
 # Mutagen wird nur mit -Mode tunnel + -HubBackend git geprueft. Sonst ist "keine
 # Session" der SOLL-Zustand: -Mode gateway richtet gar keinen Sync mehr ein
@@ -18,7 +19,7 @@
 #
 # -Engine hermes: kein Cockpit und keine Claude-Desktop-App - geprueft werden das
 # Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und SSH/Mutagen. Die
-# Hermes-App verbindet sich mit URL + Session-Token, lokal gibt es keine
+# Hermes-App verbindet sich mit URL + Firmen-Login, lokal gibt es keine
 # Registrierung zu pruefen.
 #
 # -Mode gateway (aus get-vm-values ACCESS_MODE): statt der lokalen Tunnel
@@ -31,7 +32,8 @@ param(
     [ValidateSet('git','cloud')][string]$HubBackend = 'git',
     [string]$GatewayCockpitUrl = '',
     [string]$GatewayNovncUrl = '',
-    [string]$GatewayAgentUrl = ''
+    [string]$GatewayAgentUrl = '',
+    [string]$GatewayAppsUrl = ''
 )
 $ErrorActionPreference = 'Continue'
 $failed = $false
@@ -59,6 +61,8 @@ if ($HubBackend -eq 'cloud') {
 $surfaces = @()
 if ($hasClaude) { $surfaces += @{ Label = 'Cockpit';          Port = 3847; GwUrl = $GatewayCockpitUrl } }
 if ($hasHermes) { $surfaces += @{ Label = 'Hermes-Dashboard'; Port = 9119; GwUrl = $GatewayAgentUrl } }
+# Artefakte (Hermes-Stack, B-215): kein Wurzelpfad - 404 unter /a/ heisst "Dienst antwortet".
+if ($hasHermes) { $surfaces += @{ Label = 'Artefakte'; Port = 29000; GwUrl = $GatewayAppsUrl; Path = '/a/'; Ok404 = $true } }
 
 # --- SSH ------------------------------------------------------------------------
 & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm true 2>$null
@@ -110,12 +114,13 @@ if ($isGateway) {
     }
 } else {
     $tChecks = @(@{ Label = 'noVNC-Tunnel  http://localhost:6080/vnc.html'; Url = 'http://localhost:6080/vnc.html'; Port = 6080 })
-    foreach ($sf in $surfaces) { $tChecks += @{ Label = "$($sf.Label)-Tunnel http://localhost:$($sf.Port)"; Url = "http://localhost:$($sf.Port)"; Port = $sf.Port } }
+    foreach ($sf in $surfaces) { $tChecks += @{ Label = "$($sf.Label)-Tunnel http://localhost:$($sf.Port)$($sf.Path)"; Url = "http://localhost:$($sf.Port)$($sf.Path)"; Port = $sf.Port; Ok404 = [bool]$sf.Ok404 } }
     foreach ($t in $tChecks) {
         $listening = [bool](Get-NetTCPConnection -LocalPort $t.Port -State Listen -ErrorAction SilentlyContinue)
         $code = $null
-        try { $code = (Invoke-WebRequest -UseBasicParsing -Uri $t.Url -TimeoutSec 5).StatusCode } catch {}
-        if ($listening -and $code -eq 200) { Write-Host "OK:   $($t.Label) (HTTP $code)" }
+        try { $code = (Invoke-WebRequest -UseBasicParsing -Uri $t.Url -TimeoutSec 5).StatusCode }
+        catch { if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode } }
+        if ($listening -and ($code -eq 200 -or ($t.Ok404 -and $code -eq 404))) { Write-Host "OK:   $($t.Label) (HTTP $code)" }
         elseif ($listening) { Write-Host "WARN: $($t.Label) - Port lauscht, HTTP-Antwort fehlt (VM-Service? Admin fragen)" }
         else { Write-Host "FAIL: $($t.Label) - Port lauscht nicht (Start-ScheduledTask ki-os-vm-watchdog; references/tunnels.md)"; $failed = $true }
     }
@@ -199,11 +204,11 @@ if ((Test-Path -LiteralPath $wdIssues) -and (Get-Item -LiteralPath $wdIssues).Le
 
 # --- Desktop-App -----------------------------------------------------------------------
 # Die Registrierung (ssh_configs.json + ~\.claude.json) ist ein CLAUDE-Artefakt.
-# Auf Hermes gibt es sie nicht: die Hermes-App wird mit URL + Session-Token
+# Auf Hermes gibt es sie nicht: die Hermes-App wird mit URL + Firmen-Login
 # verbunden, lokal liegt nichts, was man pruefen koennte.
 if (-not $hasClaude) {
     Write-Host 'OK:   engine=hermes - keine Claude-Desktop-App-Registrierung zu pruefen'
-    Write-Host "      (Hermes-App: Remote gateway -> URL + Session-Token; Token beim Admin: ki-os-fleet vm hermes-token --user $VmUser)"
+    Write-Host "      (Hermes-App: Remote gateway -> URL + Firmen-Login; URL beim Admin: ki-os-fleet vm hermes-token --user $VmUser)"
     if ($failed) { exit 1 } else { exit 0 }
 }
 

@@ -17,6 +17,7 @@ bzw. `scripts/setup-tunnels.ps1` (Windows) ein — dieses Dokument erklärt das
 | noVNC | `6080` | `<NOVNC_PORT>` (Schema `6080 + UID − 1000`, aus `~/.config/ki-os/display.env`) | VM-Browser ansehen + bedienen: `http://localhost:6080/vnc.html?resize=scale` |
 | Cockpit *(engine=claude)* | `3847` | `<COCKPIT_PORT>` (Schema `30000 + UID`, liefert `mitarbyte cockpit-port`) | Cockpit-Web-UI: `http://localhost:3847` |
 | Hermes-Dashboard *(engine=hermes)* | `9119` | `<AGENT_PORT>` (Schema `9119 + UID − 1000`) | Agenten-Oberfläche: `http://localhost:9119` — auch das Ziel der Hermes-Desktop-App („Remote gateway") |
+| Artefakte *(Hermes-Stack hermes\|hybrid)* | `29000` | `<ARTIFACTS_PORT>` (Schema `29000 + UID − 1000`) | Artefakt-Dienst `ki-os-artifacts@<user>`: `http://localhost:29000/a/<slug>/` — die URL, die das Dashboard-Plugin nennt; kein Wurzelpfad (`/a/` allein antwortet 404 = Tunnel steht) |
 
 **Der zweite Tunnel hängt an der Engine der VM** (`ENGINE` aus
 `get-vm-values`): auf `hermes` gibt es kein Cockpit, dafür das Hermes-Dashboard.
@@ -35,8 +36,8 @@ noVNC-Passwort geschützt, aber das falsche Display).
 
 | OS | Backend | Artefakte |
 |----|---------|-----------|
-| macOS | LaunchAgents `com.<mac-user>.ssh-tunnel.ki-os-vm-{novnc,cockpit\|agent}` (zweiter Name je Engine) | `~/Library/LaunchAgents/*.plist`, Logs unter `~/Library/Logs/ssh-tunnel-ki-os-vm-*` |
-| Linux | systemd-User-Services `ki-os-vm-{novnc,cockpit\|agent}-tunnel.service` (zweiter Name je Engine) | `~/.config/systemd/user/*.service`, Logs via `journalctl --user -u <unit>` |
+| macOS | LaunchAgents `com.<mac-user>.ssh-tunnel.ki-os-vm-{novnc,cockpit\|agent,artifacts}` (Stack-Tunnel je Engine) | `~/Library/LaunchAgents/*.plist`, Logs unter `~/Library/Logs/ssh-tunnel-ki-os-vm-*` |
+| Linux | systemd-User-Services `ki-os-vm-{novnc,cockpit\|agent,artifacts}-tunnel.service` (Stack-Tunnel je Engine) | `~/.config/systemd/user/*.service`, Logs via `journalctl --user -u <unit>` |
 | Windows | EIN gemeinsamer Scheduled Task `ki-os-vm-watchdog` (Autor `Mitarbyte` + Beschreibung; deckt beide Tunnel **und** den Mutagen-Daemon ab) | Guard `ki-os-vm-watchdog.ps1` + VBS-Launcher unter `%USERPROFILE%\.local\bin\` |
 
 ## Warum diese Härtung (nicht vereinfachen!)

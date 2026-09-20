@@ -5,7 +5,9 @@
 #   Agenten-Tunnel je Stack (docs/betrieb/vm-management.md Abschnitt 8, ADR 18):
 #     Claude-Stack (-Engine claude|hybrid)  Cockpit:       lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
 #     Hermes-Stack (-Engine hermes|hybrid)  Hermes-Agent:  lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
-#   hybrid richtet also DREI Tunnel ein (der Cleanup-Scan raeumt Leichen eines
+#     Hermes-Stack (-Engine hermes|hybrid)  Artefakte:     lokal 29000 -> VM 127.0.0.1:<ARTIFACTS_PORT>
+#       (Artefakt-Dienst; das Plugin nennt im tunnel-Modus localhost:29000/a/<slug>/ - B-215)
+#   hybrid richtet also VIER Tunnel ein (der Cleanup-Scan raeumt Leichen eines
 #   nicht vorhandenen Stacks weg). Lokal 9119 ist der Hermes-Default, den die
 #   Desktop-App selbst vorschlaegt.
 #
@@ -22,8 +24,8 @@
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File setup-tunnels.ps1 `
 #       -NovncPort <VM_PORT> -CockpitPort <VM_PORT>
-#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -AgentPort <n> -Engine hermes
-#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -CockpitPort <n> -AgentPort <n> -Engine hybrid
+#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -AgentPort <n> -ArtifactsPort <n> -Engine hermes
+#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -CockpitPort <n> -AgentPort <n> -ArtifactsPort <n> -Engine hybrid
 #   powershell ... -File setup-tunnels.ps1 -Remove        # gateway-Modus: Tunnel abbauen
 #   powershell ... -File setup-tunnels.ps1 -MutagenOnly   # frisches gateway-Setup ohne Tunnel
 #   powershell ... -File setup-tunnels.ps1 -EnsureMutagen # additiv: Watchdog nur sicherstellen
@@ -43,6 +45,7 @@ param(
     [int]$NovncPort = 0,
     [int]$CockpitPort = 0,
     [int]$AgentPort = 0,
+    [int]$ArtifactsPort = 0,
     [ValidateSet('claude','hybrid','hermes')][string]$Engine = 'claude',
     [switch]$Remove,
     [switch]$MutagenOnly,
@@ -53,12 +56,14 @@ $ErrorActionPreference = 'Stop'
 $tunnelLess = [bool]($Remove -or $MutagenOnly -or $EnsureMutagen)
 # Agenten-Tunnel nach Stack: Cockpit fuer den Claude-Stack (claude|hybrid),
 # Hermes-Dashboard fuer den Hermes-Stack (hermes|hybrid) - hybrid hat beide.
-$wantCockpit = ($Engine -in @('claude','hybrid'))
-$wantAgent   = ($Engine -in @('hermes','hybrid'))
+$wantCockpit   = ($Engine -in @('claude','hybrid'))
+$wantAgent     = ($Engine -in @('hermes','hybrid'))
+$wantArtifacts = ($Engine -in @('hermes','hybrid'))
 if (-not $tunnelLess) {
     if ($NovncPort -lt 1) { Write-Host "FAIL: -NovncPort fehlt (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."; exit 2 }
-    if ($wantCockpit -and $CockpitPort -lt 1) { Write-Host "FAIL: -CockpitPort fehlt (Engine $Engine hat den Claude-Stack)."; exit 2 }
-    if ($wantAgent   -and $AgentPort   -lt 1) { Write-Host "FAIL: -AgentPort fehlt (Engine $Engine hat den Hermes-Stack)."; exit 2 }
+    if ($wantCockpit   -and $CockpitPort   -lt 1) { Write-Host "FAIL: -CockpitPort fehlt (Engine $Engine hat den Claude-Stack)."; exit 2 }
+    if ($wantAgent     -and $AgentPort     -lt 1) { Write-Host "FAIL: -AgentPort fehlt (Engine $Engine hat den Hermes-Stack)."; exit 2 }
+    if ($wantArtifacts -and $ArtifactsPort -lt 1) { Write-Host "FAIL: -ArtifactsPort fehlt (Engine $Engine hat den Hermes-Stack; Wert ARTIFACTS_PORT aus get-vm-values)."; exit 2 }
 }
 
 $sshExe = 'C:\Windows\System32\OpenSSH\ssh.exe'
@@ -71,8 +76,9 @@ $taskName = 'ki-os-vm-watchdog'
 $tunnels = @(
     @{ Label = 'noVNC';        LocalPort = 6080;         RemotePort = $NovncPort }
 )
-if ($wantCockpit) { $tunnels += @{ Label = 'Cockpit';          LocalPort = 3847; RemotePort = $CockpitPort } }
-if ($wantAgent)   { $tunnels += @{ Label = 'Hermes-Dashboard'; LocalPort = 9119; RemotePort = $AgentPort } }
+if ($wantCockpit)   { $tunnels += @{ Label = 'Cockpit';          LocalPort = 3847;  RemotePort = $CockpitPort } }
+if ($wantAgent)     { $tunnels += @{ Label = 'Hermes-Dashboard'; LocalPort = 9119;  RemotePort = $AgentPort } }
+if ($wantArtifacts) { $tunnels += @{ Label = 'Artefakte';        LocalPort = 29000; RemotePort = $ArtifactsPort } }
 
 # --- -EnsureMutagen: existierender Watchdog reicht, egal welche Variante --------
 # Ob der Task die volle Tunnel-Fassung oder die Mutagen-only-Fassung faehrt:
@@ -90,7 +96,7 @@ if ($EnsureMutagen -and (Get-ScheduledTask -TaskName $taskName -ErrorAction Sile
 # .vbs/.ps1-Dateien) - faengt die frueheren Einzel-Tasks, beliebige Altlasten
 # und den Watchdog selbst (wird gleich frisch registriert). Separator-Klasse
 # [''",\s] matcht beide Arg-Formate ('-L 6080:...' und '-L','6080:...').
-# Cleanup-Ports: BEIDE moeglichen Zweit-Tunnel (3847 und 9119), nicht nur der
+# Cleanup-Ports: ALLE moeglichen Stack-Tunnel (3847, 9119, 29000), nicht nur die
 # der aktuellen Engine. So raeumt derselbe Scan nach einem Engine-Wechsel den
 # Tunnel der alten Engine mit ab, statt ihn als Leiche auf einem toten VM-Port
 # weiterlaufen zu lassen.
@@ -102,7 +108,7 @@ if ($EnsureMutagen) {
     Unregister-ScheduledTask -TaskName 'mutagen-daemon' -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $binDir 'mutagen-daemon-hidden.vbs') -ErrorAction SilentlyContinue
 } else {
-    $portAlt = ((($tunnels | ForEach-Object { $_.LocalPort }) + @(3847, 9119)) | Sort-Object -Unique) -join '|'
+    $portAlt = ((($tunnels | ForEach-Object { $_.LocalPort }) + @(3847, 9119, 29000)) | Sort-Object -Unique) -join '|'
     $taskPattern   = '-L[''",\s]+(' + $portAlt + '):127\.0\.0\.1:\d+|mutagen(\.exe)?[''"\s]+daemon\s+run'
     $orphanPattern = '-L\s*('       + $portAlt + '):127\.0\.0\.1:'
     $fileRx        = '([A-Za-z]:\\[^"'' ]+\.(?:vbs|ps1))'
@@ -151,25 +157,22 @@ if ($EnsureMutagen) {
 # er ueberwacht nur noch Mutagen-Daemon + Session.
 $guard = Join-Path $binDir "$taskName.ps1"
 
-$tunnelBlock = @"
-# Tunnel: ssh NUR starten, wenn der lokale Port noch nicht lauscht
-# (blinder Respawn leakt SSH-Sessions auf der VM).
-if (-not (Get-NetTCPConnection -LocalPort 6080 -State Listen)) {
+# EIN Block je Eintrag in $tunnels (noVNC + je Stack-Tunnel). Die fruehere
+# Fassung kannte nur einen "zweiten" Tunnel ueber Variablen, die seit dem
+# Umbau auf die Liste nirgends mehr gesetzt wurden (B-232).
+$tunnelBlock = "# Tunnel: ssh NUR starten, wenn der lokale Port noch nicht lauscht`r`n# (blinder Respawn leakt SSH-Sessions auf der VM).`r`n"
+foreach ($tn in $tunnels) {
+    $tunnelBlock += @"
+if (-not (Get-NetTCPConnection -LocalPort $($tn.LocalPort) -State Listen)) {
     Start-Process -WindowStyle Hidden -FilePath '$sshExe' -ArgumentList @(
         '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=15',
         '-o','ServerAliveCountMax=3','-o','ConnectTimeout=10','-o','TCPKeepAlive=yes',
         '-o','StrictHostKeyChecking=accept-new',
-        '-L','6080:127.0.0.1:$NovncPort','ki-os-vm')
-}
-if (-not (Get-NetTCPConnection -LocalPort $secondLocal -State Listen)) {
-    Start-Process -WindowStyle Hidden -FilePath '$sshExe' -ArgumentList @(
-        '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=15',
-        '-o','ServerAliveCountMax=3','-o','ConnectTimeout=10','-o','TCPKeepAlive=yes',
-        '-o','StrictHostKeyChecking=accept-new',
-        '-L','$($secondLocal):127.0.0.1:$secondRemote','ki-os-vm')
+        '-L','$($tn.LocalPort):127.0.0.1:$($tn.RemotePort)','ki-os-vm')
 }
 
 "@
+}
 if ($tunnelLess) {
     $tunnelBlock = "# Keine Tunnel in diesem Guard: gateway-Modus (noVNC/Cockpit kommen vom`r`n# Browser-Gateway der VM) oder Mutagen-only-Setup (Tunnel folgen ggf. per`r`n# setup-tunnels.ps1 mit Ports - der Lauf erweitert diesen Guard).`r`n`r`n"
 }
@@ -258,7 +261,8 @@ $principal = New-ScheduledTaskPrincipal `
 # NICHT ueber $task.RegistrationInfo.Author setzen: New-ScheduledTask liefert
 # RegistrationInfo=$null, die Zuweisung crasht dann auf PS 5.1 -- und weil der
 # Cleanup oben die Alt-Tasks schon entfernt hat, bliebe das Setup kaputt.
-$desc = "Haelt die KI-OS-Verbindungen am Leben: noVNC-Tunnel (localhost:6080), $secondLabel-Tunnel (localhost:$secondLocal) und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task."
+$tunnelList = ($tunnels | ForEach-Object { "$($_.Label)-Tunnel (localhost:$($_.LocalPort))" }) -join ', '
+$desc = "Haelt die KI-OS-Verbindungen am Leben: $tunnelList und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task."
 if ($tunnelLess) {
     $desc = 'Haelt den KI-OS Mutagen-Sync am Leben (Daemon + Session ki-os). Keine Tunnel - noVNC/Cockpit laufen ueber das Browser-Gateway der VM. Prueft alle 2 Minuten. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
 }
@@ -316,7 +320,8 @@ if ($tunnelLess) {
     Write-Host "OK: Scheduled Task $taskName (nur Mutagen-Ueberwachung - keine Tunnel, gateway-Modus)"
     exit 0
 }
-Write-Host "OK: Scheduled Task $taskName (noVNC lokal 6080 -> VM $NovncPort, $secondLabel lokal $secondLocal -> VM $secondRemote, Mutagen-Daemon sobald installiert)"
+$tunnelMap = ($tunnels | ForEach-Object { "$($_.Label) lokal $($_.LocalPort) -> VM $($_.RemotePort)" }) -join ', '
+Write-Host "OK: Scheduled Task $taskName ($tunnelMap, Mutagen-Daemon sobald installiert)"
 
 # --- Kurz-Verifikation -----------------------------------------------------------
 Start-Sleep -Seconds 6

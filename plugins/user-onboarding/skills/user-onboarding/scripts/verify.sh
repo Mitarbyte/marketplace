@@ -2,13 +2,14 @@
 # verify.sh — Abschluss-Verifikation aller Komponenten (macOS/Linux)
 #
 # Prueft: SSH, noVNC-Tunnel (6080), Agent-Tunnel (Cockpit 3847 bzw. Hermes 9119),
-# Mutagen-Session, Desktop-App-Eintraege (macOS). Gibt pro Komponente OK/FAIL
-# aus; Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
+# auf dem Hermes-Stack den Artefakt-Tunnel (29000, B-215), Mutagen-Session,
+# Desktop-App-Eintraege (macOS). Gibt pro Komponente OK/FAIL aus; Exit-Code 1,
+# wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
 # Usage:  verify.sh --vm-user <VM_USER> [--mode tunnel|gateway]
 #                    [--engine claude|hybrid|hermes] [--hub-backend git|cloud]
 #                    [--gateway-cockpit-url <url>] [--gateway-novnc-url <url>]
-#                    [--gateway-agent-url <url>]
+#                    [--gateway-agent-url <url>] [--gateway-apps-url <url>]
 #
 # Mutagen wird nur im tunnel-Modus mit --hub-backend git geprueft. In beiden
 # anderen Faellen ist "keine Session" der SOLL-Zustand, ein Pflicht-FAIL waere
@@ -19,7 +20,7 @@
 # --engine hermes: es gibt kein Cockpit und keine Claude-Desktop-App — geprueft
 # werden das Hermes-Dashboard (Tunnel 9119 bzw. Gateway-Agent-URL) und, statt der
 # ~/.claude.json-Eintraege, nur SSH/Mutagen (die Hermes-Desktop-App verbindet
-# sich ueber URL + Session-Token, es gibt keine lokale Registrierung zu pruefen).
+# sich ueber URL + Firmen-Login, es gibt keine lokale Registrierung zu pruefen).
 # --engine hybrid (Layout v3, ADR 18): beide Stacks — Cockpit UND Hermes-
 # Dashboard werden geprueft, die Claude-Desktop-App wie auf claude.
 #
@@ -28,7 +29,7 @@
 # Check laeuft unauthentifiziert). SSH/Mutagen/Desktop-App wie gehabt.
 set -uo pipefail
 
-VM_USER="" MODE="tunnel" ENGINE="claude" HUB_BACKEND="git" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL=""
+VM_USER="" MODE="tunnel" ENGINE="claude" HUB_BACKEND="git" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL="" GW_APPS_URL=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --vm-user)             VM_USER="$2"; shift 2 ;;
@@ -38,6 +39,7 @@ while [ $# -gt 0 ]; do
         --gateway-cockpit-url) GW_COCKPIT_URL="$2"; shift 2 ;;
         --gateway-novnc-url)   GW_NOVNC_URL="$2"; shift 2 ;;
         --gateway-agent-url)   GW_AGENT_URL="$2"; shift 2 ;;
+        --gateway-apps-url)    GW_APPS_URL="$2"; shift 2 ;;
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -48,6 +50,9 @@ SURFACES=""
 case "$ENGINE" in claude|hybrid) SURFACES="Cockpit|3847|${GW_COCKPIT_URL}" ;; esac
 case "$ENGINE" in hermes|hybrid) SURFACES="${SURFACES}${SURFACES:+
 }Hermes-Dashboard|9119|${GW_AGENT_URL}" ;; esac
+# Artefakte (Hermes-Stack, B-215): tunnel 29000 → Artefakt-Dienst, gateway der
+# Apps-Vhost. Auf claude liefert der Cockpit-Proxy (3847/a/) — kein eigener Weg.
+HAS_ARTIFACTS=0; case "$ENGINE" in hermes|hybrid) HAS_ARTIFACTS=1 ;; esac
 HAS_CLAUDE=0; case "$ENGINE" in claude|hybrid) HAS_CLAUDE=1 ;; esac
 [ -n "$VM_USER" ] || { echo "FAIL: --vm-user fehlt" >&2; exit 2; }
 
@@ -62,10 +67,10 @@ check() { # check <label> <cmd...>
     fi
 }
 
-http_check() { # http_check <label> <url>
-    local label="$1" url="$2" code
-    code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "$url" 2>/dev/null || true)"
-    if [ "$code" = "200" ] || [ "${code:0:1}" = "3" ]; then
+http_check() { # http_check <label> <url> [<extra_ok_code>]
+    local label="$1" url="$2" extra_ok="${3:-}" code
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$url" 2>/dev/null || true)"
+    if [ "$code" = "200" ] || [ "${code:0:1}" = "3" ] || { [ -n "$extra_ok" ] && [ "$code" = "$extra_ok" ]; }; then
         echo "OK:   $label (HTTP $code)"
     else
         echo "FAIL: $label (HTTP ${code:-keine Antwort})"
@@ -93,6 +98,7 @@ if [ "$MODE" = "gateway" ]; then
     done <<EOF
 ${SURFACES}
 noVNC|6080|${GW_NOVNC_URL}
+$( [ "$HAS_ARTIFACTS" = "1" ] && echo "Artefakte|29000|${GW_APPS_URL}" )
 EOF
 else
     http_check "noVNC-Tunnel  http://localhost:6080/vnc.html" "http://localhost:6080/vnc.html"
@@ -102,6 +108,8 @@ else
     done <<EOF
 ${SURFACES}
 EOF
+    # Der Artefakt-Dienst hat keine Wurzelseite: 404 unter /a/ = Dienst antwortet.
+    [ "$HAS_ARTIFACTS" = "1" ] && http_check "Artefakte-Tunnel http://localhost:29000/a/" "http://localhost:29000/a/" 404
 fi
 
 # Mutagen ist der SOLL-Zustand "nicht vorhanden", sobald EINE der beiden
@@ -224,10 +232,10 @@ fi  # Ende Mutagen-Block (nur mode=tunnel + hub-backend git)
 
 # Desktop-App-Registrierung ist ein CLAUDE-Artefakt (ssh_configs.json +
 # ~/.claude.json). Auf Hermes gibt es sie nicht: die Hermes-Desktop-App wird mit
-# URL + Session-Token verbunden, es liegt lokal nichts, was man pruefen koennte.
+# URL + Firmen-Login verbunden, es liegt lokal nichts, was man pruefen koennte.
 if [ "$HAS_CLAUDE" != "1" ]; then
     echo "OK:   engine=hermes — keine Claude-Desktop-App-Registrierung zu pruefen"
-    echo "      (Hermes-App: Remote gateway → URL + Session-Token; Token beim Admin:"
+    echo "      (Hermes-App: Remote gateway → URL + Firmen-Login; URL beim Admin:"
     echo "       ki-os-fleet vm hermes-token --user ${VM_USER})"
     exit $RC
 fi

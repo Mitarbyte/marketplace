@@ -1,12 +1,13 @@
 # SSH-Pubkey an Admin uebergeben (Admin-Weg, Schritt 5)
 
-Schritt 4 des Skills generiert einen Ed25519-Pubkey lokal. Diese Vorlagen
-gelten fuer den **Admin-Weg** aus Schritt 5 (tunnel-VMs, Hermes-VMs oder
-unklarer Zugangs-Modus): der Admin hinterlegt den Key auf der VM.
-**Gateway-User auf `engine=claude` brauchen diese Datei nicht** — sie
-fuegen den Key selbst im Cockpit ein (System-Tab → „SSH-Zugang", siehe
-SKILL.md Schritt 5). **Auf `engine=hermes` gibt es kein Cockpit** — dort
-ist der Admin-Weg dieser Datei auch fuer Gateway-User der Normalweg.
+Schritt 5 des Skills generiert einen Ed25519-Pubkey lokal. Diese Vorlagen
+gelten fuer den **Admin-Weg** aus Schritt 6 (tunnel-VMs oder unklarer
+Zugangs-Modus): der Admin hinterlegt den Key auf der VM.
+**Gateway-User mit Cockpit** (`engine=claude|hybrid`) brauchen diese Datei
+nicht — sie fuegen den Key selbst im Cockpit ein (System-Tab → „SSH-Zugang",
+SKILL.md Schritt 6). **Gateway-User auf einer reinen Hermes-VM (Pfad H)
+brauchen gar keinen SSH-Key** (ADR 22 Nr. 10): Hermes-Desktop-App mit
+Dashboard-URL + Token, VM-Desktop im Browser — `references/hermes-desktop-app.md`.
 Der Skill bietet die Vorlagen in der Reihenfolge an, die zur
 User-Situation passt (Slack > Mail > Plain-Copy).
 

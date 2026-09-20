@@ -1,6 +1,6 @@
 ---
 name: user-onboarding
-description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'sync reparieren', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP (or a company login URL) from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Der Skill fragt als ERSTES den Zugangs-Modus ab und faehrt dann genau einen von zwei Pfaden: gateway (Firmen-Login-URL vom Admin) = SSH-Key, den der User im Cockpit SELBST hinterlegt, plus Desktop-App-Vorkonfiguration — KEINE Tunnel, KEIN Mutagen; tunnel (nur IP + Username) = SSH-Key an den Admin, dazu die drei Pflicht-Autostarts noVNC-Tunnel (lokal 6080), Tunnel zur Agenten-Oberflaeche (Cockpit 3847 bzw. Hermes-Dashboard 9119 je nach Engine) und Mutagen-Sync. Alles laeuft ueber fertige, parametrisierte Skripte in scripts/. Der SSH-Alias ist fest ki-os-vm. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab bzw. Gateway-URL). Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
+description: "Lokales Onboarding fuer einen Mitarbeiter, der einen vom Admin bereits auf einer Firmen-VM angelegten KI-OS-Workspace nutzen will. Use when someone says 'KI-OS einrichten', 'vm-zugriff einrichten', 'hermes-app verbinden', 'agent-adresse bekommen', 'ssh-key fuer firmen-vm', 'mit der firmen-vm verbinden', 'lokales setup fuer hub-vm', 'novnc-tunnel einrichten', 'cockpit-tunnel einrichten', 'mutagen-sync fuer ki-os', 'sync reparieren', 'ki-os ordner lokal syncen', 'obsidian-vault fuer ki-os', '/user-onboarding'. Also trigger when someone just got their VM-Username + IP (or a company login URL) from an admin and wants to start using their workspace, or when an existing user wants to refresh/repair their local setup (re-run is the update). Der Skill fragt als ERSTES den Zugangs-Modus ab und faehrt dann genau einen von drei Pfaden: gateway mit Cockpit-Adresse (Claude-Stack) = SSH-Key, den der User im Cockpit SELBST hinterlegt, plus Desktop-App-Vorkonfiguration — KEINE Tunnel, KEIN Mutagen; gateway mit Agent-Adresse (reine Hermes-VM) = Pfad H OHNE SSH und ohne VM-Zugriff: Hermes-Desktop-App mit Dashboard-URL + VM-Desktop-Link vom Admin (ki-os-fleet vm hermes-token), Anmeldung ueber den Firmen-Login im System-Browser — keinen Token mehr, Firmen-Tools im Dashboard-Tab KI-OS → Anmeldungen; tunnel (nur IP + Username) = SSH-Key an den Admin, dazu die drei Pflicht-Autostarts noVNC-Tunnel (lokal 6080), Tunnel zur Agenten-Oberflaeche (Cockpit 3847 bzw. Hermes-Dashboard 9119 je nach Engine) und Mutagen-Sync. Alles laeuft ueber fertige, parametrisierte Skripte in scripts/. Der SSH-Alias ist fest ki-os-vm. Der Workspace auf der VM ist bereits vom Admin angelegt und wird hier nicht angefasst; Browser + Logins laufen im VM-Chrome (noVNC-Tab bzw. Gateway-URL). Plattformen: macOS, Linux, Windows (nativ ueber PowerShell + Windows-OpenSSH + Scheduled Tasks; WSL2 als Alternative)."
 ---
 
 ## Was dieser Skill macht
@@ -9,13 +9,14 @@ Richtet auf dem lokalen Gerät (macOS/Linux/Windows) den Zugang zur bereits
 vom Admin eingerichteten Firmen-VM ein. **Der Zugangs-Modus entscheidet über
 den ganzen Ablauf und wird als erstes abgefragt** (Schritt 3):
 
-| | **gateway** (Regelfall) | **tunnel** |
-|---|---|---|
-| Woran erkennbar | Admin schickte eine **URL** (`https://<name>-cockpit.…` / `…-agent.…`) + Firmen-Login | Admin schickte nur **IP + Username** |
-| SSH-Key | User trägt ihn **selbst im Cockpit** ein (System-Tab) | geht **an den Admin** |
-| Tunnel-Autostarts | **entfallen** — noVNC/Cockpit laufen über die Gateway-URLs | noVNC (lokal `6080`) + Agenten-Oberfläche (`3847` claude / `9119` hermes) |
-| Mutagen-Sync | **entfällt** — Dateien über Cockpit-Explorer bzw. den Cloud-Client der Firma | Pflicht (`~/KI-OS` ↔ VM), außer `HUB_BACKEND=cloud` |
-| Desktop-App | ja (nur `engine=claude`) | ja (nur `engine=claude`) |
+| | **gateway** (Regelfall) | **gateway auf reiner Hermes-VM — Pfad H** | **tunnel** |
+|---|---|---|---|
+| Woran erkennbar | Admin schickte eine **Cockpit-URL** (`https://<name>-cockpit.…`) + Firmen-Login | Admin schickte **Dashboard-URL** (`https://<name>-agent.…`) + **VM-Desktop-Link**, keine Cockpit-URL | Admin schickte nur **IP + Username** |
+| SSH-Key | User trägt ihn **selbst im Cockpit** ein (System-Tab) | **entfällt** — kein SSH, kein VM-Zugriff vom Gerät (ADR 22 Nr. 10) | geht **an den Admin** |
+| Tunnel-Autostarts | **entfallen** — noVNC/Cockpit laufen über die Gateway-URLs | **entfallen** | noVNC (lokal `6080`) + Agenten-Oberfläche (`3847` claude / `9119` hermes) + Artefakte (`29000`, Hermes-Stack) |
+| Mutagen-Sync | **entfällt** — Dateien über Cockpit-Explorer bzw. den Cloud-Client der Firma | **entfällt** — Dateien über den Cloud-Client der Firma | Pflicht (`~/KI-OS` ↔ VM), außer `HUB_BACKEND=cloud` |
+| Desktop-App | Claude-Desktop-App (`claude\|hybrid`), Hermes-App (`hybrid`) | **Hermes-Desktop-App** (Remote gateway: URL + Firmen-Login) | je Engine |
+| Skripte aus `scripts/` | ja | **keine** — nur Schritt 10 (App) + 12 (Abschluss) | ja |
 
 **Die gesamte Mechanik liegt in fertigen, parametrisierten Skripten unter
 `scripts/`** — der Skill orchestriert nur: Inputs einsammeln, Skripte mit
@@ -31,11 +32,13 @@ Claude-Stack = `claude|hybrid`, Hermes-Stack = `hermes|hybrid`.
 
 - **claude:** Cockpit als Oberfläche, Claude-Code-Desktop-App als Arbeitszugang.
 - **hermes:** **kein Cockpit** — Oberfläche ist das Hermes-Dashboard; im
-  tunnel-Modus wird lokal `9119` getunnelt statt `3847`, Schritt 10
-  (Claude-Desktop-App) entfällt.
+  tunnel-Modus wird lokal `9119` getunnelt statt `3847`, dazu `29000` auf den
+  Artefakt-Dienst (das Plugin nennt `http://localhost:29000/a/<slug>/`);
+  Schritt 10 (Claude-Desktop-App) entfällt.
 - **hybrid** (Layout v3): **beide** — Hermes-Dashboard (primär, `9119`) **und**
-  Cockpit (`3847`); im tunnel-Modus drei Tunnel, im gateway-Modus zwei
-  Agenten-URLs (`…-agent.…` + `…-cockpit.…`); Schritt 10 läuft wie auf claude.
+  Cockpit (`3847`); im tunnel-Modus vier Tunnel (mit Artefakten `29000`), im
+  gateway-Modus zwei Agenten-URLs (`…-agent.…` + `…-cockpit.…`); Schritt 10
+  läuft wie auf claude.
 
 ## Konventionen
 
@@ -85,14 +88,20 @@ festlegt:
 > „Was hast du vom Admin bekommen?"
 > - **„Eine Cockpit-Adresse"** (`https://<name>-cockpit.…`, Login mit dem
 >   Firmen-Konto) → **gateway**, Key per Self-Service
-> - **„Eine Agent-Adresse"** (`https://<name>-agent.…`) → **gateway** auf einer
->   Hermes-VM, Key über den Admin (dort gibt es kein Cockpit)
+> - **„Eine Dashboard-Adresse + VM-Desktop-Link + Token, keine Cockpit-Adresse"**
+>   (`https://<name>-agent.…`) → **gateway auf einer reinen Hermes-VM = Pfad H**:
+>   kein SSH-Key, kein Skript, kein VM-Zugriff vom Gerät — direkt weiter mit
+>   **Schritt 10** (Hermes-App), danach Schritt 12. (Hat der User zusätzlich
+>   eine Cockpit-Adresse, ist die VM `hybrid` → normaler gateway-Pfad.)
 > - **„Nur IP + Username"** → **tunnel**, Key über den Admin
 > - **„Weiß ich nicht"** → wie „Nur IP + Username" behandeln; Schritt 7 liest
 >   den echten Modus von der VM und korrigiert.
 
-Ergebnis merken als `MODE` (`gateway`|`tunnel`). **`MODE=gateway` → Schritte 8
-und 9 entfallen komplett.**
+Ergebnis merken als `MODE` (`gateway`|`tunnel`) und `PFAD_H` (ja|nein).
+**`MODE=gateway` → Schritte 8 und 9 entfallen komplett. `PFAD_H=ja` → Schritte
+4–9 und 11 entfallen** (es gibt nichts Lokales einzurichten oder zu prüfen);
+Fehlt dem User einer der beiden Werte, holt er ihn beim Admin
+(`ki-os-fleet vm hermes-token --user <n>` gibt beide aus).
 
 ### Schritt 4 — User-Inputs sammeln
 
@@ -129,8 +138,9 @@ an der Antwort aus Schritt 3:
 Fehlt die Karte „SSH-Zugang", ist das Cockpit der VM zu alt → Admin-Weg unten,
 und dem Admin `ki-os-fleet update` ans Herz legen.
 
-**Sonst (Agent-Adresse, tunnel, unklar) → Admin-Weg:** Übergabe anbieten,
-fertige Mail-/Slack-Vorlagen in `references/ssh-pubkey-handoff.md`. Dann per
+**Sonst (tunnel, unklar) → Admin-Weg:** Übergabe anbieten, fertige
+Mail-/Slack-Vorlagen in `references/ssh-pubkey-handoff.md`. (Pfad H kommt hier
+nie an — dort gibt es keinen Key.) Dann per
 `AskUserQuestion` klären: „Hat dein Admin bestätigt, dass dein User auf der VM
 angelegt ist?" — bei „Noch nicht" hier pausieren; `/user-onboarding` später
 erneut aufrufen (idempotent).
@@ -143,10 +153,10 @@ bash "$SKILL_DIR/scripts/get-vm-values.sh"
 ```
 
 Liefert `SSH_OK` + `ACCESS_MODE=` + `ENGINE=` + `HUB_BACKEND=` (+
-`COMPANY_LOCAL=` nur auf cloud) + `LAYOUT=` + `AGENT_PORT=` / `COCKPIT_PORT=` /
-`NOVNC_PORT=` / `NOVNC_PASS=`, im gateway-Modus zusätzlich
-`GATEWAY_COCKPIT_URL=` / `GATEWAY_NOVNC_URL=` (/ `GATEWAY_AGENT_URL=` auf
-hermes **und** hybrid). Werte merken.
+`COMPANY_LOCAL=` nur auf cloud) + `LAYOUT=` + `AGENT_PORT=` / `ARTIFACTS_PORT=` /
+`COCKPIT_PORT=` / `NOVNC_PORT=` / `NOVNC_PASS=`, im gateway-Modus zusätzlich
+`GATEWAY_COCKPIT_URL=` / `GATEWAY_NOVNC_URL=` (/ `GATEWAY_AGENT_URL=` +
+`GATEWAY_APPS_URL=` auf hermes **und** hybrid). Werte merken.
 
 - **`ACCESS_MODE` ist die Wahrheit** — weicht es von der Antwort aus Schritt 3
   ab, gilt der VM-Wert: `MODE` überschreiben, den User kurz informieren und
@@ -178,20 +188,20 @@ Sync-Engine auf denselben Bytes (Konfliktkopien). In Schritt 11
 bash "$SKILL_DIR/scripts/setup-tunnels.sh" --novnc-port <NOVNC_PORT> --cockpit-port <COCKPIT_PORT>
 # Windows: setup-tunnels.ps1 -NovncPort <NOVNC_PORT> -CockpitPort <COCKPIT_PORT>
 
-# engine=hermes (zweiter Tunnel geht auf das Hermes-Dashboard, lokal 9119):
-bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hermes --novnc-port <NOVNC_PORT> --agent-port <AGENT_PORT>
-# Windows: setup-tunnels.ps1 -Engine hermes -NovncPort <NOVNC_PORT> -AgentPort <AGENT_PORT>
+# engine=hermes (drei Tunnel: noVNC, Hermes-Dashboard lokal 9119, Artefakte lokal 29000):
+bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hermes --novnc-port <NOVNC_PORT> --agent-port <AGENT_PORT> --artifacts-port <ARTIFACTS_PORT>
+# Windows: setup-tunnels.ps1 -Engine hermes -NovncPort <NOVNC_PORT> -AgentPort <AGENT_PORT> -ArtifactsPort <ARTIFACTS_PORT>
 
-# engine=hybrid (drei Tunnel: noVNC, Cockpit 3847, Hermes-Dashboard 9119):
-bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hybrid --novnc-port <NOVNC_PORT> --cockpit-port <COCKPIT_PORT> --agent-port <AGENT_PORT>
-# Windows: setup-tunnels.ps1 -Engine hybrid -NovncPort <NOVNC_PORT> -CockpitPort <COCKPIT_PORT> -AgentPort <AGENT_PORT>
+# engine=hybrid (vier Tunnel: noVNC, Cockpit 3847, Hermes-Dashboard 9119, Artefakte 29000):
+bash "$SKILL_DIR/scripts/setup-tunnels.sh" --engine hybrid --novnc-port <NOVNC_PORT> --cockpit-port <COCKPIT_PORT> --agent-port <AGENT_PORT> --artifacts-port <ARTIFACTS_PORT>
+# Windows: setup-tunnels.ps1 -Engine hybrid -NovncPort <NOVNC_PORT> -CockpitPort <COCKPIT_PORT> -AgentPort <AGENT_PORT> -ArtifactsPort <ARTIFACTS_PORT>
 ```
 
 Ein Aufruf richtet **alle** gehärteten Tunnel der Engine ein (idempotent; Windows
 zusätzlich self-healing: räumt alt/falsch benannte Tasks inhaltsbasiert weg und
 legt den gemeinsamen `ki-os-vm-watchdog` an). Die Argumente sind die
 **VM-seitigen** Ports aus Schritt 7 — nicht mit den festen lokalen Ports
-6080/3847/9119 verwechseln (ein falscher Wert tunnelt auf das Display eines
+6080/3847/9119/29000 verwechseln (ein falscher Wert tunnelt auf das Display eines
 anderen Users!). Härtung + Troubleshooting: `references/tunnels.md`.
 
 ### Schritt 9 — Mutagen-Sync *(nur tunnel, nur `HUB_BACKEND=git`)*
@@ -227,11 +237,18 @@ Kundenbetrieb verifiziert — bei Problemen an den Admin.)
 
 **`ENGINE=hermes` → Registrierung überspringen** (`hybrid` läuft wie `claude`). Es gibt lokal nichts zu registrieren: die
 **Hermes-Desktop-App** ist auf `hermes|hybrid` **Pflicht** (installiert in
-Anleitung Teil 2) und wird als „Remote gateway" mit URL + **Session-Token**
-verbunden (Token vom Admin: `ki-os-fleet vm hermes-token --user <VM_USER>`);
-URL = die öffentliche `…-agent.…`-Adresse (gateway) bzw.
-`http://127.0.0.1:9119` durch den Tunnel (tunnel). Token wie ein Passwort
-behandeln. Details + Vorlage: `references/hermes-desktop-app.md`.
+Anleitung Teil 2) und wird als „Remote gateway" mit der **URL** verbunden;
+angemeldet wird per **Firmen-Login**, den die App im System-Browser öffnet
+(RFC 8252 + PKCE) — **einen Session-Token gibt es seit dem 20.09.2026 nicht
+mehr**, nichts ist aufzubewahren oder geschützt zu übertragen. Die Werte kommen
+vom Admin aus **einer** Ausgabe (`ki-os-fleet vm hermes-token --user <VM_USER>`):
+**Dashboard-URL** (`https://<VM_USER>-agent.…`, gateway) bzw.
+`http://127.0.0.1:9119` durch den Tunnel (tunnel) und **VM-Desktop-URL** (noVNC,
+gateway). Steht die VM noch auf Hermes-Pin `8.19`, gilt dort weiter der Token
+(dann gibt ihn dieselbe Ausgabe mit aus, geschützter Kanal). **Pfad H:** das
+ist der einzige Einrichtungsschritt; danach Dashboard-URL und VM-Desktop im
+Browser öffnen (Firmen-Login → Dashboard bzw. Desktop), App verbinden, weiter
+mit Schritt 12. Details + Vorlage: `references/hermes-desktop-app.md`.
 
 Für `ENGINE=claude` und `ENGINE=hybrid`:
 
@@ -251,13 +268,17 @@ Remote-Projekt-Switcher. Danach **Desktop-App komplett beenden und neu öffnen**
 
 ### Schritt 11 — Verifikation
 
+**`PFAD_H=ja` → entfällt** (kein SSH, nichts Lokales): die Prüfung ist, dass
+Dashboard-URL und VM-Desktop-URL nach dem Firmen-Login laden und die App
+verbindet; ein **200 ohne Login** auf einer der URLs gehört sofort an den Admin.
+
 ```
 bash "$SKILL_DIR/scripts/verify.sh" --vm-user <VM_USER> --mode <MODE> \
     --engine <ENGINE> --hub-backend <HUB_BACKEND> \
-    [--gateway-cockpit-url <URL> --gateway-novnc-url <URL> --gateway-agent-url <URL>]
+    [--gateway-cockpit-url <URL> --gateway-novnc-url <URL> --gateway-agent-url <URL> --gateway-apps-url <URL>]
 # Windows: verify.ps1 -VmUser <VM_USER> -Mode <MODE> -Engine <ENGINE> `
 #     -HubBackend <HUB_BACKEND> `
-#     [-GatewayCockpitUrl <URL> -GatewayNovncUrl <URL> -GatewayAgentUrl <URL>]
+#     [-GatewayCockpitUrl <URL> -GatewayNovncUrl <URL> -GatewayAgentUrl <URL> -GatewayAppsUrl <URL>]
 ```
 
 Prüft SSH, die Zugangswege (tunnel: alle lokalen Tunnel der Engine; gateway:
@@ -311,14 +332,23 @@ Engine nicht anfassen.
 
 **`ENGINE=hermes`:**
 
-1. **Browser-Logins (einmalig):** siehe unten. Einen Claude-/Modell-Login gibt
-   es hier **nicht** — die Provider-Anmeldung hat der Admin eingerichtet.
+1. **Anmeldungen (einmalig):** Firmen-Tools im **Dashboard-Tab „KI-OS →
+   Anmeldungen"** — je Datenquelle Zustand und Knopf **„Anmelden"**, der Login
+   läuft im Browser des **VM-Desktops** (Link aus der Übergabe; Passwörter
+   tippt der Mensch, nie der Agent). Alternativ dem Agenten sagen „Melde mich
+   bei Outlook an". Browser-Logins (Web-Tools) direkt im VM-Desktop, siehe
+   unten. Einen Claude-/Modell-Login gibt es hier **nicht** — die
+   Provider-Anmeldung hat der Admin eingerichtet.
 2. **Arbeiten** — in der **Hermes-Desktop-App** (Pflicht, Schritt 10); das
-   **Agent-Dashboard** im Browser (gateway: `<GATEWAY_AGENT_URL>`; tunnel:
-   `http://localhost:9119`) bleibt Fallback.
+   **Dashboard** im Browser (gateway: `<Dashboard-URL>`; tunnel:
+   `http://localhost:9119`) bleibt Fallback; **Artefakte** (Dashboards, kleine
+   Web-Apps) stehen im Tab „KI-OS → Artefakte" unter festen URLs (gateway:
+   `<Apps-URL>/<slug>/` hinter dem Firmen-Login; tunnel:
+   `http://localhost:29000/a/<slug>/` durch den Artefakt-Tunnel aus Schritt 8).
 3. **Geplante Aufgaben:** Scheduler im Dashboard bzw. `hermes cron` auf der VM
    — nicht `mitarbyte scheduler` (Claude-only).
-4. **Dateien:** wie oben.
+4. **Dateien:** über den Cloud-Client der Firma (SharePoint/Drive); auf Pfad H
+   gibt es keinen lokalen Spiegel.
 
 ---
 
@@ -327,7 +357,9 @@ Engine nicht anfassen.
 Ein erneuter Lauf IST das Update: alle Schritte re-deployen idempotent
 (bestehender Key bleibt, Tunnel/Tasks werden neu geladen statt dupliziert, die
 Mutagen-Session bleibt bestehen). Unter Windows heilt der Lauf fehlerhaft
-konfigurierte Alt-Tasks automatisch.
+konfigurierte Alt-Tasks automatisch. Auf **Pfad H** gibt es nichts zu
+re-deployen — ein neuer Token (Rotation durch den Admin) wird nur in der App
+neu eingetragen.
 
 **Wurde die VM inzwischen auf gateway umgestellt** (Schritt 7 meldet
 `ACCESS_MODE=gateway`), räumt der Re-Run die Tunnel-Autostarts ab

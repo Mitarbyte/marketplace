@@ -6,6 +6,8 @@
 # ausgegeben (Diagnose: references/ssh.md).
 #
 # Usage:  get-vm-values.sh
+# Nicht auf Pfad H (gateway auf reiner Hermes-VM, ADR 22 Nr. 10): dort gibt es
+# keinen SSH-Zugang vom Geraet — die URLs kommen aus `ki-os-fleet vm hermes-token`.
 #
 # Output-Marker:
 #   SSH_OK | SSH_FAIL: <fehler>
@@ -24,12 +26,15 @@
 #          `.claude/skills/` zeigen dorthin, also ABSOLUT und aus dem
 #          Sync-Root heraus; Mutagen bekommt dafuer einen Ignore.
 #   AGENT_PORT=<n>               Hermes-Dashboard-Port (Hermes-Stack: hermes|hybrid)
+#   ARTIFACTS_PORT=<n>           Artefakt-Dienst ki-os-artifacts@<user> (ADR 22 Nr. 5);
+#          im tunnel-Modus auf dem Hermes-Stack lokal 29000 getunnelt (B-215)
 #   COCKPIT_PORT=<n>  NOVNC_PORT=<n|MISSING>
 #   NOVNC_PASS=<pass|MISSING|NOT_NEEDED>   (NOT_NEEDED im gateway-Modus:
 #          x11vnc laeuft dort mit -nopw, ADR § 5.6 — das Passwort wird bewusst
 #          nicht ausgelesen, damit es nirgends im Chat/Log landet)
 #   GATEWAY_COCKPIT_URL=<url|MISSING>  GATEWAY_NOVNC_URL=<url|MISSING>   (nur gateway)
 #   GATEWAY_AGENT_URL=<url|MISSING>    (nur gateway + Hermes-Stack hermes|hybrid)
+#   GATEWAY_APPS_URL=<url|MISSING>     (nur gateway + Hermes-Stack: Artefakte hinter dem Firmen-Login)
 set -uo pipefail
 
 OUT="$(ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm bash -s 2>&1 <<'REMOTE'
@@ -61,6 +66,10 @@ lay="v2"
 case "$lay" in v2|v3) ;; *) lay=v2 ;; esac
 echo "LAYOUT=${lay}"
 echo "AGENT_PORT=$((9119 + $(id -u) - 1000))"
+# --port mit Formel-Fallback (Bestands-Resolver ohne die Option)
+ap="$(/usr/local/bin/ki-os-engine --port artifacts 2>/dev/null || true)"
+case "$ap" in *[!0-9]*|"") ap="" ;; esac   # nur eine Zahl ist ein Port
+echo "ARTIFACTS_PORT=${ap:-$((29000 + $(id -u) - 1000))}"
 cp="$(mitarbyte cockpit-port 2>/dev/null | grep -oE '3[0-9]{4}' | head -1 || true)"
 if [ -z "$cp" ]; then
     cp=$((30000 + $(id -u)))
@@ -77,13 +86,14 @@ if [ "${am:-tunnel}" = "gateway" ]; then
     gc="$(grep '^GATEWAY_COCKPIT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     gn="$(grep '^GATEWAY_NOVNC_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     ga="$(grep '^GATEWAY_AGENT_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
+    gp="$(grep '^GATEWAY_APPS_URL=' ~/.config/ki-os/gateway.env 2>/dev/null | cut -d= -f2- || true)"
     echo "GATEWAY_COCKPIT_URL=${gc:-MISSING}"
     echo "GATEWAY_NOVNC_URL=${gn:-MISSING}"
     # Als `if`, nicht als `[ ... ] && echo`: das Remote-Skript endet hier, und
     # eine falsche Bedingung waere sein Exit-Code — der Aufrufer meldete dann
     # bei jedem CLAUDE-User faelschlich SSH_FAIL.
     case "$eng" in
-        hermes|hybrid) echo "GATEWAY_AGENT_URL=${ga:-MISSING}" ;;
+        hermes|hybrid) echo "GATEWAY_AGENT_URL=${ga:-MISSING}"; echo "GATEWAY_APPS_URL=${gp:-MISSING}" ;;
     esac
 else
     pw="$(cat ~/.config/ki-os/vnc.pass 2>/dev/null || true)"
@@ -119,6 +129,8 @@ esac
 case "$_eng" in
     hermes|hybrid)
         echo "$OUT" | grep -q '^GATEWAY_AGENT_URL=MISSING' \
-            && echo "WARN: gateway-VM, aber kein Gateway-Mapping (Agent-Dashboard) fuer diesen User — Admin kontaktieren (ki-os-fleet vm gateway-grant)." ;;
+            && echo "WARN: gateway-VM, aber kein Gateway-Mapping (Agent-Dashboard) fuer diesen User — Admin kontaktieren (ki-os-fleet vm gateway-grant)."
+        echo "$OUT" | grep -q '^GATEWAY_APPS_URL=MISSING' \
+            && echo "WARN: gateway-VM, aber kein Apps-Mapping (Artefakte) fuer diesen User — Admin kontaktieren (ki-os-fleet vm gateway-grant)." ;;
 esac
 exit 0

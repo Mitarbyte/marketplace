@@ -11,16 +11,16 @@ dann genau einen von zwei Pfaden:
 | | **gateway** (Regelfall) | **tunnel** |
 |---|---|---|
 | Woran erkennbar | Admin schickte eine **URL** (`https://<name>-cockpit.…` / `…-agent.…`) + Firmen-Login | Admin schickte nur **IP + Username** |
-| SSH-Key | trägst du **selbst im Cockpit** ein (Tab System → „SSH-Zugang") | geht **an den Admin** |
+| SSH-Key | trägst du **selbst im Cockpit** ein (Tab System → „SSH-Zugang"); **reine Hermes-VM: entfällt** (Pfad H — Hermes-App mit Dashboard-URL + Firmen-Login, VM-Desktop im Browser, kein VM-Zugriff vom Gerät) | geht **an den Admin** |
 | Tunnel | entfallen — noVNC/Cockpit laufen über die Gateway-URLs | noVNC (`localhost:6080`) + Cockpit (`3847`) bzw. Hermes-Dashboard (`9119`) |
 | Datei-Sync (Mutagen) | entfällt — Dateien über Cockpit-Explorer bzw. den Cloud-Client der Firma | `~/KI-OS` als lokaler Spiegel (Obsidian, Finder/Explorer) |
 | Claude-Desktop-App | ja (nur `engine=claude\|hybrid`) | ja (nur `engine=claude\|hybrid`) |
-| Hermes-Desktop-App | **Pflicht** auf `engine=hermes\|hybrid` (URL + Session-Token) | **Pflicht** auf `engine=hermes\|hybrid` (`127.0.0.1:9119` + Session-Token) |
+| Hermes-Desktop-App | **Pflicht** auf `engine=hermes\|hybrid` (URL + **Firmen-Login**) | **Pflicht** auf `engine=hermes\|hybrid` (`127.0.0.1:9119`) |
 
 Die zweite Achse ist die **Engine** der VM (`claude` | `hermes`) — die liest
 der Skill selbst von der VM: auf `hermes` gibt es kein Cockpit, die Oberfläche
 ist das Hermes-Dashboard, und die Hermes-Desktop-App verbindet sich per URL +
-Session-Token statt über eine lokale Registrierung.
+Firmen-Login statt über eine lokale Registrierung.
 
 Die gesamte Mechanik liegt in fertigen, parametrisierten Skripten unter
 `scripts/` (bash für macOS/Linux, PowerShell für natives Windows) — der Skill
@@ -73,7 +73,7 @@ Update.
 
 `engine=hermes`:
 
-- **Hermes-Desktop-App** (Pflicht): URL + Session-Token vom Admin,
+- **Hermes-Desktop-App** (Pflicht): URL vom Admin, Anmeldung per Firmen-Login,
   `references/hermes-desktop-app.md`
 - **Agent-Dashboard** im Browser als Fallback: gateway `https://<user>-agent.…`,
   tunnel `http://localhost:9119`
@@ -95,7 +95,7 @@ Beide Engines:
 - `references/mutagen.md` — Sync-Semantik, Ignores, Troubleshooting
 - `references/ssh.md` — SSH-Details (BOM/ACL/Passphrase) + Fehlerbilder
 - `references/desktop-app.md` — Claude-Code-Desktop-App (nur engine=claude)
-- `references/hermes-desktop-app.md` — Hermes-Desktop-App: URL + Session-Token
+- `references/hermes-desktop-app.md` — Hermes-Desktop-App: URL + Firmen-Login
   (nur engine=hermes)
 - `references/vscode-remote-ssh.md` — VS Code Remote-SSH
 - `references/ssh-pubkey-handoff.md` — Mail-/Slack-Vorlage für den Pubkey
