@@ -26,7 +26,7 @@
 #                        per @vm:-Referenz (ssh, Heredoc). Laeuft auch OHNE
 #                        vorherige Registrierung (Formular-Pfad): dann werden
 #                        IdP-Typ + User-Namen interaktiv abgefragt.
-#   m365                 Anleitung Teil 5: Outlook/SharePoint-App (Tenant-/
+#   m365                 Anleitung Teil 4: Outlook/SharePoint-App (Tenant-/
 #                        Client-ID, Client-Secret via read -s), SharePoint-
 #                        Sites + nur-lesen, geteilte Postfaecher je User,
 #                        optional Assistenten-Postfach → root-only m365.env +
@@ -508,7 +508,7 @@ ss_idp() {
     echo "Fertig! Gib deinem Mitarbyte-Ansprechpartner kurz Bescheid — dann geht's bei uns weiter."
 }
 
-# --- Modus: m365 (Anleitung Teil 5) ------------------------------------------
+# --- Modus: m365 (Anleitung Teil 4) ------------------------------------------
 
 # $1 = Frage, $2 = Default (j|n) → rc 0 bei ja
 ss_ask_yn() {
@@ -554,7 +554,7 @@ ss_m365() {
     fi
 
     echo ""
-    echo "== Mitarbyte KI-OS — Outlook & SharePoint anbinden (Teil 5) =="
+    echo "== Mitarbyte KI-OS — Outlook & SharePoint anbinden (Teil 4) =="
     echo "   Die Werte bleiben auf DIESER VM (root-only) — nichts davon wird gemailt."
     echo ""
 
@@ -577,7 +577,7 @@ ss_m365() {
 
     local tenant client secret
     while :; do
-        ss_ask "TENANT_ID (Verzeichnis-ID der App aus Teil 5)" "$d_tenant"
+        ss_ask "TENANT_ID (Verzeichnis-ID der App aus Teil 4)" "$d_tenant"
         tenant="$SS_ANSWER"
         ss_valid_guid "$tenant" && break
         echo "     Das ist keine GUID (Muster: 8-4-4-4-12 Hex-Zeichen) — bitte pruefen (nicht die Objekt-ID!)."
@@ -591,7 +591,7 @@ ss_m365() {
         fi
         if [ -n "$idp_client" ] && [ "$client" = "$idp_client" ]; then
             echo "     ACHTUNG: Das ist die App aus Teil 3 (Firmen-Login). Fuer Outlook & SharePoint"
-            echo "     gehoert eine EIGENE App her (Teil 5), sonst haengt der VM-Login daran."
+            echo "     gehoert eine EIGENE App her (Teil 4), sonst haengt der VM-Login daran."
             ss_ask_yn "     Trotzdem diese App verwenden?" n || continue
         fi
         break
@@ -606,7 +606,7 @@ ss_m365() {
         echo ""
         [ -z "$secret" ] && secret="$d_secret"
         [ -n "$secret" ] && break
-        echo "     Das Secret darf nicht leer sein (Teil 5, CLIENT_SECRET erzeugen)."
+        echo "     Das Secret darf nicht leer sein (Teil 4, CLIENT_SECRET erzeugen)."
     done
 
     local want_ol want_sp d_ol=j d_sp=j tools=""
@@ -734,7 +734,7 @@ ss_m365() {
     echo "[ok] Werte gespeichert — sie bleiben auf dieser VM (nur root kann sie lesen)."
     if [ "$want_ol" = 1 ]; then
         echo "     Outlook: jeder Mitarbeiter sagt nach der Einrichtung seinem Assistenten"
-        echo "     \"Melde mich bei Outlook an\" (Teil 4) — nacheinander, nicht gleichzeitig."
+        echo "     \"Melde mich bei Outlook an\" (Teil 5) — nacheinander, nicht gleichzeitig."
     fi
     echo ""
     echo "Fertig! Gib deinem Mitarbyte-Ansprechpartner kurz Bescheid — dann geht's bei uns weiter."
