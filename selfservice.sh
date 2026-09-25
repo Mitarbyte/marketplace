@@ -92,7 +92,7 @@ ss_valid_email() {
 
 # SharePoint-Site-URL: https://<tenant>.sharepoint.com/(sites|teams)/<Name>
 ss_valid_sp_site() {
-    printf '%s' "$1" | grep -Eq '^https://[A-Za-z0-9-]+\.sharepoint\.com/(sites|teams)/[^ ,/]+$'
+    printf '%s' "$1" | grep -Eq '^https://[A-Za-z0-9-]+\.sharepoint\.com(/(sites|teams)/[^ ,/]+)?$'
 }
 
 # Postfach-Adresse → Instanz-Slug (Local-Part, a-z0-9-). Byte-identisch zu
@@ -629,12 +629,12 @@ ss_m365() {
     if [ "$want_sp" = 1 ]; then
         echo ""
         while :; do
-            ss_ask "SharePoint-Sites aus eurer Tabelle, durch Komma getrennt (https://<firma>.sharepoint.com/sites/<Name>)" "$d_sites"
+            ss_ask "SharePoint-Sites aus eurer Tabelle, durch Komma getrennt (https://<firma>.sharepoint.com/sites/<Name>; Startseite = nur https://<firma>.sharepoint.com)" "$d_sites"
             sites="$(printf '%s' "$SS_ANSWER" | tr -d ' ' | sed -e 's#/,#,#g' -e 's#/$##')"
             bad=0
             [ -n "$sites" ] || bad=1
             for site in $(printf '%s' "$sites" | tr ',' ' '); do
-                ss_valid_sp_site "$site" || { echo "     '${site}' ist keine Site-Adresse (Muster: https://firma.sharepoint.com/sites/Name)."; bad=1; }
+                ss_valid_sp_site "$site" || { echo "     '${site}' ist keine Site-Adresse (Muster: https://firma.sharepoint.com/sites/Name — oder nur https://firma.sharepoint.com fuer die Startseite/Intranet)."; bad=1; }
             done
             [ "$bad" = 0 ] && break
         done

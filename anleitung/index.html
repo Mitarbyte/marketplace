@@ -980,7 +980,7 @@ CLIENT_SECRET  = Xyz~aBcD.....EfGh</code></pre></div>
 <li><strong>Geteiltes Postfach:</strong> Der Mitarbeiter hat heute schon Zugriff darauf (Freigabe in Exchange). Die KI nutzt es über seine Anmeldung mit, es braucht <strong>keinen eigenen Login</strong>.</li>
 <li><strong>Assistenten-Postfach:</strong> Ein Konto <strong>mit eigener Anmeldung</strong>, also mit Lizenz oder als freigegebenes Postfach mit gesetztem Kennwort. Die KI meldet sich damit selbst an und schreibt unter dieser Adresse.</li>
 </ul>
-<p>Die Adresse einer SharePoint-Site kopierst du am einfachsten aus der Adresszeile, wenn ihre Startseite offen ist: alles bis einschließlich des Site-Namens.</p>
+<p>Die Adresse einer SharePoint-Site kopierst du am einfachsten aus der Adresszeile, wenn ihre Startseite offen ist: alles bis einschließlich des Site-Namens. Soll die KI auch auf eure <strong>Startseite</strong> (das „Intranet“, <code>https://firma.sharepoint.com</code> ohne <code>/sites/…</code>), trägst du genau diese Adresse ein, sie ist eine Site wie jede andere.</p>
 </div>
 <div class="slide" data-slide="step" data-step="35-anbindungen-m365--app-registrierung-anlegen">
 <h3 class="step" id="35-anbindungen-m365--app-registrierung-anlegen">App-Registrierung anlegen</h3>
@@ -1048,15 +1048,22 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <p>Die Freigabe pro Site setzt ihr im <strong>Graph Explorer</strong>, einer Web-Oberfläche von Microsoft. Es braucht dafür keine PowerShell.</p>
 <ol>
 <li><a href="https://developer.microsoft.com/de-de/graph/graph-explorer" target="_blank" rel="noopener">Graph Explorer</a> öffnen und oben rechts mit dem <strong>Admin-Konto</strong> anmelden.</li>
-<li>Unter dem Adressfeld den Tab <strong>„Berechtigungen ändern&quot;</strong> öffnen und bei <strong><code>Sites.Read.All</code></strong> und <strong><code>Sites.FullControl.All</code></strong> jeweils <strong>„Zustimmen&quot;</strong> klicken. Im Dialog von Microsoft <strong>„Im Namen Ihrer Organisation zustimmen&quot;</strong> anhaken (sieht nur ein Globaler Administrator).</li>
-<li>Methode <strong><code>GET</code></strong>, Adresse wie unten mit eurem Firmen- und Site-Namen, <strong>„Abfrage ausführen&quot;</strong>. Aus der Antwort das Feld <strong><code>id</code></strong> komplett kopieren, es hat die Form <code>firma.sharepoint.com,&lt;guid&gt;,&lt;guid&gt;</code>.</li>
+<li><strong>Zuerst die Adresse eintragen</strong>, Methode <strong><code>GET</code></strong>, mit eurem Firmen- und Site-Namen:</li>
 </ol>
 <div class="codewrap"><pre><code>https://graph.microsoft.com/v1.0/sites/firma.sharepoint.com:/sites/Verwaltung</code></pre></div>
+<p>Für die <strong>Startseite</strong> (Intranet) lautet die Adresse stattdessen <code>https://graph.microsoft.com/v1.0/sites/root</code>.</p>
+<ol start="3">
+<li><strong>Jetzt</strong> unter dem Adressfeld den Tab <strong>„Berechtigungen ändern&quot;</strong> öffnen und bei <strong><code>Sites.Read.All</code></strong> und <strong><code>Sites.FullControl.All</code></strong> jeweils <strong>„Zustimmen&quot;</strong> klicken. Im Dialog von Microsoft <strong>„Im Namen Ihrer Organisation zustimmen&quot;</strong> anhaken (sieht nur ein Globaler Administrator).</li>
+</ol>
+<blockquote><p><strong>Die Reihenfolge ist wichtig.</strong> Der Tab zeigt immer nur die Berechtigungen, die zu der Adresse passen, die gerade im Feld steht — über der Liste steht deshalb „One of the following permissions is required to run the query&quot;. Solange dort noch die Start-Adresse <code>https://graph.microsoft.com/v1.0/me</code> steht, seht ihr nur <code>User.Read</code>, <code>Directory.Read.All</code> und ähnliche, und <code>Sites.…</code> taucht <strong>gar nicht</strong> auf. Das ist kein Fehler von euch: erst mit der Site-Adresse im Feld erscheinen die beiden Sites-Berechtigungen.</p></blockquote>
 <ol start="4">
+<li><strong>„Abfrage ausführen&quot;</strong>. Aus der Antwort das Feld <strong><code>id</code></strong> komplett kopieren, es hat die Form <code>firma.sharepoint.com,&lt;guid&gt;,&lt;guid&gt;</code>.</li>
+</ol>
+<ol start="5">
 <li>Methode auf <strong><code>POST</code></strong> stellen, Adresse mit der eben kopierten <code>id</code>:</li>
 </ol>
 <div class="codewrap"><pre><code>https://graph.microsoft.com/v1.0/sites/&lt;id&gt;/permissions</code></pre></div>
-<ol start="5">
+<ol start="6">
 <li>Im Tab <strong>„Anforderungstext&quot;</strong> das hier einsetzen, eure <code>CLIENT_ID</code> eintragen und <strong>„Abfrage ausführen&quot;</strong>. Die Antwort <strong>201 Created</strong> heißt: freigegeben. Soll die KI auf dieser Site auch <strong>Dateien anlegen oder ändern</strong>, <code>&quot;write&quot;</code> statt <code>&quot;read&quot;</code> eintragen.</li>
 </ol>
 <div class="codewrap"><pre><code>{
@@ -1065,9 +1072,9 @@ Files.Read  Files.ReadWrite</code></pre></div>
     { &quot;application&quot;: { &quot;id&quot;: &quot;&lt;CLIENT_ID&gt;&quot;, &quot;displayName&quot;: &quot;Mitarbyte KI-OS M365&quot; } }
   ]
 }</code></pre></div>
-<ol start="6">
-<li>Punkte 3 bis 5 für <strong>jede weitere Site</strong> aus eurer Tabelle wiederholen.</li>
-<li><strong>Aufräumen:</strong> In Entra unter <strong>Unternehmensanwendungen → „Graph Explorer&quot; → Berechtigungen</strong> die Zustimmung aus Punkt 2 wieder entziehen. Die Freigaben der Sites bleiben davon unberührt.</li>
+<ol start="7">
+<li>Punkte 2 bis 6 für <strong>jede weitere Site</strong> aus eurer Tabelle wiederholen.</li>
+<li><strong>Aufräumen:</strong> In Entra unter <strong>Unternehmensanwendungen → „Graph Explorer&quot; → Berechtigungen</strong> die Zustimmung aus Punkt 3 wieder entziehen. Die Freigaben der Sites bleiben davon unberührt.</li>
 </ol>
 <blockquote><p><strong>404 bei <code>GET</code></strong> heißt fast immer: Site-Pfad falsch geschrieben (Groß-/Kleinschreibung zählt), nicht fehlende Rechte. Die Adresse der Site in der Adresszeile des Browsers ist die Vorlage.</p></blockquote>
 </div>
@@ -1118,47 +1125,6 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <li>Werte auf der VM hinterlegen: <code>bash /root/mitarbyte.sh m365</code>, danach <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> Bescheid geben. Jeder Mitarbeiter meldet sich in Teil 5 einmal bei Outlook an.</li>
 </ol>
 </details>
-</div>
-</section>
-<section class="block" id="block-tool-messdienst" data-block="tool-messdienst" hidden>
-<div class="slide" data-slide="intro">
-<h2 class="block-title">Was der Kunde bei seinen Messdienstleistern beantragen muss</h2>
-<p>Kundenanleitung für <code>messdienst-mcp</code>. Ziel: die Werte für <code>.env</code> beschaffen — <strong>je Messdienstleister einmal</strong>.</p>
-<p>Der Kunde kann nichts davon selbst in einem Portal zusammenklicken. Alles läuft über den <strong>Kundenberater des jeweiligen Anbieters</strong>.</p>
-<h3>Kurzfassung für das Sales-/Delivery-Gespräch</h3>
-<blockquote><p>„Wir brauchen von jedem Ihrer Messdienstleister die Zugangsdaten für die bved-Webservices (Dokumente, Verbrauchsdaten, Nutzerwechsel). Das ist die standardisierte Schnittstelle, über die auch Hausverwaltungssoftware Daten zieht — bei ista, Techem, KALO, Metromess und MONT jeweils dieselbe.&quot;</p></blockquote>
-<p><strong>Mit einem Anbieter anfangen.</strong> Der Server läuft mit einem genauso wie mit fünfen; jeder weitere ist danach nur ein Block in der <code>.env</code>. Sinnvoll ist der Anbieter mit den meisten Liegenschaften oder dem größten Portal-Aufwand.</p>
-<h3>Erst klären: gibt der Anbieter die Schnittstelle frei?</h3>
-<p>Die Webservices sind standardisiert, die <strong>Freigabe ist es nicht</strong>. Jeder Anbieter knüpft sie an eigene Bedingungen — teils an ein bestimmtes Vertragsprodukt (Brunata z. B. an INTAS), teils an eine Zusatzvereinbarung, teils an nichts weiter als eine Anfrage.</p>
-<p><strong>Vor allem anderen klären</strong>, sonst kostet ein „wir schauen mal&quot; Wochen. Diese Frage gilt pro Anbieter — dass ista freigibt, sagt nichts über Techem.</p>
-<h3>Was der Kunde anfragt</h3>
-<p>Beim Kundenberater des Anbieters (der Ansprechpartner der Hausverwaltung, nicht die allgemeine Hotline) — am besten schriftlich:</p>
-<blockquote><p>Wir möchten die bved-/ARGE-Webservices nutzen und benötigen dafür:</p><p>1. die <strong>Basis-URLs</strong> der Services, die Sie bereitstellen: - Dokumentenwebservice (bved documents 1.3) - Verbrauchsdaten (ARGE consumption-data 1.2.1, EED/uVI) - Nutzerwechsel/Rollen (ARGE on-site-roles) 2. die <strong>Zugangsdaten</strong>: entweder OAuth-2.0-Client-Credentials (Token-URL, Client-ID, Client-Secret) oder HTTP-Basic (Benutzer/Passwort) 3. die Angabe, <strong>welche Version von on-site-roles</strong> Sie bereitstellen (1.2 oder 2.0) 4. unsere <strong>Kundennummer</strong> bei Ihnen (<code>propertymanagement</code> in den Dokument-Metadaten)</p></blockquote>
-<p>Nicht jeder Anbieter stellt alle drei Services bereit. Was fehlt, ist kein Fehler — der Server registriert dann für diesen Anbieter nur die möglichen Aufrufe und weist ihn bei den übrigen mit einem Hinweis auf die Anbieter ab, die den Service haben.</p>
-<h3>Werte-Checkliste je Anbieter</h3>
-<p><code>&lt;ANBIETER&gt;</code> ist ein frei wählbarer Kurzname in Großbuchstaben (z. B. <code>ISTA</code>, <code>TECHEM</code>, <code>KALO</code>, <code>METROMESS</code>, <code>MONT</code>). Er erscheint in den Tools als <code>provider</code>.</p>
-<div class="tablewrap"><table><thead><tr><th>Wert</th><th>Wohin</th><th>Woher</th></tr></thead><tbody><tr><td>Basis-URL Dokumente</td><td><code>MESSDIENST_&lt;ANBIETER&gt;_DOCUMENTS_URL</code></td><td>Kundenberater</td></tr><tr><td>Basis-URL Verbrauchsdaten</td><td><code>MESSDIENST_&lt;ANBIETER&gt;_CONSUMPTION_URL</code></td><td>Kundenberater</td></tr><tr><td>Basis-URL Nutzerwechsel</td><td><code>MESSDIENST_&lt;ANBIETER&gt;_ONSITE_ROLES_URL</code></td><td>Kundenberater</td></tr><tr><td>Auth-Verfahren</td><td><code>MESSDIENST_&lt;ANBIETER&gt;_AUTH_MODE</code></td><td><code>oidc</code> (Default) oder <code>basic</code></td></tr><tr><td>Token-URL / Client-ID / Client-Secret</td><td><code>…_TOKEN_URL</code>, <code>…_CLIENT_ID</code>, <code>…_CLIENT_SECRET</code></td><td>nur bei <code>oidc</code></td></tr><tr><td>Benutzer / Passwort</td><td><code>…_USERNAME</code>, <code>…_PASSWORD</code></td><td>nur bei <code>basic</code></td></tr></tbody></table></div>
-<p>Die Basis-URL ist der Präfix <strong>vor</strong> den Spec-Pfaden: <code>&lt;URL&gt;/documents/out/count</code> muss den Zähl-Endpunkt treffen. Liefert der Anbieter eine URL, die schon auf <code>/documents</code> endet, gehört dieser Teil nicht in die Env-Variable.</p>
-<blockquote><p><strong>Kurznamen exakt gleich schreiben.</strong> <code>MESSDIENST_TECHEM_…</code> und <code>MESSDIENST_TECHEN_…</code> ergeben zwei Anbieter, von denen einer halb konfiguriert ist. Das Startlog listet alle erkannten Anbieter.</p></blockquote>
-<h3>Erster Test nach dem Eintragen</h3>
-<div class="codewrap"><pre><code>npm run build &amp;&amp; npm start</code></pre></div>
-<p>Das Startlog listet jeden erkannten Anbieter mit Auth-Verfahren und Services. <strong>Zuerst dort prüfen</strong>, ob die Liste stimmt — Tippfehler fallen hier auf.</p>
-<p>Dann im Client:</p>
-<ol>
-<li><code>messdienst_list_providers</code> — Konfiguration ohne Netzwerkaufruf</li>
-<li><code>messdienst_status</code> — Auth und Erreichbarkeit aller Anbieter</li>
-<li><code>messdienst_count_documents</code> — der Rundruf: wo liegt Material?</li>
-</ol>
-<p>Häufige Befunde:</p>
-<div class="tablewrap"><table><thead><tr><th>Befund</th><th>Bedeutung</th></tr></thead><tbody><tr><td><code>401</code></td><td>Zugangsdaten falsch oder <code>TOKEN_URL</code> zeigt nicht auf den Token-Endpunkt</td></tr><tr><td><code>403</code></td><td>Zugangsdaten gültig, aber der Service ist für diesen Vertrag nicht freigeschaltet — zurück zum Kundenberater</td></tr><tr><td><code>501</code></td><td>Dieser Anbieter bietet den Endpunkt nicht an (ein anderer kann ihn haben)</td></tr><tr><td><code>nicht erreichbar</code></td><td>Basis-URL falsch (oft ein zu viel oder zu wenig gesetzter Pfadteil)</td></tr></tbody></table></div>
-<p>Jede Fehlermeldung trägt den Anbieternamen (<code>[techem] …</code>) und nennt die zu prüfende Env-Variable mit vollem Präfix.</p>
-<h3>Was die Schnittstelle nicht kann</h3>
-<p><strong>Sie sagt nicht, bei welchem Messdienst eine Liegenschaft geführt wird.</strong> Jeder Anbieter kennt nur seine eigenen Objekte, und die <code>mscnumber</code>n sind zwischen Anbietern nicht übertragbar. Der Abgleich läuft über die eigene <code>pmnumber</code> (<code>reference.pmnumber</code> in <code>messdienst_list_billing_units</code>) gegen die Hausverwaltungssoftware.</p>
-<p>Das lohnt sich einmalig zu erfassen: danach steht fest, welches Objekt zu welchem <code>provider</code> gehört.</p>
-<h3>Schreibende Tools</h3>
-<p>Beim ersten Aufsetzen <code>MESSDIENST_ENABLE_CRITICAL_WRITES</code> <strong>leer lassen</strong>. Der Server läuft dann rein lesend. Die zwei schreibenden Tools sind einzeln freischaltbar und erst sinnvoll, wenn der lesende Betrieb steht — siehe Abschnitt „Write-Gate&quot; im README.</p>
-<p>Insbesondere <code>document-status</code> erst freigeben, wenn geklärt ist, wohin die heruntergeladenen Dokumente dauerhaft abgelegt werden: eine Empfangsbestätigung ist nicht zurücknehmbar und das Dokument danach beim Anbieter nicht mehr abrufbar.</p>
-<p>Die Freigabe gilt für <strong>alle</strong> Anbieter gleichzeitig — es gibt keine Freigabe je Anbieter.</p>
 </div>
 </section>
 <section class="block" id="block-50-verbinden-gateway" data-block="50-verbinden-gateway" hidden>
@@ -1502,7 +1468,7 @@ Files.Read  Files.ReadWrite</code></pre></div>
 
 <script>
 "use strict";
-var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-hermes", "title": "Teil 2 — Hermes-Desktop-App installieren", "part": "2", "when": [{"k": "engine", "v": "hermes|hybrid"}]}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "35-anbindungen-m365", "title": "Teil 4 — Outlook & SharePoint anbinden", "part": "4", "when": [{"k": "tool", "v": "outlook|sharepoint"}]}, {"id": "tool-messdienst", "title": "Was der Kunde bei seinen Messdienstleistern beantragen muss", "part": "4", "when": [{"k": "tool", "v": "messdienst"}]}, {"id": "50-verbinden-gateway", "title": "Teil 5 — Mit deiner VM verbinden", "part": "5", "when": [{"k": "mode", "v": "gateway"}], "gate": "ready"}, {"id": "50-verbinden-tunnel", "title": "Teil 5 — Mit deiner VM verbinden", "part": "5", "when": [{"k": "mode", "v": "tunnel"}], "gate": "ready"}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
+var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-hermes", "title": "Teil 2 — Hermes-Desktop-App installieren", "part": "2", "when": [{"k": "engine", "v": "hermes|hybrid"}]}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "35-anbindungen-m365", "title": "Teil 4 — Outlook & SharePoint anbinden", "part": "4", "when": [{"k": "tool", "v": "outlook|sharepoint"}]}, {"id": "50-verbinden-gateway", "title": "Teil 5 — Mit deiner VM verbinden", "part": "5", "when": [{"k": "mode", "v": "gateway"}], "gate": "ready"}, {"id": "50-verbinden-tunnel", "title": "Teil 5 — Mit deiner VM verbinden", "part": "5", "when": [{"k": "mode", "v": "tunnel"}], "gate": "ready"}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
 /* Web3Forms-Empfaenger, zur Buildzeit aus admins/web3forms.list eingesetzt:
    {always: "<manager>", keys: {"<manager>": "<access-key>"}}. Access-Keys sind
    public by design (Alias auf ein Postfach, kein Secret). Ein Key = ein
