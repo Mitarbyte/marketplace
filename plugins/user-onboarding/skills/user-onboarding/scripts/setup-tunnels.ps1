@@ -1,0 +1,334 @@
+# =============================================================================
+# setup-tunnels.ps1 - gehaertete SSH-Tunnel-Autostarts (natives Windows)
+#
+#   noVNC:   lokal 6080 -> VM 127.0.0.1:<NOVNC_PORT>
+#   Agenten-Tunnel je Stack (docs/betrieb/vm-management.md Abschnitt 8, ADR 18):
+#     Claude-Stack (-Engine claude|hybrid)  Cockpit:       lokal 3847 -> VM 127.0.0.1:<COCKPIT_PORT>
+#     Hermes-Stack (-Engine hermes|hybrid)  Hermes-Agent:  lokal 9119 -> VM 127.0.0.1:<AGENT_PORT>
+#     Hermes-Stack (-Engine hermes|hybrid)  Artefakte:     lokal 29000 -> VM 127.0.0.1:<ARTIFACTS_PORT>
+#       (Artefakt-Dienst; das Plugin nennt im tunnel-Modus localhost:29000/a/<slug>/ - B-215)
+#   hybrid richtet also VIER Tunnel ein (der Cleanup-Scan raeumt Leichen eines
+#   nicht vorhandenen Stacks weg). Lokal 9119 ist der Hermes-Default, den die
+#   Desktop-App selbst vorschlaegt.
+#
+# Muster: EIN liveness-guarded Scheduled Task `ki-os-vm-watchdog` (mit Autor +
+# Beschreibung, statt mehrerer anonym wirkender Einzel-Tasks) - sein
+# 2-Min-Guard startet ssh NUR, wenn der lokale Port noch nicht lauscht
+# (blinder Respawn leakt SSH-Sessions auf der VM), und haelt zusaetzlich den
+# Mutagen-Daemon am Leben (no-op, bis setup-mutagen.ps1 gelaufen ist).
+# Self-Healing: EIN Durchlauf ueber alle Tasks entfernt vorher jeden
+# alt/falsch benannten Tunnel-/Daemon-Task (inhaltsbasiert) - inkl. der
+# frueheren Einzel-Tasks ki-os-vm-{novnc,cockpit}-tunnel + mutagen-daemon.
+# Haertungs-Begruendung: references/tunnels.md.
+#
+# PowerShell-5.1-kompatibel. Usage:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File setup-tunnels.ps1 `
+#       -NovncPort <VM_PORT> -CockpitPort <VM_PORT>
+#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -AgentPort <n> -ArtifactsPort <n> -Engine hermes
+#   powershell ... -File setup-tunnels.ps1 -NovncPort <n> -CockpitPort <n> -AgentPort <n> -ArtifactsPort <n> -Engine hybrid
+#   powershell ... -File setup-tunnels.ps1 -Remove        # gateway-Modus: Tunnel abbauen
+#   powershell ... -File setup-tunnels.ps1 -MutagenOnly   # frisches gateway-Setup ohne Tunnel
+#   powershell ... -File setup-tunnels.ps1 -EnsureMutagen # additiv: Watchdog nur sicherstellen
+#
+# -Remove und -MutagenOnly erzeugen denselben Endzustand: der Watchdog-Task
+# bleibt (bzw. entsteht), ueberwacht aber NUR noch den Mutagen-Daemon+Session -
+# noVNC/Cockpit kommen im gateway-Modus direkt vom Browser-Gateway der VM.
+#
+# -EnsureMutagen (Aufrufer: setup-mutagen.ps1) ist die NICHT-destruktive
+# Variante fuer den Fall "Mutagen soll laufen, Tunnel-Setup ist (noch) nicht
+# dran": existiert der Watchdog-Task schon, wird er nur gestartet; fehlt er,
+# entsteht er Mutagen-only - aber OHNE den Cleanup-Scan und ohne Orphan-Kill,
+# damit auf tunnel-VMs funktionierende Alt-Tunnel-Tasks unangetastet bleiben.
+# Ein spaeterer voller Lauf (mit Ports) erweitert denselben Task um die Tunnel.
+# =============================================================================
+param(
+    [int]$NovncPort = 0,
+    [int]$CockpitPort = 0,
+    [int]$AgentPort = 0,
+    [int]$ArtifactsPort = 0,
+    [ValidateSet('claude','hybrid','hermes')][string]$Engine = 'claude',
+    [switch]$Remove,
+    [switch]$MutagenOnly,
+    [switch]$EnsureMutagen
+)
+$ErrorActionPreference = 'Stop'
+
+$tunnelLess = [bool]($Remove -or $MutagenOnly -or $EnsureMutagen)
+# Agenten-Tunnel nach Stack: Cockpit fuer den Claude-Stack (claude|hybrid),
+# Hermes-Dashboard fuer den Hermes-Stack (hermes|hybrid) - hybrid hat beide.
+$wantCockpit   = ($Engine -in @('claude','hybrid'))
+$wantAgent     = ($Engine -in @('hermes','hybrid'))
+$wantArtifacts = ($Engine -in @('hermes','hybrid'))
+if (-not $tunnelLess) {
+    if ($NovncPort -lt 1) { Write-Host "FAIL: -NovncPort fehlt (fuer gateway-VMs: -Remove bzw. -MutagenOnly)."; exit 2 }
+    if ($wantCockpit   -and $CockpitPort   -lt 1) { Write-Host "FAIL: -CockpitPort fehlt (Engine $Engine hat den Claude-Stack)."; exit 2 }
+    if ($wantAgent     -and $AgentPort     -lt 1) { Write-Host "FAIL: -AgentPort fehlt (Engine $Engine hat den Hermes-Stack)."; exit 2 }
+    if ($wantArtifacts -and $ArtifactsPort -lt 1) { Write-Host "FAIL: -ArtifactsPort fehlt (Engine $Engine hat den Hermes-Stack; Wert ARTIFACTS_PORT aus get-vm-values)."; exit 2 }
+}
+
+$sshExe = 'C:\Windows\System32\OpenSSH\ssh.exe'
+if (-not $tunnelLess -and -not (Test-Path $sshExe)) { Write-Host "FAIL: $sshExe fehlt - check-prereqs.ps1 laufen lassen."; exit 1 }
+
+$binDir = Join-Path $env:USERPROFILE '.local\bin'
+New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+
+$taskName = 'ki-os-vm-watchdog'
+$tunnels = @(
+    @{ Label = 'noVNC';        LocalPort = 6080;         RemotePort = $NovncPort }
+)
+if ($wantCockpit)   { $tunnels += @{ Label = 'Cockpit';          LocalPort = 3847;  RemotePort = $CockpitPort } }
+if ($wantAgent)     { $tunnels += @{ Label = 'Hermes-Dashboard'; LocalPort = 9119;  RemotePort = $AgentPort } }
+if ($wantArtifacts) { $tunnels += @{ Label = 'Artefakte';        LocalPort = 29000; RemotePort = $ArtifactsPort } }
+
+# --- -EnsureMutagen: existierender Watchdog reicht, egal welche Variante --------
+# Ob der Task die volle Tunnel-Fassung oder die Mutagen-only-Fassung faehrt:
+# beide halten Daemon + Session am Leben. Nichts neu registrieren (das wuerde
+# eine Tunnel-Fassung auf Mutagen-only zurueckstufen), nur starten.
+if ($EnsureMutagen -and (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+    Start-ScheduledTask -TaskName $taskName
+    Write-Host "OK: Scheduled Task $taskName existiert bereits - gestartet, nichts veraendert."
+    exit 0
+}
+
+# --- Cleanup (Self-Healing): EIN Scan ueber alle Tasks --------------------------
+# Entfernt jeden Task, der einen ssh -L auf einen unserer lokalen Ports ODER
+# `mutagen daemon run` faehrt (egal wie benannt, inkl. der vom Task verlinkten
+# .vbs/.ps1-Dateien) - faengt die frueheren Einzel-Tasks, beliebige Altlasten
+# und den Watchdog selbst (wird gleich frisch registriert). Separator-Klasse
+# [''",\s] matcht beide Arg-Formate ('-L 6080:...' und '-L','6080:...').
+# Cleanup-Ports: ALLE moeglichen Stack-Tunnel (3847, 9119, 29000), nicht nur die
+# der aktuellen Engine. So raeumt derselbe Scan nach einem Engine-Wechsel den
+# Tunnel der alten Engine mit ab, statt ihn als Leiche auf einem toten VM-Port
+# weiterlaufen zu lassen.
+# Im -EnsureMutagen-Modus entfaellt der KOMPLETTE Scan samt Orphan-Kill: der
+# Modus ist additiv und darf funktionierende Alt-Tunnel-Tasks nicht anfassen.
+# Einzige Ausnahme: der fruehere Einzel-Task 'mutagen-daemon' (rein Mutagen,
+# wird vom neuen Watchdog abgeloest - zwei Daemon-Keeper waeren nur Rauschen).
+if ($EnsureMutagen) {
+    Unregister-ScheduledTask -TaskName 'mutagen-daemon' -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $binDir 'mutagen-daemon-hidden.vbs') -ErrorAction SilentlyContinue
+} else {
+    $portAlt = ((($tunnels | ForEach-Object { $_.LocalPort }) + @(3847, 9119, 29000)) | Sort-Object -Unique) -join '|'
+    $taskPattern   = '-L[''",\s]+(' + $portAlt + '):127\.0\.0\.1:\d+|mutagen(\.exe)?[''"\s]+daemon\s+run'
+    $orphanPattern = '-L\s*('       + $portAlt + '):127\.0\.0\.1:'
+    $fileRx        = '([A-Za-z]:\\[^"'' ]+\.(?:vbs|ps1))'
+
+    foreach ($t in (Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+        $blob = ($t.Actions | ForEach-Object { "$($_.Execute) $($_.Arguments)" }) -join ' '
+        # Verlinkte Skripte REKURSIV einlesen (VBS-Launcher -> Guard-.ps1): der
+        # ssh -L steht erst in der zweiten Stufe. Besucht-Set gegen Zyklen.
+        $seen  = @{}
+        $queue = New-Object System.Collections.Queue
+        [regex]::Matches($blob, $fileRx) | ForEach-Object { $queue.Enqueue($_.Groups[1].Value) }
+        while ($queue.Count -gt 0) {
+            $p = $queue.Dequeue()
+            if ($seen.ContainsKey($p) -or -not (Test-Path $p)) { continue }
+            $seen[$p] = $true
+            $content = [string](Get-Content -Raw $p -ErrorAction SilentlyContinue)
+            $blob += ' ' + $content
+            [regex]::Matches($content, $fileRx) | ForEach-Object { $queue.Enqueue($_.Groups[1].Value) }
+        }
+        if ($blob -match $taskPattern) {
+            Unregister-ScheduledTask -TaskName $t.TaskName -Confirm:$false -ErrorAction SilentlyContinue
+            Write-Host "CLEANUP: alter Task '$($t.TaskName)' entfernt."
+        }
+    }
+
+    # Sicherheitsgurt zum Inhalts-Scan: die frueheren Einzel-Tasks zusaetzlich
+    # namensbasiert entfernen + deren Artefakte loeschen (Bestands-User).
+    foreach ($n in @('ki-os-vm-novnc-tunnel', 'ki-os-vm-cockpit-tunnel', 'mutagen-daemon')) {
+        Unregister-ScheduledTask -TaskName $n -Confirm:$false -ErrorAction SilentlyContinue
+    }
+    foreach ($f in @('ki-os-vm-novnc-tunnel.ps1', 'ki-os-vm-novnc-tunnel.vbs',
+                     'ki-os-vm-cockpit-tunnel.ps1', 'ki-os-vm-cockpit-tunnel.vbs',
+                     'mutagen-daemon-hidden.vbs')) {
+        Remove-Item (Join-Path $binDir $f) -ErrorAction SilentlyContinue
+    }
+
+    # Verwaiste ssh-Tunnel auf genau diesen Ports beenden (Leak-Reste; Mutagen +
+    # interaktive SSH bleiben unberuehrt, da nach -L <localPort> gefiltert wird).
+    Get-CimInstance Win32_Process -Filter "Name='ssh.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match $orphanPattern } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+}
+
+# --- Guard-Skript: startet nur, was fehlt -----------------------------------------
+# Im tunnelLess-Modus (gateway) enthaelt der Guard KEINE ssh-Tunnel-Bloecke -
+# er ueberwacht nur noch Mutagen-Daemon + Session.
+$guard = Join-Path $binDir "$taskName.ps1"
+
+# EIN Block je Eintrag in $tunnels (noVNC + je Stack-Tunnel). Die fruehere
+# Fassung kannte nur einen "zweiten" Tunnel ueber Variablen, die seit dem
+# Umbau auf die Liste nirgends mehr gesetzt wurden (B-232).
+$tunnelBlock = "# Tunnel: ssh NUR starten, wenn der lokale Port noch nicht lauscht`r`n# (blinder Respawn leakt SSH-Sessions auf der VM).`r`n"
+foreach ($tn in $tunnels) {
+    $tunnelBlock += @"
+if (-not (Get-NetTCPConnection -LocalPort $($tn.LocalPort) -State Listen)) {
+    Start-Process -WindowStyle Hidden -FilePath '$sshExe' -ArgumentList @(
+        '-N','-o','ExitOnForwardFailure=yes','-o','ServerAliveInterval=15',
+        '-o','ServerAliveCountMax=3','-o','ConnectTimeout=10','-o','TCPKeepAlive=yes',
+        '-o','StrictHostKeyChecking=accept-new',
+        '-L','$($tn.LocalPort):127.0.0.1:$($tn.RemotePort)','ki-os-vm')
+}
+
+"@
+}
+if ($tunnelLess) {
+    $tunnelBlock = "# Keine Tunnel in diesem Guard: gateway-Modus (noVNC/Cockpit kommen vom`r`n# Browser-Gateway der VM) oder Mutagen-only-Setup (Tunnel folgen ggf. per`r`n# setup-tunnels.ps1 mit Ports - der Lauf erweitert diesen Guard).`r`n`r`n"
+}
+
+@"
+# KI-OS-Watchdog - generiert von setup-tunnels.ps1, laeuft alle 2 Minuten.
+`$ErrorActionPreference = 'SilentlyContinue'
+
+$tunnelBlock# Transport auf Windows-OpenSSH festnageln, BEVOR der Daemon startet: Mutagen
+# sucht sein ssh selbst und bevorzugt sonst die Git-for-Windows-MSYS2-ssh, deren
+# Pipe-Emulation den Agent-Transport haengen lassen kann (Session bleibt in
+# "Applying changes", 'sync pause' antwortet nicht mehr). Der Daemon erbt die
+# Variable nur, wenn sie hier im Guard-Prozess gesetzt ist.
+if (Test-Path 'C:\Windows\System32\OpenSSH\ssh.exe') {
+    `$env:MUTAGEN_SSH_PATH = 'C:\Windows\System32\OpenSSH'
+}
+
+# Mutagen-Daemon: no-op, bis setup-mutagen.ps1 gelaufen ist. Prozess-Check
+# spart Spawns; der Daemon-Lock macht selbst einen blinden Respawn leak-frei.
+`$mutagen = Join-Path `$env:USERPROFILE '.local\bin\mutagen.exe'
+if (-not (Test-Path `$mutagen)) { `$mutagen = (Get-Command mutagen).Source }
+if (`$mutagen -and -not (Get-Process -Name mutagen)) {
+    Start-Process -WindowStyle Hidden -FilePath `$mutagen -ArgumentList 'daemon','run'
+}
+
+# Mutagen-Session: Der Daemon-Prozess allein garantiert keine laufende Session.
+# Eine nach langem VM-Idle-Suspend in paused/halted gelaufene Session heilt sich
+# nicht selbst -> resume. Idempotent (no-op auf 'Watching for changes').
+# GRENZE: resume heilt NUR paused/halted. Eine Session, die dauerhaft auf
+# 'Applying changes' steht, ist ein anderer Fall - i.d.R. Transition problems
+# (Symlinks ohne Developer Mode) oder ein toter Agent-Transport; resume ist dort
+# ein No-op. Diagnose + Recovery: references/mutagen.md -> Troubleshooting.
+if (`$mutagen -and (Get-Process -Name mutagen)) {
+    `$syncState = & `$mutagen sync list ki-os 2>`$null | Out-String
+    if (`$syncState -and (`$syncState -notmatch 'Watching for changes')) {
+        & `$mutagen sync resume ki-os 2>`$null
+    }
+}
+
+# Blockierte VM-Loeschungen aufloesen: raeumt ein Agent auf der VM einen Ordner
+# weg, bleibt er lokal KOMPLETT stehen, solange darin ignorierte Reste liegen
+# (node_modules, __pycache__, .DS_Store) - Mutagen darf sie nicht mitloeschen und
+# meldet stattdessen einen Konflikt. Der Aufloeser raeumt genau diese Reste weg
+# (verschiebt sie in einen Papierkorb), danach loescht Mutagen selbst durch.
+# Angelegt von setup-mutagen.ps1; fehlt er, ist das ein No-op.
+`$resolver = Join-Path `$env:USERPROFILE '.local\bin\ki-os-sync-resolve.ps1'
+if (Test-Path `$resolver) { & `$resolver }
+"@ | Set-Content -Path $guard -Encoding ASCII
+
+# Unsichtbarer VBS-Launcher (wscript = GUI-Subsystem, kein Konsolen-Popup)
+$vbs = Join-Path $binDir "$taskName.vbs"
+$psCall = 'powershell.exe -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File ""{0}""' -f $guard
+$line = 'CreateObject("WScript.Shell").Run "{0}", 0, False' -f $psCall
+Set-Content -Path $vbs -Value $line -Encoding ASCII
+
+# --- Task registrieren ------------------------------------------------------------
+$action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "`"$vbs`""
+
+# Trigger: beim Login + alle 2 Min als Watchdog. -RepetitionDuration ist
+# Pflicht (sonst feuert der Task auf Win11 24H2 nur EINMAL). NICHT
+# [TimeSpan]::MaxValue (HRESULT 0x80041318) - P9999D ist akzeptiert und
+# effektiv unendlich.
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$trigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 2) `
+    -RepetitionDuration (New-TimeSpan -Days 9999)).Repetition
+
+# ExecutionTimeLimit 0 = kein 72h-Kill. RestartInterval >= 1 Min (PT30S ->
+# HRESULT 0x80041318).
+$settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -StartWhenAvailable `
+    -MultipleInstances IgnoreNew `
+    -ExecutionTimeLimit (New-TimeSpan -Seconds 0) `
+    -RestartCount 999 `
+    -RestartInterval (New-TimeSpan -Minutes 1)
+
+# Nicht-interaktive Logon-Typen (S4U/Password) liefern 0x800710E0.
+$principal = New-ScheduledTaskPrincipal `
+    -UserId $env:USERNAME `
+    -LogonType Interactive `
+    -RunLevel Limited
+
+# Beschreibung geht direkt ueber den -Description-Parameter (existiert). Autor
+# NICHT ueber $task.RegistrationInfo.Author setzen: New-ScheduledTask liefert
+# RegistrationInfo=$null, die Zuweisung crasht dann auf PS 5.1 -- und weil der
+# Cleanup oben die Alt-Tasks schon entfernt hat, bliebe das Setup kaputt.
+$tunnelList = ($tunnels | ForEach-Object { "$($_.Label)-Tunnel (localhost:$($_.LocalPort))" }) -join ', '
+$desc = "Haelt die KI-OS-Verbindungen am Leben: $tunnelList und Mutagen-Sync-Daemon. Prueft alle 2 Minuten und startet nur, was fehlt. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task."
+if ($tunnelLess) {
+    $desc = 'Haelt den KI-OS Mutagen-Sync am Leben (Daemon + Session ki-os). Keine Tunnel - noVNC/Cockpit laufen ueber das Browser-Gateway der VM. Prueft alle 2 Minuten. Eingerichtet vom user-onboarding-Skill; ein erneuter Skill-Lauf erneuert diesen Task.'
+}
+if ($EnsureMutagen) {
+    $desc = 'Haelt den KI-OS Mutagen-Sync am Leben (Daemon + Session ki-os). Prueft alle 2 Minuten. Eingerichtet vom user-onboarding-Skill (Mutagen-only); ein voller setup-tunnels-Lauf erweitert diesen Task um die Tunnel.'
+}
+
+Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+Register-ScheduledTask `
+    -TaskName $taskName `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -Principal $principal `
+    -Description $desc | Out-Null
+
+# Autor best-effort per XML-Roundtrip nachtragen (Register-ScheduledTask kennt
+# keinen -Author-Parameter). Schlaegt das fehl, laeuft der Task trotzdem --
+# er hat dann nur keinen Autor im Task Scheduler, ist aber voll funktional.
+try {
+    [xml]$xml = Export-ScheduledTask -TaskName $taskName
+    $nsUri = $xml.DocumentElement.NamespaceURI
+    # local-name()-XPath = namespace-agnostisch (Export setzt einen Default-NS).
+    $reg = $xml.SelectSingleNode('/*[local-name()="Task"]/*[local-name()="RegistrationInfo"]')
+    if (-not $reg) {
+        $reg = $xml.CreateElement('RegistrationInfo', $nsUri)
+        $xml.DocumentElement.InsertBefore($reg, $xml.DocumentElement.FirstChild) | Out-Null
+    }
+    # Windows setzt <Author> beim Register oft automatisch auf den erstellenden
+    # User -> vorhandenen Knoten hart auf 'Mitarbyte' ueberschreiben statt nur
+    # anlegen. Fehlt er, schema-konform VOR Version/Description/Documentation
+    # einfuegen (registrationInfoType ist eine feste xs:sequence, sonst lehnt
+    # Register-ScheduledTask -Xml die XML ab).
+    $authorEl = $reg.SelectSingleNode('*[local-name()="Author"]')
+    if (-not $authorEl) {
+        $authorEl = $xml.CreateElement('Author', $nsUri)
+        $anchor = $reg.SelectSingleNode('*[local-name()="Version" or local-name()="Description" or local-name()="Documentation"]')
+        if ($anchor) { $reg.InsertBefore($authorEl, $anchor) | Out-Null }
+        else { $reg.AppendChild($authorEl) | Out-Null }
+    }
+    $authorEl.InnerText = 'Mitarbyte'
+    # Kein -User: der Principal (LogonType Interactive) steckt schon in der XML;
+    # -User wuerde ihn ggf. auf Password/S4U umbiegen (0x800710E0).
+    Register-ScheduledTask -TaskName $taskName -Xml $xml.OuterXml -Force | Out-Null
+} catch {
+    Write-Host "WARN: Autor 'Mitarbyte' nicht gesetzt ($($_.Exception.Message)) - Task laeuft trotzdem."
+}
+
+Start-ScheduledTask -TaskName $taskName
+if ($EnsureMutagen) {
+    Write-Host "OK: Scheduled Task $taskName (Mutagen-only) angelegt - ein spaeterer setup-tunnels-Lauf mit Ports erweitert ihn um die Tunnel."
+    exit 0
+}
+if ($tunnelLess) {
+    Write-Host "OK: Scheduled Task $taskName (nur Mutagen-Ueberwachung - keine Tunnel, gateway-Modus)"
+    exit 0
+}
+$tunnelMap = ($tunnels | ForEach-Object { "$($_.Label) lokal $($_.LocalPort) -> VM $($_.RemotePort)" }) -join ', '
+Write-Host "OK: Scheduled Task $taskName ($tunnelMap, Mutagen-Daemon sobald installiert)"
+
+# --- Kurz-Verifikation -----------------------------------------------------------
+Start-Sleep -Seconds 6
+foreach ($tun in $tunnels) {
+    if (Get-NetTCPConnection -LocalPort $tun.LocalPort -State Listen -ErrorAction SilentlyContinue) {
+        Write-Host "VERIFY_OK: localhost:$($tun.LocalPort) lauscht ($($tun.Label))"
+    } else {
+        Write-Host "VERIFY_PENDING: localhost:$($tun.LocalPort) lauscht noch nicht - der 2-Min-Watchdog zieht den Tunnel nach; sonst references/tunnels.md -> Troubleshooting."
+    }
+}
