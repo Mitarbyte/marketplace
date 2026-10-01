@@ -34,7 +34,7 @@ Hub ab:
 Manche CLIs/MCPs nutzen OAuth — keine `.env`-Eintraege noetig, dafuer
 einmaliger Browser-Login. Das laeuft komplett **auf der VM**: der
 `ki-os-auth`-Wrapper startet das CLI mit dem richtigen Display, der
-Browser oeffnet sich im noVNC-Tab (`http://localhost:6080/vnc.html?resize=scale`):
+Browser oeffnet sich im VM-Desktop (Gateway-URL `https://<user>-vnc.…/vnc.html`):
 
 ```bash
 ssh ki-os-vm
@@ -43,7 +43,7 @@ ki-os-auth gws auth login        # Google Workspace (Drive, Gmail, Calendar, Doc
 ki-os-auth gh auth login         # GitHub CLI
 ```
 
-Waehrenddessen den noVNC-Tab offen halten und den Login dort
+Waehrenddessen den VM-Desktop offen halten und den Login dort
 durchklicken.
 
 ## Claude-Code-Auth

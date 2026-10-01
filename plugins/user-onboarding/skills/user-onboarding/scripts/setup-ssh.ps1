@@ -25,8 +25,7 @@ $ErrorActionPreference = 'Stop'
 # wenn der Fall normal ist. Hier zweimal relevant: `ssh-keygen -y -P` bei einem
 # Key MIT Passphrase (dann bricht das Skript ab, statt die FAIL-Diagnose unten
 # auszugeben) und `icacls /remove` fuer SIDs, die auf dem System gar nicht
-# existieren (Normalfall). Gleiche Klasse wie der Abbruch in setup-mutagen.ps1
-# (Jobst/heimatwerft 2026-08-04).
+# existieren (Normalfall).
 function Invoke-NativeQuiet {
     param([Parameter(Mandatory = $true)][scriptblock]$Command)
     $prevEap = $ErrorActionPreference
@@ -65,14 +64,14 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "FAIL: Der Key hat NICHT die erwartete leere Passphrase (Quoting-Problem)."
     Write-Host "  Key loeschen und Skript erneut laufen lassen:"
     Write-Host "  Remove-Item `"$key`", `"$key.pub`" -Force"
-    Write-Host "  Danach den NEUEN Public Key an den Admin schicken - der alte ist ungueltig."
+    Write-Host "  Danach den NEUEN Public Key im Cockpit hinterlegen (System -> SSH-Zugang) - der alte ist ungueltig."
     exit 1
 }
 
 # --- Host-Block ersetzen (idempotent, BOM-frei) --------------------------------
 # Bestehende ki-os-vm-Bloecke (inkl. Altlasten wie ki-os-vm-mux) entfernen,
 # dann die minimale Fassung anhaengen. Bewusst KEIN ControlMaster, KEINE
-# LocalForward-/RemoteForward-Zeilen - Tunnel laufen als Scheduled Tasks mit -L.
+# LocalForward-/RemoteForward-Zeilen (references/ssh.md).
 $kept = New-Object System.Collections.Generic.List[string]
 if (Test-Path $cfg) {
     $skip = $false

@@ -1,7 +1,7 @@
 # =============================================================================
 # check-prereqs.ps1 - Windows-Vorbedingungen in EINEM Durchlauf pruefen/installieren
 #
-#   1. Windows-OpenSSH-Client (Pflicht fuer SSH + Tunnel; Install braucht Admin)
+#   1. Windows-OpenSSH-Client (Pflicht fuer SSH; Install braucht Admin)
 #   2. Git for Windows (Pflicht - Claude Code braucht auf nativem Windows die
 #      Git Bash; dessen ssh.exe wird NICHT verwendet)
 #
@@ -41,4 +41,4 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
     }
 }
 
-Write-Host "HINWEIS: Alle SSH-/Tunnel-Schritte nutzen den nativen Client C:\Windows\System32\OpenSSH\ssh.exe - die Git-Bash-ssh.exe NICHT vor ihn in den PATH stellen."
+Write-Host "HINWEIS: Alle SSH-Schritte nutzen den nativen Client C:\Windows\System32\OpenSSH\ssh.exe - die Git-Bash-ssh.exe NICHT vor ihn in den PATH stellen."

@@ -19,14 +19,13 @@ Host ki-os-vm
 ```
 
 - **Kein `ControlMaster`/`ControlPath`, keine `LocalForward`-/
-  `RemoteForward`-Zeilen, kein Zwei-Alias-Konstrukt.** Die Tunnel laufen als
-  eigene gehärtete Autostart-Prozesse mit `-L` (`references/tunnels.md`) —
-  so bleibt die Config minimal und interaktive SSH-Sessions (Terminal,
-  Desktop-App, VS Code) sind von den Tunneln vollständig entkoppelt.
+  `RemoteForward`-Zeilen, kein Zwei-Alias-Konstrukt.** Die Config bleibt
+  minimal; jede SSH-Session (Terminal, Desktop-App, VS Code) steht für sich,
+  eine hängende Master-Verbindung kann keine andere mitreißen.
 - `ServerAliveInterval 15` / `CountMax 3` / `ConnectTimeout 10` /
-  `TCPKeepAlive yes` gelten für **jede** Verbindung über den Alias — wichtig
-  für **Mutagen**, das den Alias direkt als Transport nutzt: tote SSH-Session
-  in ~45 s erkannt statt bis 180 s zu hängen.
+  `TCPKeepAlive yes` gelten für **jede** Verbindung über den Alias — auch für
+  die Desktop-App, die den Alias direkt nutzt: tote SSH-Session in ~45 s
+  erkannt statt bis 180 s zu hängen.
 - `IdentitiesOnly yes` verhindert `Too many authentication failures` (SSH
   probiert sonst alle Keys aus `~/.ssh/` durch).
 - Das Setup-Skript **ersetzt** einen vorhandenen `ki-os-vm`-Block immer
@@ -50,7 +49,7 @@ Host ki-os-vm
 - **ACL-Permissions:** Windows-OpenSSH bricht bei zu offenen Permissions von
   `config`/Private-Key mit `Bad owner or permissions` ab — das Skript
   repariert die ACLs per `icacls` (Inheritance aus, nur der eigene User).
-- **Nativer OpenSSH-Client:** Alle SSH-/Tunnel-Schritte nutzen
+- **Nativer OpenSSH-Client:** Alle SSH-Schritte nutzen
   `C:\Windows\System32\OpenSSH\ssh.exe`. Git for Windows ist trotzdem
   Pflicht (Claude Code braucht die Git Bash), aber dessen `ssh.exe` nicht
   vor den nativen Client in den PATH stellen.
@@ -66,8 +65,8 @@ ssh -o BatchMode=yes ki-os-vm true   # Exit 0 = OK
 
 | Fehlerbild | Bedeutung / Lösung |
 |---|---|
-| `Permission denied (publickey)` | Admin hat den Key noch nicht hinterlegt, oder falscher Key. Public Key (`~/.ssh/id_ed25519.pub`) erneut an den Admin schicken. Erzwingen: `ssh -i ~/.ssh/id_ed25519 ki-os-vm` |
-| `ssh -v`: erst `Server accepts key`, dann `Permission denied` (Windows) | Key hat eine echte Passphrase (`-N`-Quoting-Problem) — Key neu generieren (`setup-ssh.ps1 -NewKey` nach dem Löschen), NEUEN Public Key schicken |
+| `Permission denied (publickey)` | Key noch nicht hinterlegt, oder falscher Key. Public Key (`~/.ssh/id_ed25519.pub`) erneut im Cockpit hinterlegen (System → „SSH-Zugang"). Erzwingen: `ssh -i ~/.ssh/id_ed25519 ki-os-vm` |
+| `ssh -v`: erst `Server accepts key`, dann `Permission denied` (Windows) | Key hat eine echte Passphrase (`-N`-Quoting-Problem) — Key neu generieren (`setup-ssh.ps1 -NewKey` nach dem Löschen), NEUEN Public Key hinterlegen |
 | `Connection refused` / `timed out` | VM nicht erreichbar — IP falsch oder Firewall. Admin fragen |
 | `Host key verification failed` | Bei neuem VM-Image: `ssh-keygen -R <VM_IP>`, dann einmal `ssh ki-os-vm` manuell und Host-Key akzeptieren |
 | `Bad owner or permissions` (Windows) | ACLs reparieren — `setup-ssh.ps1` erneut laufen lassen |
@@ -82,9 +81,8 @@ Admin entsperrt mit `fail2ban-client set sshd unbanip <IP>`.
 ## Sicherheit
 
 - Der **Public Key ist nicht geheim** — er darf per Slack/Mail geteilt
-  werden (`references/ssh-pubkey-handoff.md` hat Vorlagen). Der Private Key
-  (`~/.ssh/id_ed25519` ohne `.pub`) bleibt strikt lokal und wird nie
-  ausgegeben oder geloggt.
-- Die leere Passphrase ist Default (Autostarts brauchen den Key
-  unbeaufsichtigt); der User kann nachträglich per `ssh-keygen -p` eine
-  setzen — dann aber ssh-agent einrichten, sonst brechen die Tunnel.
+  werden. Der Private Key (`~/.ssh/id_ed25519` ohne `.pub`) bleibt strikt
+  lokal und wird nie ausgegeben oder geloggt.
+- Die leere Passphrase ist Default (die Desktop-App verbindet sich ohne
+  Terminal); der User kann nachträglich per `ssh-keygen -p` eine setzen —
+  dann aber ssh-agent einrichten, sonst kann die Desktop-App nicht verbinden.

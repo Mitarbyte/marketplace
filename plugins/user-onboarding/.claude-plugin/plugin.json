@@ -1,7 +1,7 @@
 {
   "name": "user-onboarding",
-  "version": "2026.09.30",
-  "description": "Lokales KI-OS-Onboarding für Mitarbeiter: SSH-Key, gehärtete noVNC-/Agenten-Tunnel (Cockpit bzw. Hermes-Dashboard) und Mutagen-Sync zur Firmen-VM.",
+  "version": "2026.10.01",
+  "description": "Lokales KI-OS-Onboarding für Mitarbeiter: SSH-Key und Desktop-App (Claude bzw. Hermes) zur Firmen-VM, Zugang über den Firmen-Login am Gateway.",
   "author": { "name": "Mitarbyte", "email": "office@mitarbyte.com", "url": "https://mitarbyte.com" },
   "homepage": "https://github.com/Mitarbyte/marketplace",
   "keywords": ["ki-os", "onboarding", "mitarbyte"]

@@ -6,8 +6,8 @@
     {
       "name": "user-onboarding",
       "source": "./plugins/user-onboarding",
-      "description": "Lokales KI-OS-Onboarding für Mitarbeiter (SSH, noVNC-/Agenten-Tunnel, Mutagen).",
-      "version": "2026.09.30"
+      "description": "Lokales KI-OS-Onboarding für Mitarbeiter (SSH-Key, Claude-/Hermes-Desktop-App).",
+      "version": "2026.10.01"
     }
   ]
 }

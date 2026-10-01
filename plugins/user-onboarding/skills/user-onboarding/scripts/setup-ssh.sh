@@ -50,8 +50,7 @@ fi
 # --- Host-Block ersetzen (idempotent) ---------------------------------------
 # Bestehende ki-os-vm-Bloecke (inkl. Altlasten wie ki-os-vm-mux) entfernen,
 # dann die minimale Fassung anhaengen. Bewusst KEIN ControlMaster, KEINE
-# LocalForward-/RemoteForward-Zeilen — die Tunnel laufen als eigene
-# Autostart-Prozesse mit -L (siehe setup-tunnels.sh).
+# LocalForward-/RemoteForward-Zeilen (references/ssh.md).
 TMP="$(mktemp)"
 awk '
     /^[Hh]ost[ \t]/ { skip = ($2 == "ki-os-vm" || $2 == "ki-os-vm-mux") ? 1 : 0 }
