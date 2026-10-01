@@ -4,7 +4,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/Mitarbyte/marketplace/v2-lts/install.sh | bash
 set -euo pipefail
 REPO_TGZ="https://github.com/Mitarbyte/marketplace/archive/refs/heads/v2-lts.tar.gz"
-SKILL_SUBPATH="marketplace-v2-lts/plugins/user-onboarding/skills/user-onboarding"
+# Den Wurzelordner des Archivs nicht raten: GitHub kuerzt ein fuehrendes v
+# versionsaehnlicher Zweige (v2-lts -> marketplace-2-lts/).
+SKILL_REL="plugins/user-onboarding/skills/user-onboarding"
 DEST="${HOME}/.claude/skills/user-onboarding"
 
 command -v curl >/dev/null 2>&1 || { echo "curl wird benoetigt." >&2; exit 1; }
@@ -14,11 +16,15 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 echo "› Lade user-onboarding-Skill …"
 curl -fsSL "$REPO_TGZ" -o "$TMP/m.tgz"
 tar -xzf "$TMP/m.tgz" -C "$TMP"
-[ -f "$TMP/$SKILL_SUBPATH/SKILL.md" ] || { echo "Skill im Archiv nicht gefunden." >&2; exit 1; }
+SRC=""
+for d in "$TMP"/*/; do
+    [ -f "${d}${SKILL_REL}/SKILL.md" ] && { SRC="${d}${SKILL_REL}"; break; }
+done
+[ -n "$SRC" ] || { echo "Skill im Archiv nicht gefunden." >&2; exit 1; }
 
 mkdir -p "$(dirname "$DEST")"
 rm -rf "$DEST"
-cp -R "$TMP/$SKILL_SUBPATH" "$DEST"
+cp -R "$SRC" "$DEST"
 
 echo "✓ Installiert nach $DEST"
 echo "  Jetzt Claude Code starten (Desktop-App oder 'claude') und /user-onboarding aufrufen."
