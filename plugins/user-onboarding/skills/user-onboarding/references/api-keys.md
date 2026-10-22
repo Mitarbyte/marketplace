@@ -4,9 +4,9 @@ Nach abgeschlossenem Onboarding loggst du dich per `ssh ki-os-vm` ein
 (Default `ki-os-vm`) und befuellst — falls dein Hub das vorsieht — die
 `.env`-Datei in deinem Workspace mit den noetigen API-Keys.
 
-> **Engine-Hinweis:** Die Abschnitte „API-Keys" und „OAuth statt API-Key"
-> gelten fuer beide Engines (claude UND hermes). Ab „Claude-Code-Auth"
-> ist alles **nur engine=claude**.
+> **Paket-Hinweis:** Die Abschnitte „API-Keys" und „OAuth statt API-Key"
+> gelten fuer beide Engine-Pakete (Claude UND Hermes). Ab „Claude-Code-Auth"
+> gehoert alles **nur zum Claude-Paket**.
 
 Pfad: `~/KI-OS/.env` (Workspace-Root auf der VM). Viele Hubs verwalten
 ihre MCP-Secrets zentral ueber den Admin — frag im Zweifel deinen Admin,
@@ -33,8 +33,14 @@ Hub ab:
 
 Manche CLIs/MCPs nutzen OAuth — keine `.env`-Eintraege noetig, dafuer
 einmaliger Browser-Login. Das laeuft komplett **auf der VM**: der
-`ki-os-auth`-Wrapper startet das CLI mit dem richtigen Display, der
-Browser oeffnet sich im VM-Desktop (Gateway-URL `https://<user>-vnc.…/vnc.html`):
+`ki-os-auth`-Wrapper startet das CLI mit dem richtigen Display.
+
+- **Hermes-Paket:** den Agenten bitten („Melde mich bei Google an"); der
+  Browser oeffnet sich im Screen — **Desktop-App → Screen → Uebernehmen**,
+  anmelden, zurueckgeben.
+- **Claude-Paket:** per SSH starten, der Browser oeffnet sich im VM-Desktop
+  (Gateway-URL `https://<user>-vnc.…/vnc.html`); den VM-Desktop waehrenddessen
+  offen halten und den Login dort durchklicken:
 
 ```bash
 ssh ki-os-vm
@@ -43,12 +49,9 @@ ki-os-auth gws auth login        # Google Workspace (Drive, Gmail, Calendar, Doc
 ki-os-auth gh auth login         # GitHub CLI
 ```
 
-Waehrenddessen den VM-Desktop offen halten und den Login dort
-durchklicken.
-
 ## Claude-Code-Auth
 
-> **Gilt nur auf `engine=claude`.** Auf hermes gibt es keinen Claude-Login,
+> **Gehört zum Claude-Paket.** Das Hermes-Paket kennt keinen Claude-Login,
 > keine Token-Datei und kein `ki-os-setup-token` — die Modell-Anmeldung
 > (`hermes auth add <provider>`) macht der Admin einmalig; du musst hier
 > nichts tun.

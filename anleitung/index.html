@@ -529,17 +529,17 @@
 <div class="codewrap keys" data-mgr="imran"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
 <div class="codewrap keys" data-mgr="nils"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
 <div class="codewrap keys" data-mgr="furkan"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEpRaiP6zhNnr4jyEG4HB9VbaAE9QY9Jswx706LvgzXl furkan@mitarbyte.com</code></pre></div>
+<div class="codewrap keys" data-mgr="moritz-vm"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMzv4/MyQnzieNV0mG08INiW8KH5Cd1GcfeEXksylrbI moritz-vm@mitarbyte.com</code></pre></div>
 <ol start="4">
 <li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
 </ol>
 <blockquote><p>Feld übersehen oder der Assistent hat nicht gefragt? Kein Problem — die Schlüssel lassen sich jederzeit nachträglich hinterlegen: <strong>VPS → Einstellungen → SSH-Schlüssel → Hinzufügen</strong>, dort dieselben Schlüssel eintragen — auch hier einen pro Eintrag.</p></blockquote>
 </div>
-<div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-4-malware-scanner-und-backups-nicht-aktivieren">
-<h3 class="step" id="10-vps-hostinger--schritt-4-malware-scanner-und-backups-nicht-aktivieren">Schritt 4 — Malware-Scanner und Backups nicht aktivieren</h3>
-<p>Diese beiden Zusatzfunktionen nutzen wir bei Mitarbyte bewusst nicht:</p>
+<div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-4-backups-aktivieren-malware-scanner-ablehnen">
+<h3 class="step" id="10-vps-hostinger--schritt-4-backups-aktivieren-malware-scanner-ablehnen">Schritt 4 — Backups aktivieren, Malware-Scanner ablehnen</h3>
 <ul>
-<li><strong>Malware-Scanner:</strong> Wenn der Assistent oder ein Banner im VPS-Dashboard ihn anbietet, ablehnen und nicht installieren.</li>
-<li><strong>Backups:</strong> Unter <strong>VPS → Backups</strong> keine automatischen (wöchentlichen) Backups aktivieren. Falls voraktiviert, deaktivieren.</li>
+<li><strong>Backups (empfohlen):</strong> Unter <strong>VPS → Backups</strong> die automatischen Backups aktivieren bzw. aktiviert lassen. Die Sicherung der VM liegt bei euch — so lässt sich der Server nach einem Ausfall wiederherstellen.</li>
+<li><strong>Malware-Scanner:</strong> Den nutzen wir bei Mitarbyte bewusst nicht. Wenn der Assistent oder ein Banner im VPS-Dashboard ihn anbietet, ablehnen und nicht installieren.</li>
 </ul>
 </div>
 <div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-5-bei-mitarbyte-anmelden-formular">
@@ -568,7 +568,7 @@
 <li>Hostinger-Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong> kaufen, Rechenzentrum EU/Deutschland.</li>
 <li>OS-Setup: <strong>Ubuntu 24.04 LTS</strong> (ohne Panel).</li>
 <li>Root-Passwort setzen und notieren; <strong>Mitarbyte-SSH-Schlüssel</strong> aus Schritt 3 einfügen.</li>
-<li><strong>Malware-Scanner aus, Backups aus.</strong></li>
+<li><strong>Backups an (empfohlen), Malware-Scanner aus.</strong></li>
 <li>Registrierungs-Formular auf dieser Seite ausfüllen und absenden. Fertig.</li>
 </ol>
 </details>
@@ -577,7 +577,7 @@
 <section class="block" id="block-40-arbeitsplatz-hermes" data-block="40-arbeitsplatz-hermes" hidden>
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 2 — Hermes-Desktop-App installieren</h2>
-<p>Mit der Hermes-Desktop-App arbeitest du später mit dem Agenten auf deiner VM. Installier sie jetzt schon auf deinem eigenen Gerät. Verbunden wird sie erst in Teil 5, wenn deine VM steht. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
+<p>Mit der Hermes-Desktop-App arbeitest du später mit dem Agenten auf deiner VM. Du brauchst sie in jedem Fall: Nur dort übernimmst du seinen Bildschirm, wenn du dich bei einem Tool anmelden musst. Installier sie jetzt schon auf deinem eigenen Gerät. Verbunden wird sie erst in Teil 5, wenn deine VM steht. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
 <div class="video" data-ff="01M2K5G7XS3Z1V2E1DFBSZMEZY" data-label="Teil 2 — Hermes-Desktop-App installieren"></div>
 <details class="meta"><summary>Was vorab geklärt sein muss</summary>
 <ul>
@@ -749,14 +749,14 @@
 <p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Google-Workspace-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit Zugang zur Google Cloud Console eures Unternehmens — dort wird eine App-Freigabe angelegt (Google nennt das „OAuth-Client&quot;).</p>
 <div class="video" data-ff="01M2K5M8RGN20K5KTEKZ670423" data-label="Teil 3 — Firmen-Login (Google Workspace)"></div>
 <details class="meta"><summary>Wofür das gut ist</summary>
-<p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
-<div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Cockpit</td><td>Steuerzentrale: geplante Aufgaben, Skills, Benachrichtigungen, Systemstatus</td></tr><tr><td>VM-Desktop</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen</td></tr></tbody></table></div>
+<p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>seine Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
+<div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Oberfläche (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>)</td><td>Steuerzentrale: Aufgaben, geplante Jobs, Skills, Systemstatus; mit Hermes verbindet sich hier die Hermes-Desktop-App</td></tr><tr><td>VM-Desktop (nur mit Claude)</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen. Mit Hermes übernimmt man den Browser der KI in der Desktop-App</td></tr></tbody></table></div>
 <p>Wichtig für die Einordnung:</p>
 <ul>
 <li>Die Anmeldung passiert <strong>bei euch</strong>, nicht bei Mitarbyte. Wir betreiben keine eigene Login-Maske und sehen eure Passwörter nie.</li>
 <li>Die App braucht <strong>keinen Zugriff auf Daten</strong> — nur die Information „wer bist du&quot; (Name, E-Mail). Sie liest keine Mails, keine Dateien, keine Kalender.</li>
 <li>Es bekommt <strong>nur Zugriff, wer namentlich freigeschaltet ist.</strong> Ein gültiger Firmen-Login allein reicht nicht — alle anderen sehen eine Fehlerseite (403).</li>
-<li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
+<li>Ein Login gilt für alle Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
 </ul>
 </details>
 </div>
@@ -833,14 +833,14 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Microsoft-365-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit dem Recht, in eurem Microsoft 365 neue Apps einzutragen — Microsoft nennt das „App-Registrierung&quot;.</p>
 <div class="video" data-ff="01M2K5P94D6XKWYA8J1E0WJV5G" data-label="Teil 3 — Firmen-Login (Microsoft 365)"></div>
 <details class="meta"><summary>Wofür das gut ist</summary>
-<p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>zwei Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
-<div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Cockpit</td><td>Steuerzentrale: geplante Aufgaben, Skills, Benachrichtigungen, Systemstatus</td></tr><tr><td>VM-Desktop</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen</td></tr></tbody></table></div>
+<p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>seine Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
+<div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Oberfläche (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>)</td><td>Steuerzentrale: Aufgaben, geplante Jobs, Skills, Systemstatus; mit Hermes verbindet sich hier die Hermes-Desktop-App</td></tr><tr><td>VM-Desktop (nur mit Claude)</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen. Mit Hermes übernimmt man den Browser der KI in der Desktop-App</td></tr></tbody></table></div>
 <p>Wichtig für die Einordnung:</p>
 <ul>
 <li>Die Anmeldung passiert <strong>bei euch</strong>, nicht bei Mitarbyte. Wir betreiben keine eigene Login-Maske und sehen eure Passwörter nie.</li>
 <li>Die App braucht <strong>keinen Zugriff auf Daten</strong> — nur die Information „wer bist du&quot; (Name, E-Mail). Sie liest keine Mails, keine Dateien, keine Kalender.</li>
 <li>Es bekommt <strong>nur Zugriff, wer namentlich freigeschaltet ist.</strong> Ein gültiger Firmen-Login allein reicht nicht — alle anderen sehen eine Fehlerseite (403).</li>
-<li>Ein Login gilt für beide Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
+<li>Ein Login gilt für alle Links. Es gibt <strong>kein zusätzliches Passwort</strong> und keinen zweiten Kanal.</li>
 </ul>
 </details>
 </div>
@@ -1103,7 +1103,7 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <blockquote><p>Fallback, falls das Browser-Terminal nicht will: Werte ausnahmsweise über <a href="https://onetimesecret.com/" target="_blank" rel="noopener">onetimesecret.com</a> an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> schicken, das <code>CLIENT_SECRET</code> nie per normaler Mail.</p></blockquote>
 <details class="meta"><summary>Anmeldung der Mitarbeiter</summary>
 <ul>
-<li><strong>Outlook:</strong> Jeder Mitarbeiter meldet sich einmal selbst an, in Teil 5 („Outlook für die KI freischalten&quot;): Er sagt seinem Assistenten „Melde mich bei Outlook an&quot; und loggt sich im VM-Desktop mit seinem Firmen-Konto ein. <strong>Nacheinander</strong>, nicht gleichzeitig mit Kollegen.</li>
+<li><strong>Outlook:</strong> Jeder Mitarbeiter meldet sich einmal selbst an, in Teil 5 („Outlook für die KI freischalten&quot;): Er sagt seinem Assistenten „Melde mich bei Outlook an&quot; und loggt sich <span class="ph" data-ph="LOGIN_ORT">im Browser der VM (Bot Screen bzw. VM-Desktop)</span> mit seinem Firmen-Konto ein. <strong>Nacheinander</strong>, nicht gleichzeitig mit Kollegen.</li>
 <li><strong>Geteilte Postfächer</strong> sind damit automatisch dabei, sie brauchen keinen weiteren Login.</li>
 <li><strong>Assistenten-Postfach:</strong> Jeder Mitarbeiter, der es nutzt, sagt einmal „Melde mich beim Assistenten-Postfach an&quot; und gibt die Zugangsdaten <strong>dieses</strong> Postfachs ein.</li>
 <li><strong>SharePoint</strong> braucht keinen Login der Mitarbeiter.</li>
@@ -1171,9 +1171,9 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <section class="block" id="block-50-verbinden-gateway" data-block="50-verbinden-gateway" hidden>
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 5 — Mit deiner VM verbinden</h2>
-<p>Diesen Teil arbeitet jeder Mitarbeiter selbst durch, in seinem Tempo. Du brauchst dafür die persönliche Nachricht von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> mit deinen Links: der <strong>Oberfläche</strong> deiner VM (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>) und dem <strong>VM-Desktop</strong>, dem Browser der VM. Die meisten Schritte laufen im Browser. Hast du in Teil 2 die Hermes-Desktop-App installiert, verbindest du sie hier mit deiner VM. Zum Schluss meldest du dich einmal bei den Firmen-Tools an, mit denen die KI arbeiten soll. Rechne mit etwa 10 Minuten.</p>
-<div class="video" data-ff="01M2K6ECBAZN19G38P0Q9H91C6" data-label="Teil 5 — Mit deiner VM verbinden (Claude)" data-when="engine=claude"></div>
-<div class="video" data-ff="01M2K6KH2ZBADB24T2GA38C10C" data-label="Teil 5 — Mit deiner VM verbinden (Hermes)" data-when="engine=hermes|hybrid"></div>
+<p>Diesen Teil arbeitet jeder Mitarbeiter selbst durch, in seinem Tempo. Du brauchst dafür die persönliche Nachricht von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> mit deinen Links, allen voran dem zur <strong>Oberfläche</strong> deiner VM (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>). Zum Schluss meldest du dich einmal bei den Firmen-Tools an, mit denen die KI arbeiten soll. Rechne mit etwa 10 Minuten.</p>
+<div class="video" data-ff="01M2K6ECBAZN19G38P0Q9H91C6" data-label="Teil 5 — Mit deiner VM verbinden (Claude)" data-when="paket=claude"></div>
+<div class="video" data-ff="01M2K6KH2ZBADB24T2GA38C10C" data-label="Teil 5 — Mit deiner VM verbinden (Hermes)" data-when="paket=hermes"></div>
 </div>
 <div class="slide" data-slide="gate" data-gate="ready">
 <h3 class="gate">Deine VM wird gerade eingerichtet</h3>
@@ -1189,46 +1189,56 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <li>Klick auf <strong>„Mit Microsoft anmelden&quot;</strong> bzw. <strong>„Mit Google anmelden&quot;</strong> und melde dich mit deinem normalen Firmen-Konto an, inklusive eurer Zwei-Faktor-Anmeldung, falls eingerichtet.</li>
 <li>Erscheint die Oberfläche, ist dein Zugang aktiv: Dein User ist auf der VM angelegt und freigeschaltet.</li>
 </ol>
-<p>Ein Login gilt für alle Links. Der VM-Desktop verbindet danach automatisch, ein weiteres Passwort gibt es nicht.</p>
+<p>Ein Login gilt für alle Links, ein weiteres Passwort gibt es nicht.</p>
 <blockquote><p>Siehst du stattdessen eine Fehlerseite (403)? Dann ist dein Konto noch nicht freigeschaltet, oder du hast dich mit einer anderen Adresse angemeldet als der, die <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> kennt. Kurz melden, das ist in einer Minute korrigiert.</p></blockquote>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--im-vm-desktop-anmelden" data-when="engine=claude|hybrid">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--im-vm-desktop-anmelden" data-when="paket=claude">
 <h3 class="step" id="50-verbinden-gateway--im-vm-desktop-anmelden">Im VM-Desktop anmelden</h3>
 <ol>
-<li>Öffne den Link zum <strong>VM-Desktop</strong>. Du siehst den Bildschirm deiner VM im Browser.</li>
+<li>Öffne den Link zum <strong>VM-Desktop</strong> aus deiner Nachricht. Du siehst den Bildschirm deiner VM im Browser, ohne weiteres Passwort.</li>
 <li>Dort wartet ein <strong>Login-Terminal</strong> mit einem Link und einem Code. Öffne den Link (gern in einem neuen Tab auf deinem Gerät), melde dich mit deinem Claude-Konto an, kopier den Code und füg ihn im Terminal ein.</li>
 <li>Danach hält sich die Anmeldung von selbst aufrecht. Läuft sie irgendwann ab, erscheint dasselbe Terminal wieder, und du machst dasselbe nochmal.</li>
 </ol>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--hermes-desktop-app-verbinden" data-when="engine=hermes|hybrid">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--hermes-desktop-app-verbinden" data-when="paket=hermes">
 <h3 class="step" id="50-verbinden-gateway--hermes-desktop-app-verbinden">Hermes-Desktop-App verbinden</h3>
-<p>Die App aus Teil 2 verbindet sich direkt mit dem Dashboard auf der VM. Dafür brauchst du nichts auf deinem Gerät einzurichten: keinen Schlüssel, keinen Tunnel, kein Passwort zum Aufbewahren — nur die beiden Links aus deiner Nachricht (Dashboard-Link, VM-Desktop-Link).</p>
+<p>Die App aus Teil 2 verbindet sich direkt mit dem Dashboard auf der VM. Dafür brauchst du nichts auf deinem Gerät einzurichten: keinen Schlüssel, keinen Tunnel, kein Passwort zum Aufbewahren — nur den Dashboard-Link aus deiner Nachricht.</p>
 <ol>
 <li>Öffne die Hermes-App, geh auf <strong>Settings → Gateways</strong>, wähl <strong>„Remote gateway&quot;</strong> und trag als URL deinen Dashboard-Link aus der Nachricht ein.</li>
 <li>Melde dich an: die App öffnet dafür deinen Browser mit dem gewohnten <strong>Firmen-Login</strong>. Nach der Anmeldung springt sie von selbst zurück, und du bist verbunden — dieselbe Anmeldung wie im Browser, es gibt keinen zusätzlichen Zugangscode.</li>
 <li>Läuft deine Anmeldung irgendwann ab, meldest du dich in der App einfach neu an. Soll ein Zugang enden, wird er dort entzogen, wo auch deine anderen Firmen-Zugänge liegen.</li>
-<li>Im Dashboard findest du unter <strong>KI-OS → Anmeldungen</strong> den Stand deiner Datenquellen; <strong>„Anmelden&quot;</strong> öffnet den Login im VM-Desktop. Unter <strong>KI-OS → Artefakte</strong> stehen deine Dashboards und kleinen Web-Apps unter festen Links.</li>
+<li>Im Dashboard findest du unter <strong>KI-OS → Anmeldungen</strong> den Stand deiner Datenquellen; <strong>„Anmelden&quot;</strong> öffnet den Login im Bot Screen, den du in der App übernimmst. Unter <strong>KI-OS → Artefakte</strong> stehen deine Dashboards und kleinen Web-Apps unter festen Links.</li>
 </ol>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-setzen-und-erste-aufgabe" data-when="engine=claude">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-setzen-und-erste-aufgabe" data-when="paket=claude">
 <h3 class="step" id="50-verbinden-gateway--lesezeichen-setzen-und-erste-aufgabe">Lesezeichen setzen und erste Aufgabe</h3>
 <ol>
-<li>Leg beide Links als Lesezeichen an, dazu <code>claude.ai/code</code>. Dort erscheint dein Workspace nach dem Login.</li>
+<li>Leg Cockpit- und VM-Desktop-Link als Lesezeichen an, dazu <code>claude.ai/code</code>. Dort erscheint dein Workspace nach dem Login.</li>
 <li>Stell eine kleine Testaufgabe, zum Beispiel: „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot; Antwortet die KI, ist dein Arbeitsplatz einsatzbereit.</li>
 </ol>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-und-erste-aufgabe" data-when="engine=hermes|hybrid">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-und-erste-aufgabe" data-when="paket=hermes">
 <h3 class="step" id="50-verbinden-gateway--lesezeichen-und-erste-aufgabe">Lesezeichen und erste Aufgabe</h3>
 <ol>
-<li>Leg alle Links aus deiner Nachricht als Lesezeichen an, Oberfläche und VM-Desktop.</li>
+<li>Leg den Dashboard-Link aus deiner Nachricht als Lesezeichen an.</li>
 <li>Schreib in der <strong>Hermes-Desktop-App</strong> eine kleine Testaufgabe in den Chat, zum Beispiel: „Fasse mir die Dateien im Ordner Firmenwissen kurz zusammen.&quot; Antwortet die KI, ist dein Arbeitsplatz einsatzbereit.</li>
 </ol>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--firmen-tools-im-vm-browser-anmelden">
-<h3 class="step" id="50-verbinden-gateway--firmen-tools-im-vm-browser-anmelden">Firmen-Tools im VM-Browser anmelden</h3>
-<p>Im VM-Desktop läuft ein eigener Browser. Dort meldest du dich einmalig bei den Firmen-Tools an, mit denen die KI für dich arbeiten soll: Outlook, SharePoint, CRM, was ihr eben nutzt.</p>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--firmen-tools-im-bot-screen-anmelden" data-when="paket=hermes">
+<h3 class="step" id="50-verbinden-gateway--firmen-tools-im-bot-screen-anmelden">Firmen-Tools im Bot Screen anmelden</h3>
+<p>Der Agent hat auf der VM einen eigenen Browser, den <strong>Bot Screen</strong>. Dort meldest du dich einmalig bei den Firmen-Tools an, mit denen die KI für dich arbeiten soll: Outlook, SharePoint, CRM, was ihr eben nutzt.</p>
 <ol>
-<li>Öffne den Link zum <strong>VM-Desktop</strong>, falls er nicht mehr offen ist. Auf Hermes-VMs geht das auch aus der Desktop-App: <strong>KI-OS → Anmeldungen → „Anmelden“</strong>.</li>
+<li>Öffne in der Hermes-Desktop-App den <strong>Screen</strong> und klick auf <strong>„Übernehmen“</strong>. Jetzt steuerst du den Browser, der Agent wartet so lange.</li>
+<li>Öffne das Tool und melde dich an, inklusive Zwei-Faktor-Anmeldung. Melde dich <strong>immer im Bot Screen</strong> an, nie auf deinem eigenen Gerät: Nur die Anmeldungen dort kann der Agent später selbst nutzen, deine lokalen Logins sieht er nicht.</li>
+<li>Klick auf <strong>„Zurückgeben“</strong>. Der Agent arbeitet mit deinem Login weiter, die Sitzungen bleiben auf der VM erhalten.</li>
+</ol>
+<p>Bittet dich der Agent später um eine Anmeldung, läuft es genauso: Screen → <strong>„Übernehmen“</strong>, anmelden, <strong>„Zurückgeben“</strong>. <strong>Keine privaten Logins</strong> in diesem Browser, also kein Online-Banking und keine private Mail: Die KI hat Zugriff auf alles, was dort angemeldet ist.</p>
+</div>
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--firmen-tools-im-vm-browser-anmelden" data-when="paket=claude">
+<h3 class="step" id="50-verbinden-gateway--firmen-tools-im-vm-browser-anmelden">Firmen-Tools im VM-Browser anmelden</h3>
+<p>Im VM-Desktop läuft ein eigener Browser. Dort meldest du dich einmalig bei den Firmen-Tools an, mit denen die KI für dich arbeiten soll: Outlook, SharePoint, CRM, was ihr eben nutzt. <span class="ph" data-ph="ZWEITER_BROWSER">Arbeitest du auch mit Hermes, meldest du dich hier ein zweites Mal an: Jeder Agent hat seinen eigenen Browser.</span></p>
+<ol>
+<li>Öffne den Link zum <strong>VM-Desktop</strong>, falls er nicht mehr offen ist.</li>
 <li>Melde dich <strong>immer im VM-Browser</strong> an, nie auf deinem eigenen Gerät. Nur die Anmeldungen dort kann die VM später selbst nutzen, deine lokalen Logins sieht sie nicht.</li>
 <li>Die Sitzungen bleiben auf der VM erhalten. Du musst das nicht wiederholen.</li>
 </ol>
@@ -1236,16 +1246,16 @@ Files.Read  Files.ReadWrite</code></pre></div>
 </div>
 <div class="slide" data-slide="step" data-step="50-verbinden-gateway--outlook-fuer-die-ki-freischalten" data-when="tool=outlook">
 <h3 class="step" id="50-verbinden-gateway--outlook-fuer-die-ki-freischalten">Outlook für die KI freischalten</h3>
-<p>Damit die KI mit deinen Mails und Terminen arbeiten kann, meldest du dich einmal bei Outlook an. Das ist ein eigener Login für die KI, zusätzlich zu dem im VM-Browser. <strong>Voraussetzung:</strong> Euer Microsoft-365-Admin hat Teil 4 (Outlook &amp; SharePoint anbinden) erledigt. Falls nicht, kurz bei <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> nachfragen und diesen Schritt mit „Später erledigen“ überspringen.</p>
+<p>Damit die KI mit deinen Mails und Terminen arbeiten kann, meldest du dich einmal bei Outlook an. Das ist ein eigener Login für die KI, zusätzlich zu denen aus dem Schritt davor. <strong>Voraussetzung:</strong> Euer Microsoft-365-Admin hat Teil 4 (Outlook &amp; SharePoint anbinden) erledigt. Falls nicht, kurz bei <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> nachfragen und diesen Schritt mit „Später erledigen“ überspringen.</p>
 <ol>
 <li>Sag deinem Assistenten: <strong>„Melde mich bei Outlook an&quot;</strong>.</li>
-<li>Im <strong>VM-Desktop</strong> öffnet sich die Microsoft-Anmeldung. Melde dich mit deinem <strong>Firmen-Konto</strong> an, inklusive Zwei-Faktor-Anmeldung, und bestätige den Zugriff.</li>
+<li>Die Microsoft-Anmeldung öffnet sich <span class="ph" data-ph="LOGIN_ORT">im Browser der VM (Bot Screen bzw. VM-Desktop)</span>. Melde dich mit deinem <strong>Firmen-Konto</strong> an, inklusive Zwei-Faktor-Anmeldung, und bestätige den Zugriff.</li>
 <li>Fertig. Die geteilten Postfächer, auf die du Zugriff hast, sind damit automatisch dabei.</li>
 </ol>
 <p>Bitte <strong>nacheinander</strong>, nicht gleichzeitig mit Kollegen: Die Anmeldung läuft auf der VM über einen gemeinsamen Anschluss. Ist gerade jemand anderes dran, sagt dir der Assistent das, versuch es dann ein paar Minuten später.</p>
-<blockquote><p>Nutzt ihr ein <strong>Assistenten-Postfach</strong> und du bist dafür eingetragen? Dann zusätzlich einmal: <strong>„Melde mich beim Assistenten-Postfach an&quot;</strong> und im VM-Desktop die Zugangsdaten <strong>dieses</strong> Postfachs eingeben, nicht deine eigenen.</p></blockquote>
+<blockquote><p>Nutzt ihr ein <strong>Assistenten-Postfach</strong> und du bist dafür eingetragen? Dann zusätzlich einmal: <strong>„Melde mich beim Assistenten-Postfach an&quot;</strong> und dort genauso die Zugangsdaten <strong>dieses</strong> Postfachs eingeben, nicht deine eigenen.</p></blockquote>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--skill-installieren" data-when="engine=claude|hybrid">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--skill-installieren" data-when="paket=claude">
 <h3 class="step optional" id="50-verbinden-gateway--skill-installieren">Skill installieren</h3>
 <p>Der Pflichtteil ist damit erledigt. Die folgenden Schritte sind optional und richten sich an alle, die zusätzlich mit der Claude-Desktop-App direkt auf der VM arbeiten wollen.</p>
 <p>Der Assistent <code>/user-onboarding</code> richtet die Verbindung von deinem Gerät zur VM ein. Einmal installieren, eine Zeile im Terminal:</p>
@@ -1254,7 +1264,7 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <p><strong>Windows</strong> (PowerShell):</p>
 <div class="codewrap"><pre><code>irm https://raw.githubusercontent.com/Mitarbyte/marketplace/main/install.ps1 | iex</code></pre></div>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--user-onboarding-starten" data-when="engine=claude|hybrid">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--user-onboarding-starten" data-when="paket=claude">
 <h3 class="step optional" id="50-verbinden-gateway--user-onboarding-starten"><code>/user-onboarding</code> starten</h3>
 <ol>
 <li>Öffne Claude Code (Desktop-App oder <code>claude</code> im Terminal), starte eine neue Session und wähl einen beliebigen Ordner, zum Beispiel Downloads. Dort wird nichts abgelegt, gearbeitet wird später auf der VM.</li>
@@ -1262,7 +1272,7 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <li>Der Assistent erzeugt deinen Zugangsschlüssel und legt ihn in die Zwischenablage. Den brauchst du im nächsten Schritt.</li>
 </ol>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schluessel-selbst-hinterlegen" data-when="engine=claude|hybrid">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--schluessel-selbst-hinterlegen" data-when="paket=claude">
 <h3 class="step optional" id="50-verbinden-gateway--schluessel-selbst-hinterlegen">Schlüssel selbst hinterlegen</h3>
 <ol>
 <li>Öffne im Cockpit den Tab <strong>System</strong> und dort die Karte <strong>„SSH-Zugang&quot;</strong>.</li>
@@ -1271,7 +1281,7 @@ Files.Read  Files.ReadWrite</code></pre></div>
 </ol>
 <p>Das Feld nimmt nur den <strong>öffentlichen</strong> Schlüssel. Lad niemals die private Schlüsseldatei hoch und verschick sie auch nicht. Fehlt die Karte „SSH-Zugang&quot;, schick deinen Schlüssel an <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span>; der Assistent hat die Vorlage dafür.</p>
 </div>
-<div class="slide" data-slide="step" data-step="50-verbinden-gateway--claude-desktop-app-verbinden" data-when="engine=claude|hybrid">
+<div class="slide" data-slide="step" data-step="50-verbinden-gateway--claude-desktop-app-verbinden" data-when="paket=claude">
 <h3 class="step optional" id="50-verbinden-gateway--claude-desktop-app-verbinden">Claude-Desktop-App verbinden</h3>
 <ol>
 <li>Der Assistent trägt die VM als <code>ki-os-vm</code> in deine Claude-Desktop-App ein.</li>
@@ -1281,24 +1291,24 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <details class="meta"><summary>Fertig, wenn …</summary>
 <ul>
 <li>du dich bei allen Links mit dem Firmen-Konto anmelden kannst,</li>
-<li>im VM-Desktop kein Login-Terminal mehr wartet,</li>
-<li>jedes Firmen-Tool im VM-Browser einmal angemeldet ist und Daten liefert,</li>
+<li>die Hermes-Desktop-App mit deiner VM verbunden ist (mit Hermes),</li>
+<li>im VM-Desktop kein Login-Terminal mehr wartet (mit Claude),</li>
+<li>jedes Firmen-Tool im Browser der VM einmal angemeldet ist und Daten liefert (Bot Screen bzw. VM-Desktop),</li>
 <li>Outlook für die KI freigeschaltet ist, falls ihr es angebunden habt,</li>
 <li>deine Testaufgabe eine Antwort bekommen hat,</li>
-<li>die Hermes-Desktop-App mit deiner VM verbunden ist (Hermes-VMs),</li>
-<li>optional: die VM in der Claude-Desktop-App auftaucht (Claude-VMs).</li>
+<li>optional: die VM in der Claude-Desktop-App auftaucht (mit Claude).</li>
 </ul>
 </details>
 <details class="meta"><summary>Wenn etwas klemmt</summary>
 <ul>
 <li><strong>403 beim Anmelden:</strong> Konto noch nicht freigeschaltet oder falsche Adresse. Gib <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> Bescheid.</li>
-<li><strong>Login-Terminal taucht immer wieder auf:</strong> Geh den Login-Ablauf einmal komplett durch (Link öffnen, anmelden, Code einfügen).</li>
+<li><strong>Login-Terminal taucht immer wieder auf (Claude):</strong> Geh den Login-Ablauf einmal komplett durch (Link öffnen, anmelden, Code einfügen).</li>
 <li><strong>Optionale Schritte:</strong> Starte <code>/user-onboarding</code> einfach erneut. Der Assistent richtet nur nach, was fehlt; reparieren ist derselbe Weg wie einrichten.</li>
 <li>Alles andere: kurz bei <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> melden.</li>
 </ul>
 </details>
 <details class="meta"><summary>So arbeitest du danach</summary>
-<p>Über die gebookmarkten Links im Browser, von jedem Gerät, auch vom Handy. Oder über die Hermes-Desktop-App bzw. die Claude-Desktop-App mit der VM als Projekt. Deine Dateien liegen in eurem Firmenordner (SharePoint / Google Drive) bzw. im Explorer der Oberfläche.</p>
+<p>Mit Hermes in der Hermes-Desktop-App, mit Claude über die gebookmarkten Links im Browser, von jedem Gerät, auch vom Handy, oder in der Claude-Desktop-App mit der VM als Projekt. Deine Dateien liegen in eurem Firmenordner (SharePoint / Google Drive) bzw. im Explorer der Oberfläche.</p>
 </details>
 </div>
 </section>
@@ -1390,14 +1400,18 @@ Files.Read  Files.ReadWrite</code></pre></div>
 
 <script>
 "use strict";
-var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-hermes", "title": "Teil 2 — Hermes-Desktop-App installieren", "part": "2", "when": [{"k": "engine", "v": "hermes|hybrid"}]}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}], "unless": [[{"k": "engine", "v": "hermes"}, {"k": "mode", "v": "gateway"}]]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "35-anbindungen-m365", "title": "Teil 4 — Outlook & SharePoint anbinden", "part": "4", "when": [{"k": "tool", "v": "outlook|sharepoint"}]}, {"id": "tool-messdienst", "title": "Was der Kunde bei seinen Messdienstleistern beantragen muss", "part": "4", "when": [{"k": "tool", "v": "messdienst"}]}, {"id": "50-verbinden-gateway", "title": "Teil 5 — Mit deiner VM verbinden", "part": "5", "when": [], "gate": "ready"}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
+var META = [{"id": "00-intro", "title": "Überblick", "part": "0", "when": []}, {"id": "10-vps-hostinger", "title": "Teil 1 — VM einrichten", "part": "1", "when": []}, {"id": "40-arbeitsplatz-hermes", "title": "Teil 2 — Hermes-Desktop-App installieren", "part": "2", "when": [{"k": "paket", "v": "hermes"}]}, {"id": "40-arbeitsplatz-mac", "title": "Teil 2 — Arbeitsplatz einrichten (macOS)", "part": "2", "when": [{"k": "os", "v": "mac"}, {"k": "paket", "v": "claude"}]}, {"id": "40-arbeitsplatz-win", "title": "Teil 2 — Arbeitsplatz einrichten (Windows)", "part": "2", "when": [{"k": "os", "v": "win"}, {"k": "paket", "v": "claude"}]}, {"id": "30-tenant-app-google", "title": "Teil 3 — Firmen-Login (Google Workspace)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "google"}]}, {"id": "30-tenant-app-m365", "title": "Teil 3 — Firmen-Login (Microsoft 365)", "part": "3", "when": [{"k": "mode", "v": "gateway"}, {"k": "idp", "v": "m365"}]}, {"id": "35-anbindungen-m365", "title": "Teil 4 — Outlook & SharePoint anbinden", "part": "4", "when": [{"k": "tool", "v": "outlook|sharepoint"}]}, {"id": "tool-messdienst", "title": "Was der Kunde bei seinen Messdienstleistern beantragen muss", "part": "4", "when": [{"k": "tool", "v": "messdienst"}]}, {"id": "50-verbinden-gateway", "title": "Teil 5 — Mit deiner VM verbinden", "part": "5", "when": [], "gate": "ready"}, {"id": "90-abschluss", "title": "Wie es weitergeht", "part": "9", "when": []}];
 /* Web3Forms-Empfaenger, zur Buildzeit aus admins/web3forms.list eingesetzt:
    {always: "<manager>", keys: {"<manager>": "<access-key>"}}. Access-Keys sind
    public by design (Alias auf ein Postfach, kein Secret). Ein Key = ein
    Postfach, also postet das Formular einmal pro zustaendigem Manager;
    `always` ist immer dabei (Ruecklauf-Kanal auch fuer generische Links). */
-var W3F = {"always": "imran", "keys": {"imran": "058b5a12-f29c-473d-83cc-bac3c53e8b55", "nils": "74e9fc47-c48c-422d-be31-e769dcec6a45"}};
+var W3F = {"always": "imran", "keys": {"imran": "058b5a12-f29c-473d-83cc-bac3c53e8b55", "moritz-vm": "08450db5-5a01-4c88-9ab0-f2e4474859ae", "nils": "74e9fc47-c48c-422d-be31-e769dcec6a45"}};
 var W3F_URL = "https://api.web3forms.com/submit";
+/* Pakete je Engine-Wert, zur Buildzeit aus ki-os-engine --packages-of
+   eingesetzt (ADR 28 Nr. 2) — nur fuer alte Links, die statt paket noch
+   engine tragen. Die Seite selbst bildet nie ab. */
+var ENGINE_PAKETE = {"claude": ["claude"], "hermes": ["hermes"], "hybrid": ["hermes", "claude"]};
 
 /* ---- Konfiguration aus dem URL-Fragment (#c=<base64url(JSON)>) ---- */
 function readConfig() {
@@ -1420,6 +1434,15 @@ var cfg = readConfig();
 var hadFragment = /[#&]c=/.test(location.hash || "");
 if (!cfg && hadFragment) document.getElementById("confwarn").hidden = false;
 cfg = cfg || {};
+/* Alter Link (nur engine): Pakete aus der eingebauten Tabelle. Unbekannt
+   bleibt ohne Liste — dann ist jeder Paket-Baustein sichtbar. */
+function paketeAltLink(c) {
+  if (!Array.isArray(c.paket) && typeof c.engine === "string"
+      && Object.prototype.hasOwnProperty.call(ENGINE_PAKETE, c.engine)) {
+    c.paket = ENGINE_PAKETE[c.engine];
+  }
+}
+paketeAltLink(cfg);
 
 /* ---- Checkliste/Chooser-State: Schluessel frueh, weil der Chooser-Overlay
    VOR dem Seitenaufbau in cfg eingreift ---- */
@@ -1435,7 +1458,7 @@ function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
 var origIdp = cfg.idp;
 var osChooser = false, idpChooser = false;
 /* Nur fragen, wenn es fuer diese Config ueberhaupt einen os-Baustein gibt
-   (engine=hermes + gateway: kein Teil 2, also keine OS-Frage). */
+   (ohne Claude-Paket: kein Claude-Teil 2, also keine OS-Frage). */
 var osRelevant = META.some(function (m) {
   return m.when.some(function (c) { return c.k === "os"; }) && visibleAnyOs(m);
 });
@@ -1471,7 +1494,7 @@ function parseWhen(str) {
 function visible(meta) {
   for (var i = 0; i < meta.when.length; i++) {
     var c = meta.when[i];
-    if (c.k === "mode" || c.k === "idp" || c.k === "hub" || c.k === "engine") {
+    if (c.k === "mode" || c.k === "idp" || c.k === "hub") {
       var val = cfg[c.k];
       /* Oder-Werte "a|b": sichtbar, wenn der Config-Wert EINE Alternative ist */
       if (val && c.v.split("|").indexOf(val) < 0) return false;
@@ -1483,10 +1506,15 @@ function visible(meta) {
          Ohne tools bleibt es unsichtbar — Anbindungen gibt es nur auf Ansage. */
       var tools = listVal(cfg.tools);
       if (!c.v.split("|").some(function (t) { return tools.indexOf(t) >= 0; })) return false;
+    } else if (c.k === "paket") {
+      /* Oder-Werte "a|b": sichtbar, wenn EINES der Pakete gewaehlt ist. Ohne
+         Paketliste (generische Seite) bleibt es sichtbar. */
+      var pk = listVal(cfg.paket);
+      if (pk.length && !c.v.split("|").some(function (p) { return pk.indexOf(p) >= 0; })) return false;
     }
   }
   /* unless: unsichtbar, wenn EINE Gruppe vollstaendig trifft. Ein fehlender
-     Config-Wert trifft nie — alte Links ohne engine zeigen den Block weiter. */
+     Config-Wert trifft nie — ein Link ohne den Schluessel zeigt den Block. */
   var groups = meta.unless || [];
   for (var g = 0; g < groups.length; g++) {
     if (groups[g].every(function (u) {
@@ -1562,6 +1590,13 @@ function w3fRecipients() {
 }
 
 /* ---- Platzhalter fuellen ---- */
+var OBERFLAECHE_JE_PAKET = { hermes: "Agent-Dashboard", claude: "Cockpit" };
+function hatPaket(p) { return listVal(cfg.paket).indexOf(p) >= 0; }
+function paketeText(je) {
+  return listVal(cfg.paket).map(function (p) {
+    return Object.prototype.hasOwnProperty.call(je, p) ? je[p] : null;
+  }).filter(Boolean);
+}
 function userNames() {
   return listVal(cfg.users).map(function (u) {
     return typeof u === "string" ? u : (u.u || u.username || "");
@@ -1578,14 +1613,24 @@ function phValue(name) {
       if (cfg.plan) return cfg.plan;
       if (names.length) return names.length <= 2 ? "KVM 2" : "KVM 4";
       return null;
-    /* Wie die Oberflaeche der VM beim Kunden heisst — haengt an der Engine
-       (claude: Cockpit, hermes: Agent-Dashboard, hybrid: beides). Fehlt die
-       Engine im Fragment, bleibt der generische Build-Fallback stehen. */
+    /* Oberflaeche je Paket, in der Reihenfolge der Liste (zwei Pakete =
+       beide). Ohne Paketliste bleibt der generische Build-Fallback stehen. */
     case "OBERFLAECHE":
-      if (cfg.engine === "claude") return "Cockpit";
-      if (cfg.engine === "hermes") return "Agent-Dashboard";
-      if (cfg.engine === "hybrid") return "Agent-Dashboard und Cockpit";
+      var ob = paketeText(OBERFLAECHE_JE_PAKET);
+      return ob.length ? ob.join(" und ") : null;
+    /* Wo sich Browser-Logins der KI oeffnen: mit Hermes-Paket im Bot Screen
+       (wie mcp_login), sonst im VM-Desktop des Claude-Pakets. */
+    case "LOGIN_ORT":
+      if (hatPaket("hermes")) return "im Bot Screen (Hermes-Desktop-App → Screen → „Übernehmen“)";
+      if (hatPaket("claude")) return "im VM-Desktop";
       return null;
+    /* Steht im Claude-Schritt: mehr als ein Paket = ein zweiter Browser (je
+       Paket ein Chrome-Profil, F35). Ohne Paketliste der Build-Fallback. */
+    case "ZWEITER_BROWSER":
+      if (!listVal(cfg.paket).length) return null;
+      return listVal(cfg.paket).length > 1
+        ? "Der Claude-Agent hat einen eigenen Browser, getrennt vom Bot Screen. Melde dich darum hier ein zweites Mal an."
+        : "";
     case "REDIRECT_URI":
       if (cfg.redirect_uri) return cfg.redirect_uri;
       if (cfg.base_domain) return "https://auth." + cfg.base_domain + "/oauth2/callback";

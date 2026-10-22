@@ -1,6 +1,6 @@
 # Claude-Code-Desktop-App vorkonfigurieren — Hintergrund
 
-> **Gilt nur auf `engine=claude`.** Auf hermes gibt es keine lokale
+> **Gehört zum Claude-Paket.** Das Hermes-Paket kennt keine lokale
 > App-Registrierung — die Hermes-Desktop-App verbindet sich per URL +
 > Firmen-Login: `hermes-desktop-app.md`.
 

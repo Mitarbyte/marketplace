@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
 # verify.sh — Abschluss-Verifikation aller Komponenten (macOS/Linux)
 #
-# Prueft: SSH, die Gateway-URLs der Agenten-Oberflaechen (Cockpit bzw.
-# Hermes-Dashboard, auf dem Hermes-Stack zusaetzlich Artefakte), den VM-Desktop
-# (noVNC) und die Desktop-App-Eintraege (macOS). Gibt pro Komponente OK/FAIL aus;
-# Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
+# Prueft: SSH, die Gateway-URLs je Engine-Paket (Claude-Paket: Cockpit + VM-Desktop
+# (noVNC); Hermes-Paket: Agent-URL der Hermes-Desktop-App), die Artefakte und die
+# Claude-Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL aus; Exit-Code 1,
+# wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
-# Usage:  verify.sh --vm-user <VM_USER> [--engine claude|hybrid|hermes]
+# Usage:  verify.sh --vm-user <VM_USER> --packages <hermes|claude|hermes,claude>
 #                    [--gateway-cockpit-url <url>] [--gateway-novnc-url <url>]
 #                    [--gateway-agent-url <url>] [--gateway-apps-url <url>]
 #
-# Die URLs kommen aus get-vm-values. Der Check laeuft unauthentifiziert:
-# 302/401/403 zum IdP-Login = OK, 200 waere ein Auth-Bypass.
+# Pakete und URLs kommen aus get-vm-values (PACKAGES=, GATEWAY_*_URL=). Der Check
+# laeuft unauthentifiziert: 302/401/403 zum IdP-Login = OK, 200 waere ein
+# Auth-Bypass.
 #
-# --engine hermes: es gibt kein Cockpit und keine Claude-Desktop-App — geprueft
-# werden das Hermes-Dashboard (Gateway-Agent-URL) und, statt der
-# ~/.claude.json-Eintraege, nur SSH (die Hermes-Desktop-App verbindet sich ueber
-# URL + Firmen-Login, es gibt keine lokale Registrierung zu pruefen).
-# --engine hybrid (ADR 18): beide Stacks — Cockpit UND Hermes-Dashboard werden
-# geprueft, die Claude-Desktop-App wie auf claude.
+# Claude-Paket: Cockpit, VM-Desktop und die Desktop-App-Eintraege (ssh_configs.json,
+# ~/.claude.json). Ohne --gateway-novnc-url kein VM-Desktop-Check (Option
+# display aus, get-vm-values meldet DISPLAY_STACK=AUS).
+# Hermes-Paket: die Agent-URL; die Hermes-Desktop-App verbindet sich ueber URL +
+# Firmen-Login, lokal gibt es keine Registrierung zu pruefen.
 set -uo pipefail
 
-VM_USER="" ENGINE="claude" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL="" GW_APPS_URL=""
+VM_USER="" PACKAGES="" GW_COCKPIT_URL="" GW_NOVNC_URL="" GW_AGENT_URL="" GW_APPS_URL=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --vm-user)             VM_USER="$2"; shift 2 ;;
-        --engine)              ENGINE="$2"; shift 2 ;;
+        --packages)            PACKAGES="$2"; shift 2 ;;
         --gateway-cockpit-url) GW_COCKPIT_URL="$2"; shift 2 ;;
         --gateway-novnc-url)   GW_NOVNC_URL="$2"; shift 2 ;;
         --gateway-agent-url)   GW_AGENT_URL="$2"; shift 2 ;;
@@ -33,18 +33,28 @@ while [ $# -gt 0 ]; do
         *) echo "FAIL: unbekanntes Argument: $1" >&2; exit 2 ;;
     esac
 done
-case "$ENGINE" in claude|hybrid|hermes) ;; *) echo "FAIL: --engine erlaubt nur claude|hybrid|hermes" >&2; exit 2 ;; esac
-# Agenten-Oberflaechen je Stack — EIN Ort, an dem der Unterschied steht:
-# "Label|Gateway-URL", eine Zeile je Oberflaeche (hybrid: zwei).
-SURFACES=""
-case "$ENGINE" in claude|hybrid) SURFACES="Cockpit|${GW_COCKPIT_URL}" ;; esac
-case "$ENGINE" in hermes|hybrid) SURFACES="${SURFACES}${SURFACES:+
-}Hermes-Dashboard|${GW_AGENT_URL}" ;; esac
-# Artefakte (Hermes-Stack): eigener Apps-Vhost. Auf claude liefert der
-# Cockpit-Proxy (/a/) — kein eigener Weg.
-HAS_ARTIFACTS=0; case "$ENGINE" in hermes|hybrid) HAS_ARTIFACTS=1 ;; esac
-HAS_CLAUDE=0; case "$ENGINE" in claude|hybrid) HAS_CLAUDE=1 ;; esac
 [ -n "$VM_USER" ] || { echo "FAIL: --vm-user fehlt" >&2; exit 2; }
+HAS_CLAUDE=0 HAS_HERMES=0
+for p in $(echo "$PACKAGES" | tr ', ' '  '); do
+    case "$p" in
+        claude) HAS_CLAUDE=1 ;;
+        hermes) HAS_HERMES=1 ;;
+        *) echo "FAIL: --packages kennt nur hermes und claude (nicht '$p')" >&2; exit 2 ;;
+    esac
+done
+[ "$HAS_CLAUDE$HAS_HERMES" != "00" ] || { echo "FAIL: --packages fehlt (PACKAGES= aus get-vm-values)" >&2; exit 2; }
+
+# Gateway-Oberflaechen je Paket — EIN Ort: "Label|Gateway-URL", eine Zeile je
+# Oberflaeche. Artefakte liefert der Kern fuer jedes Paket.
+SURFACES=""
+add() { SURFACES="${SURFACES}${SURFACES:+
+}$1"; }
+if [ "$HAS_CLAUDE" = 1 ]; then
+    add "Cockpit|${GW_COCKPIT_URL}"
+    [ -z "$GW_NOVNC_URL" ] || add "noVNC|${GW_NOVNC_URL}"
+fi
+[ "$HAS_HERMES" = 1 ] && add "Hermes-Agent|${GW_AGENT_URL}"
+add "Artefakte|${GW_APPS_URL}"
 
 RC=0
 check() { # check <label> <cmd...>
@@ -75,19 +85,16 @@ while IFS='|' read -r label url; do
     esac
 done <<EOF
 ${SURFACES}
-noVNC|${GW_NOVNC_URL}
-$( [ "$HAS_ARTIFACTS" = "1" ] && echo "Artefakte|${GW_APPS_URL}" )
 EOF
 
-# Desktop-App-Registrierung ist ein CLAUDE-Artefakt (ssh_configs.json +
-# ~/.claude.json). Auf Hermes gibt es sie nicht: die Hermes-Desktop-App wird mit
-# URL + Firmen-Login verbunden, es liegt lokal nichts, was man pruefen koennte.
-if [ "$HAS_CLAUDE" != "1" ]; then
-    echo "OK:   engine=hermes — keine Claude-Desktop-App-Registrierung zu pruefen"
-    echo "      (Hermes-App: Remote gateway → URL + Firmen-Login; URL beim Admin:"
-    echo "       ki-os-fleet vm zugang --user ${VM_USER})"
-    exit $RC
+if [ "$HAS_HERMES" = 1 ]; then
+    echo "OK:   Hermes-Paket — lokal nichts zu registrieren (Hermes-Desktop-App:"
+    echo "      Remote gateway → Agent-URL + Firmen-Login; Anmeldungen: Desktop-App →"
+    echo "      Screen → Übernehmen; URL beim Admin: ki-os-fleet vm zugang --user ${VM_USER})"
 fi
+# Die Desktop-App-Registrierung (ssh_configs.json + ~/.claude.json) gehoert
+# allein zum Claude-Paket.
+[ "$HAS_CLAUDE" = 1 ] || exit $RC
 
 if [ "$(uname -s)" = "Darwin" ]; then
     CFG="$HOME/Library/Application Support/Claude/ssh_configs.json"

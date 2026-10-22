@@ -5,18 +5,21 @@ Claude-Code-Skill, den ein Mitarbeiter auf seinem lokalen Gerät
 KI-OS-Workspace auf der Firmen-VM zu verbinden.
 
 Workspaces, Browser und Logins leben auf der VM — lokal wird nur der Zugriff
-eingerichtet. **Zugang ist immer das Gateway:** Cockpit, Hermes-Dashboard,
-Artefakte und VM-Desktop laufen über HTTPS-URLs mit deinem Firmen-Login. **Der
-Skill fragt als erstes, welche Adresse du vom Admin bekommen hast**, und fährt
-dann einen von zwei Wegen — die Weiche ist die Engine der VM:
+eingerichtet. **Zugang ist immer das Gateway:** Cockpit, Agent-Adresse,
+Artefakte und (nur im Claude-Paket) VM-Desktop laufen über HTTPS-URLs mit
+deinem Firmen-Login. **Der Skill fragt als erstes, welche Adresse du vom Admin
+bekommen hast** — sie zeigt, welche Engine-Pakete die VM hat:
 
-| | **Cockpit-Adresse** (`engine=claude\|hybrid`) | **reine Hermes-VM — Pfad H** (`engine=hermes`) |
+| | **Claude-Paket** — Cockpit-Adresse | **Hermes-Paket** — Agent-Adresse |
 |---|---|---|
-| Woran erkennbar | Admin schickte eine **Cockpit-URL** (`https://<name>-cockpit.…`) + Firmen-Login | Admin schickte **Dashboard-URL** (`https://<name>-agent.…`) + VM-Desktop-Link |
-| SSH-Key | trägst du **selbst im Cockpit** ein (Tab System → „SSH-Zugang") | **entfällt** — kein VM-Zugriff vom Gerät |
-| Claude-Desktop-App | ja (Remote-Projekt `ki-os-vm` / `KI-OS`) | — |
-| Hermes-Desktop-App | **Pflicht** auf `hybrid` (URL + **Firmen-Login**) | **Pflicht** (URL + **Firmen-Login**) |
-| Dateien | Cockpit-Explorer bzw. Cloud-Client der Firma | Dashboard/VM-Desktop bzw. Cloud-Client der Firma |
+| Woran erkennbar | **Cockpit-URL** (`https://<name>-cockpit.…`) + Firmen-Login | **Agent-URL** (`https://<name>-agent.…`) + Firmen-Login |
+| SSH-Key | trägst du **selbst im Cockpit** ein (Tab System → „SSH-Zugang") | — |
+| Desktop-App | Claude-Desktop-App (Remote-Projekt `ki-os-vm` / `KI-OS`) | **Hermes-Desktop-App, Pflicht** (URL + **Firmen-Login**) |
+| Anmeldungen bei Websites | VM-Chrome im VM-Desktop | **Desktop-App → Screen → Übernehmen** |
+| Dateien | Cockpit-Explorer bzw. Cloud-Client der Firma | Desktop-App bzw. Cloud-Client der Firma |
+
+Beide Adressen = beide Pakete, beide Spalten. Nur eine Agent-Adresse =
+**Pfad H**: kein SSH-Key, kein Skript, kein VM-Zugriff vom Gerät.
 
 Es gibt kein VNC-Passwort und keinen lokalen Datei-Spiegel.
 
@@ -33,52 +36,47 @@ orchestriert nur.
     Admin) und Git for Windows (Pflicht — Claude Code braucht auf nativem
     Windows die Git Bash). WSL2 bleibt als Alternative.
 - Claude Code installiert (`https://claude.com/claude-code`)
-- Vom Admin erhalten: die **Cockpit-Adresse** bzw. auf einer reinen Hermes-VM
-  **Dashboard-Adresse + VM-Desktop-Link**
+- Vom Admin erhalten: die **Cockpit-Adresse** und/oder die **Agent-Adresse**
 
 ## Was passiert beim ersten Lauf
 
-1. Adresse abfragen (Cockpit-Adresse → Claude-Stack, Dashboard-Adresse ohne
-   Cockpit → Pfad H: weiter mit Punkt 5)
+1. Adresse abfragen (Cockpit-Adresse → Claude-Paket, nur Agent-Adresse →
+   Pfad H: weiter mit Punkt 5)
 2. SSH-Key erstellen (falls nicht vorhanden) + minimalen
    `~/.ssh/config`-Eintrag für den festen Alias `ki-os-vm` schreiben — der
    Public Key landet in der Zwischenablage
 3. Key selbst im Cockpit hinterlegen (Tab System → „SSH-Zugang"), kein Warten
-4. SSH-Smoketest + User-Werte holen (ein Roundtrip: Engine, Display-Stack,
+4. SSH-Smoketest + User-Werte holen (ein Roundtrip: Engine-Pakete, VM-Desktop,
    Gateway-URLs)
-5. Desktop-App: Claude-Code-Desktop-App vorkonfigurieren (macOS/Windows,
-   `engine=claude|hybrid`: SSH-Host `ki-os-vm` + vertrauter Workspace — die VM
-   erscheint direkt im Remote-Projekt-Switcher) bzw. Hermes-Desktop-App mit
-   URL + Firmen-Login verbinden (`engine=hermes|hybrid`)
+5. Desktop-Apps: Claude-Desktop-App vorkonfigurieren (Claude-Paket,
+   macOS/Windows: SSH-Host `ki-os-vm` + vertrauter Workspace) bzw.
+   Hermes-Desktop-App mit URL + Firmen-Login verbinden (Hermes-Paket)
 6. Verifikation aller Komponenten (nicht auf Pfad H)
 
 Der Skill ist idempotent — ein erneuter Lauf ist das Update.
 
 ## Danach: so arbeitest du
 
-`engine=claude`:
+Claude-Paket:
 
 - **Claude-Code-Desktop-App** (primär): Remote-Projekt `ki-os-vm` / `KI-OS`
 - **Browser:** Cockpit + VM-Desktop über die Gateway-URLs · `claude.ai/code`
   für eigene Sessions
 - **Terminal:** `ssh ki-os-vm` → `cd ~/KI-OS && claude`
 - **VS Code Remote-SSH** (Techniker): `references/vscode-remote-ssh.md`
+- **Browser-Logins:** einmalig im VM-Chrome (VM-Desktop)
 
-`engine=hermes`:
+Hermes-Paket:
 
 - **Hermes-Desktop-App** (Pflicht): URL vom Admin, Anmeldung per Firmen-Login,
   `references/hermes-desktop-app.md`
+- **Browser-Logins:** im Screen der App (Übernehmen → anmelden → Zurückgeben)
 - **Agent-Dashboard** im Browser als Fallback: `https://<user>-agent.…`
 
-`engine=hybrid`: beides — Hermes-Desktop-App als Einstieg, daneben Cockpit +
-Claude-Desktop-App.
+Beide Pakete: Hermes-Desktop-App als Einstieg, daneben Cockpit +
+Claude-Desktop-App; Website-Logins je Paket einmal (eigenes Chrome-Profil).
 
-Alle Engines:
-
-- **Browser-Logins:** einmalig im VM-Chrome (VM-Desktop) in die Zielsysteme
-  einloggen
-- **Dateien:** über die VM (Cockpit-Explorer, Dashboard, VM-Desktop) bzw. den
-  Cloud-Client der Firma
+Dateien immer über die VM bzw. den Cloud-Client der Firma.
 
 ## Quellen
 
@@ -87,9 +85,9 @@ Alle Engines:
   `.ps1` = natives Windows): `check-prereqs.ps1`, `setup-ssh`,
   `get-vm-values`, `register-desktop-app`, `verify`
 - `references/ssh.md` — SSH-Details (BOM/ACL/Passphrase) + Fehlerbilder
-- `references/desktop-app.md` — Claude-Code-Desktop-App (nur engine=claude|hybrid)
-- `references/hermes-desktop-app.md` — Hermes-Desktop-App: URL + Firmen-Login
-  (engine=hermes|hybrid)
+- `references/desktop-app.md` — Claude-Code-Desktop-App (Claude-Paket)
+- `references/hermes-desktop-app.md` — Hermes-Desktop-App: URL + Firmen-Login,
+  Screen (Hermes-Paket)
 - `references/vscode-remote-ssh.md` — VS Code Remote-SSH
-- `references/api-keys.md` — API-Keys/OAuth (beide Engines); ab
-  „Claude-Code-Auth" nur engine=claude
+- `references/api-keys.md` — API-Keys/OAuth (beide Pakete); ab
+  „Claude-Code-Auth" nur Claude-Paket

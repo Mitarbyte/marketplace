@@ -1,26 +1,28 @@
 # =============================================================================
 # verify.ps1 - Abschluss-Verifikation aller Komponenten (natives Windows)
 #
-# Prueft: SSH, die Gateway-URLs der Agenten-Oberflaechen (Cockpit bzw.
-# Hermes-Dashboard, auf dem Hermes-Stack zusaetzlich Artefakte), den VM-Desktop
-# (noVNC) und die Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL/WARN aus;
-# Exit-Code 1, wenn mindestens eine Pflicht-Komponente fehlschlaegt.
+# Prueft: SSH, die Gateway-URLs je Engine-Paket (Claude-Paket: Cockpit + VM-Desktop
+# (noVNC); Hermes-Paket: Agent-URL der Hermes-Desktop-App), die Artefakte und die
+# Claude-Desktop-App-Eintraege. Gibt pro Komponente OK/FAIL/WARN aus; Exit-Code 1,
+# wenn mindestens eine Pflicht-Komponente fehlschlaegt.
 #
 # PowerShell-5.1-kompatibel. Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File verify.ps1 -VmUser <VM_USER> `
-#       [-Engine claude|hybrid|hermes]
+#       -Packages <hermes|claude|hermes,claude>
 #       [-GatewayCockpitUrl <url>] [-GatewayNovncUrl <url>] [-GatewayAgentUrl <url>] [-GatewayAppsUrl <url>]
 #
-# Die URLs kommen aus get-vm-values. Der Check laeuft unauthentifiziert:
-# 302/401/403 = OK (Login kommt vom IdP), 200 waere ein Auth-Bypass.
+# Pakete und URLs kommen aus get-vm-values (PACKAGES=, GATEWAY_*_URL=). Der Check
+# laeuft unauthentifiziert: 302/401/403 = OK (Login kommt vom IdP), 200 waere ein
+# Auth-Bypass.
 #
-# -Engine hermes: kein Cockpit und keine Claude-Desktop-App - geprueft werden das
-# Hermes-Dashboard (Gateway-Agent-URL) und SSH. Die Hermes-App verbindet sich mit
-# URL + Firmen-Login, lokal gibt es keine Registrierung zu pruefen.
+# Claude-Paket: Cockpit, VM-Desktop und die Desktop-App-Eintraege. Ohne
+# -GatewayNovncUrl kein VM-Desktop-Check (Option display aus, DISPLAY_STACK=AUS).
+# Hermes-Paket: die Agent-URL; die Hermes-App verbindet sich mit URL +
+# Firmen-Login, lokal gibt es keine Registrierung zu pruefen.
 # =============================================================================
 param(
     [Parameter(Mandatory = $true)][string]$VmUser,
-    [ValidateSet('claude','hybrid','hermes')][string]$Engine = 'claude',
+    [Parameter(Mandatory = $true)][string]$Packages,
     [string]$GatewayCockpitUrl = '',
     [string]$GatewayNovncUrl = '',
     [string]$GatewayAgentUrl = '',
@@ -28,13 +30,16 @@ param(
 )
 $ErrorActionPreference = 'Continue'
 $failed = $false
-# Stacks (ADR 18): Claude-Stack = claude|hybrid, Hermes-Stack = hermes|hybrid.
-$hasClaude = ($Engine -in @('claude','hybrid'))
-$hasHermes = ($Engine -in @('hermes','hybrid'))
-# Agenten-Oberflaechen je Stack - EIN Ort, an dem der Unterschied steht (hybrid: beide).
-$surfaces = @()
-if ($hasClaude) { $surfaces += @{ Label = 'Cockpit';          GwUrl = $GatewayCockpitUrl } }
-if ($hasHermes) { $surfaces += @{ Label = 'Hermes-Dashboard'; GwUrl = $GatewayAgentUrl } }
+$hasClaude = $false
+$hasHermes = $false
+foreach ($p in ($Packages -split '[, ]+' | Where-Object { $_ })) {
+    switch ($p) {
+        'claude' { $hasClaude = $true }
+        'hermes' { $hasHermes = $true }
+        default  { Write-Host "FAIL: -Packages kennt nur hermes und claude (nicht '$p')"; exit 2 }
+    }
+}
+if (-not ($hasClaude -or $hasHermes)) { Write-Host 'FAIL: -Packages fehlt (PACKAGES= aus get-vm-values)'; exit 2 }
 
 # --- SSH ------------------------------------------------------------------------
 & ssh -o BatchMode=yes -o ConnectTimeout=10 ki-os-vm true 2>$null
@@ -42,13 +47,16 @@ if ($LASTEXITCODE -eq 0) { Write-Host 'OK:   SSH-Verbindung (ki-os-vm)' }
 else { Write-Host 'FAIL: SSH-Verbindung (ki-os-vm) - references/ssh.md -> Smoketest'; $failed = $true }
 
 # --- Gateway-URLs ---------------------------------------------------------------
+# Oberflaechen je Paket - EIN Ort; Artefakte liefert der Kern fuer jedes Paket.
 # Unauthentifiziert MUSS ein Redirect/Deny kommen (302/401/403).
 # 200 waere ein Auth-Bypass -> Admin alarmieren.
 $gwChecks = @()
-foreach ($sf in $surfaces) { $gwChecks += @{ Label = "Gateway $($sf.Label)"; Url = $sf.GwUrl } }
-$gwChecks += @{ Label = 'Gateway noVNC'; Url = $GatewayNovncUrl }
-# Artefakte (Hermes-Stack): eigener Apps-Vhost; auf claude liefert der Cockpit-Proxy.
-if ($hasHermes) { $gwChecks += @{ Label = 'Gateway Artefakte'; Url = $GatewayAppsUrl } }
+if ($hasClaude) {
+    $gwChecks += @{ Label = 'Gateway Cockpit'; Url = $GatewayCockpitUrl }
+    if ($GatewayNovncUrl) { $gwChecks += @{ Label = 'Gateway noVNC'; Url = $GatewayNovncUrl } }
+}
+if ($hasHermes) { $gwChecks += @{ Label = 'Gateway Hermes-Agent'; Url = $GatewayAgentUrl } }
+$gwChecks += @{ Label = 'Gateway Artefakte'; Url = $GatewayAppsUrl }
 foreach ($g in $gwChecks) {
     if (-not $g.Url -or $g.Url -eq 'MISSING') {
         Write-Host "FAIL: $($g.Label)-URL fehlt (Admin: ki-os-fleet vm gateway-grant)"; $failed = $true
@@ -66,13 +74,14 @@ foreach ($g in $gwChecks) {
     else { Write-Host "FAIL: $($g.Label) $($g.Url) (HTTP $code / keine Antwort)"; $failed = $true }
 }
 
-# --- Desktop-App -----------------------------------------------------------------------
-# Die Registrierung (ssh_configs.json + ~\.claude.json) ist ein CLAUDE-Artefakt.
-# Auf Hermes gibt es sie nicht: die Hermes-App wird mit URL + Firmen-Login
-# verbunden, lokal liegt nichts, was man pruefen koennte.
+# --- Desktop-Apps -----------------------------------------------------------------
+if ($hasHermes) {
+    Write-Host 'OK:   Hermes-Paket - lokal nichts zu registrieren (Hermes-Desktop-App:'
+    Write-Host '      Remote gateway -> Agent-URL + Firmen-Login; Anmeldungen: Desktop-App ->'
+    Write-Host "      Screen -> Uebernehmen; URL beim Admin: ki-os-fleet vm zugang --user $VmUser)"
+}
+# Die Registrierung (ssh_configs.json + ~\.claude.json) gehoert allein zum Claude-Paket.
 if (-not $hasClaude) {
-    Write-Host 'OK:   engine=hermes - keine Claude-Desktop-App-Registrierung zu pruefen'
-    Write-Host "      (Hermes-App: Remote gateway -> URL + Firmen-Login; URL beim Admin: ki-os-fleet vm zugang --user $VmUser)"
     if ($failed) { exit 1 } else { exit 0 }
 }
 
