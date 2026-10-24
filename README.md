@@ -47,6 +47,18 @@ claude plugin install user-onboarding@mitarbyte
 > Hinweis: `/plugin`-Befehle gibt es **nur im Terminal-CLI**, nicht in
 > der Desktop-App oder im Web — dort den Installer oben verwenden.
 
+## Skills zum Mitnehmen
+
+Fertige Skills für KI-OS. Den Satz unter dem Skill in KI-OS eingeben — fertig.
+
+### `skill-saeubern`
+
+Skill teilen oder anonymisieren: legt eine Kopie ohne Personen-, Kunden- und Firmendaten an. Das Original bleibt unverändert.
+
+```
+Installiere diesen Skill in meinem KI-OS: https://raw.githubusercontent.com/Mitarbyte/marketplace/main/skills/skill-saeubern/SKILL.md
+```
+
 ---
 
 > Automatisch generiert aus `ki-os-template` (Source of Truth) via
