@@ -351,7 +351,7 @@
   #rolebox .chooser { margin-top: 1.1rem; border-color: var(--accent); }
 
   /* ---- Video-Kachel (Click-to-load; Navy-Tokens, in Light/Dark identisch) ---- */
-  .video { margin: 0.9rem auto 1.1rem; max-width: 34rem; }
+  .video { margin: 0.9rem auto 1.1rem; max-width: 66.667%; }
   .video[hidden] { display: none; }
   button.video-poster {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.55rem;
@@ -370,6 +370,7 @@
   .video-kicker { font-size: 0.75rem; color: var(--sb-muted); }
   .video-note { margin: 0.4rem 0 0; font-size: 0.75rem; color: var(--muted); text-align: center; }
   .video.playing, .video-frame { position: relative; aspect-ratio: 16 / 9; }
+  .video-frame video { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; background: #000; }
   .video.playing iframe, .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 10px; }
 
   /* ---- Pager ---- */
@@ -440,6 +441,7 @@
     background: rgba(9, 26, 33, 0.55);
   }
   @media (max-width: 899px) {
+    .video { max-width: 100%; }
     aside.sidebar {
       position: fixed; left: 0; top: 0; bottom: 0; z-index: 20; height: 100%;
       transform: translateX(-100%); transition: transform 0.2s ease;
@@ -501,7 +503,7 @@
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 1 — VM einrichten</h2>
 <p>Anleitung zum Aufsetzen einer eigenen VM bei Hostinger (Plan <strong><span class="ph" data-ph="VM_PLAN">KVM 2</span></strong>, <strong>Ubuntu 24.04 LTS</strong>) und zur Registrierung bei Mitarbyte. Danach läuft eine frische Ubuntu-VM, auf die Mitarbyte per SSH zugreift, um sie einzurichten und zu betreuen. Den Zugang kannst du jederzeit selbst wieder entfernen.</p>
-<div class="video" data-ff="01M2K5C70AX441QKYFWBHEZQ7X" data-label="Teil 1 — VM einrichten"></div>
+<div class="video" data-mp4="teil-1-vm-einrichten" data-label="Teil 1 — VM einrichten"></div>
 </div>
 <div class="slide" data-slide="step" data-step="10-vps-hostinger--schritt-1-vm-plan-bei-hostinger-kaufen">
 <h3 class="step" id="10-vps-hostinger--schritt-1-vm-plan-bei-hostinger-kaufen">Schritt 1 — <span class="ph" data-ph="VM_PLAN">KVM 2</span> bei Hostinger kaufen</h3>
@@ -578,7 +580,7 @@
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 2 — Hermes-Desktop-App installieren</h2>
 <p>Mit der Hermes-Desktop-App arbeitest du später mit dem Agenten auf deiner VM. Du brauchst sie in jedem Fall: Nur dort übernimmst du seinen Bildschirm, wenn du dich bei einem Tool anmelden musst. Installier sie jetzt schon auf deinem eigenen Gerät. Verbunden wird sie erst in Teil 5, wenn deine VM steht. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
-<div class="video" data-ff="01M2K5G7XS3Z1V2E1DFBSZMEZY" data-label="Teil 2 — Hermes-Desktop-App installieren"></div>
+<div class="video" data-mp4="teil-2-hermes-desktop-app" data-label="Teil 2 — Hermes-Desktop-App installieren"></div>
 <details class="meta"><summary>Was vorab geklärt sein muss</summary>
 <ul>
 <li><strong>Installationsrechte</strong> auf deinem Gerät. Falls euer IT-Dienstleister die Geräte verwaltet, hol ihn vorab dazu.</li>
@@ -620,7 +622,7 @@
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 2 — Claude auf dem Mac einrichten</h2>
 <p>Diese Schritte richtest du auf deinem eigenen Mac ein. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
-<div class="video" data-ff="01M2K5EJTHBYMBSS2N78E5BG5K" data-label="Teil 2 — Arbeitsplatz einrichten"></div>
+<div class="video" data-mp4="teil-2-arbeitsplatz-einrichten" data-label="Teil 2 — Arbeitsplatz einrichten"></div>
 <details class="meta"><summary>Was vorab geklärt sein muss</summary>
 <p>Diese Punkte werden einmal zentral geklärt, nicht von jedem einzeln:</p>
 <ul>
@@ -679,7 +681,7 @@
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 2 — Claude auf Windows einrichten</h2>
 <p>Diese Schritte richtest du auf deinem eigenen Windows-Rechner ein. Wenn etwas hakt, notier es und bring es mit in die erste Session.</p>
-<div class="video" data-ff="01M2K5EJTHBYMBSS2N78E5BG5K" data-label="Teil 2 — Arbeitsplatz einrichten"></div>
+<div class="video" data-mp4="teil-2-arbeitsplatz-einrichten" data-label="Teil 2 — Arbeitsplatz einrichten"></div>
 <details class="meta"><summary>Was vorab geklärt sein muss</summary>
 <p>Diese Punkte werden einmal zentral geklärt, nicht von jedem einzeln:</p>
 <ul>
@@ -747,7 +749,7 @@
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Google Workspace)</h2>
 <p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Google-Workspace-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit Zugang zur Google Cloud Console eures Unternehmens — dort wird eine App-Freigabe angelegt (Google nennt das „OAuth-Client&quot;).</p>
-<div class="video" data-ff="01M2K5M8RGN20K5KTEKZ670423" data-label="Teil 3 — Firmen-Login (Google Workspace)"></div>
+<div class="video" data-mp4="teil-3-firmen-login-google" data-label="Teil 3 — Firmen-Login (Google Workspace)"></div>
 <details class="meta"><summary>Wofür das gut ist</summary>
 <p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>seine Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
 <div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Oberfläche (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>)</td><td>Steuerzentrale: Aufgaben, geplante Jobs, Skills, Systemstatus; mit Hermes verbindet sich hier die Hermes-Desktop-App</td></tr><tr><td>VM-Desktop (nur mit Claude)</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen. Mit Hermes übernimmt man den Browser der KI in der Desktop-App</td></tr></tbody></table></div>
@@ -831,7 +833,7 @@ CLIENT_SECRET  = GOCSPX-xxxxxxxxxxxxxxxxxxxx</code></pre></div>
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 3 — Firmen-Login für den VM-Zugang (Microsoft 365)</h2>
 <p>Dieser Teil ist <strong>einmalig pro Unternehmen</strong> und wird von eurem Microsoft-365-Admin gemacht. Zeitaufwand: <strong>15–20 Minuten</strong>. <strong>Voraussetzung:</strong> Ein Admin mit dem Recht, in eurem Microsoft 365 neue Apps einzutragen — Microsoft nennt das „App-Registrierung&quot;.</p>
-<div class="video" data-ff="01M2K5P94D6XKWYA8J1E0WJV5G" data-label="Teil 3 — Firmen-Login (Microsoft 365)"></div>
+<div class="video" data-mp4="teil-3-firmen-login-m365" data-label="Teil 3 — Firmen-Login (Microsoft 365)"></div>
 <details class="meta"><summary>Wofür das gut ist</summary>
 <p>Mit dieser Einrichtung erreichen die Mitarbeiter die VM ohne lokale Installation: Jeder bekommt <strong>seine Links</strong> und meldet sich dort mit seinem <strong>normalen Firmen-Konto</strong> an — inklusive eurer gewohnten Sicherheitsregeln wie der Zwei-Faktor-Anmeldung.</p>
 <div class="tablewrap"><table><thead><tr><th>Link</th><th>Was er zeigt</th></tr></thead><tbody><tr><td>Oberfläche (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>)</td><td>Steuerzentrale: Aufgaben, geplante Jobs, Skills, Systemstatus; mit Hermes verbindet sich hier die Hermes-Desktop-App</td></tr><tr><td>VM-Desktop (nur mit Claude)</td><td>Der Browser der VM — dort laufen die Logins der KI, man kann live zuschauen. Mit Hermes übernimmt man den Browser der KI in der Desktop-App</td></tr></tbody></table></div>
@@ -1172,8 +1174,8 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <div class="slide" data-slide="intro">
 <h2 class="block-title">Teil 5 — Mit deiner VM verbinden</h2>
 <p>Diesen Teil arbeitet jeder Mitarbeiter selbst durch, in seinem Tempo. Du brauchst dafür die persönliche Nachricht von <span class="ph" data-ph="ANSPRECHPARTNER">dein Mitarbyte-Ansprechpartner</span> mit deinen Links, allen voran dem zur <strong>Oberfläche</strong> deiner VM (<span class="ph" data-ph="OBERFLAECHE">Cockpit bzw. Agent-Dashboard</span>). Zum Schluss meldest du dich einmal bei den Firmen-Tools an, mit denen die KI arbeiten soll. Rechne mit etwa 10 Minuten.</p>
-<div class="video" data-ff="01M2K6ECBAZN19G38P0Q9H91C6" data-label="Teil 5 — Mit deiner VM verbinden (Claude)" data-when="paket=claude"></div>
-<div class="video" data-ff="01M2K6KH2ZBADB24T2GA38C10C" data-label="Teil 5 — Mit deiner VM verbinden (Hermes)" data-when="paket=hermes"></div>
+<div class="video" data-mp4="teil-5-verbinden-claude" data-label="Teil 5 — Mit deiner VM verbinden (Claude)" data-when="paket=claude"></div>
+<div class="video" data-mp4="teil-5-verbinden-hermes" data-label="Teil 5 — Mit deiner VM verbinden (Hermes)" data-when="paket=hermes"></div>
 </div>
 <div class="slide" data-slide="gate" data-gate="ready">
 <h3 class="gate">Deine VM wird gerade eingerichtet</h3>
@@ -1338,9 +1340,9 @@ Files.Read  Files.ReadWrite</code></pre></div>
   <footer>
     Mitarbyte KI-OS · Konfiguration und Fortschritt bleiben im Link bzw. in
     deinem Browser; nur beim Absenden des Registrierungs-Formulars werden
-    eure Antworten an Mitarbyte übermittelt (via Web3Forms). Videos kommen
-    von YouTube bzw. Fireflies (Daten gehen dann an Google bzw. Fireflies)
-    und werden erst beim Klick bzw. beim Öffnen ihres Schritts geladen.
+    eure Antworten an Mitarbyte übermittelt (via Web3Forms). Videos liegen
+    auf dieser Seite selbst und laden erst beim Abspielen; ein YouTube-Video
+    lädt erst beim Klick (Daten gehen dann an Google).
     · <a href="#" id="showall">Alle Schritte auf einer Seite anzeigen</a>
   </footer>
   <div class="progfoot">
@@ -2604,16 +2606,17 @@ Array.prototype.forEach.call(document.querySelectorAll(".ssform"), function (slo
 });
 updateRedirectSpans();
 
-/* ---- Videos: VIDEO_HOSTS ist die einzige Fundstelle der Hosts.
-   YouTube (Privacy-Enhanced) hinter einer rein lokalen Fassade — erst der
-   Klick laedt den Player, der dank autoplay sofort startet. Fireflies kennt
-   kein autoplay (Fassade = zwei Klicks): der Player kommt ohne Fassade,
-   aber erst wenn seine Slide sichtbar wird (keine Anfrage beim Seitenaufruf). ---- */
+/* ---- Videos: VIDEO_HOSTS ist die einzige Fundstelle der Quellen.
+   mp4 = eigene Datei unter <pages>/videos/ (neben anleitung/), nativer
+   Player, preload=none — vor dem Klick laedt nur das Vorschaubild, kein
+   Dritter. YouTube (Privacy-Enhanced) hinter einer rein lokalen Fassade —
+   erst der Klick laedt den Player, der dank autoplay sofort startet. ---- */
 var VIDEO_HOSTS = {
-  yt: { name: "YouTube", to: "Google", re: /^[A-Za-z0-9_-]{11}$/, facade: true,
-        src: function (id) { return "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0"; } },
-  ff: { name: "Fireflies", to: "Fireflies", re: /^[0-9A-Z]{26}$/, facade: false,
-        src: function (id) { return "https://share.fireflies.ai/embed/meetings/" + id; } }
+  mp4: { re: /^[a-z0-9][a-z0-9-]*$/,
+         src: function (id) { return "../videos/" + id + ".mp4"; },
+         poster: function (id) { return "../videos/" + id + ".jpg"; } },
+  yt: { name: "YouTube", to: "Google", re: /^[A-Za-z0-9_-]{11}$/,
+        src: function (id) { return "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1&rel=0"; } }
 };
 function videoFrame(src, label) {
   var f = document.createElement("iframe");
@@ -2625,8 +2628,9 @@ function videoFrame(src, label) {
   return f;
 }
 function initVideo(slot) {
-  var host = slot.hasAttribute("data-ff") ? VIDEO_HOSTS.ff : VIDEO_HOSTS.yt;
-  var id = slot.getAttribute(host === VIDEO_HOSTS.ff ? "data-ff" : "data-yt") || "";
+  var kind = slot.hasAttribute("data-mp4") ? "mp4" : "yt";
+  var host = VIDEO_HOSTS[kind];
+  var id = slot.getAttribute("data-" + kind) || "";
   if (!host.re.test(id)) { slot.hidden = true; return; }
   var slide = slot.parentElement;
   while (slide && !(slide.classList && slide.classList.contains("slide"))) slide = slide.parentElement;
@@ -2636,24 +2640,22 @@ function initVideo(slot) {
     label = t ? t.textContent : "";
   }
   label = label || "Video";
-  if (!host.facade) {
-    var load = function () {
-      var box = document.createElement("div");
-      box.className = "video-frame";
-      box.appendChild(videoFrame(host.src(id), label));
-      var hint = document.createElement("p");
-      hint.className = "video-note";
-      hint.textContent = "Video von " + host.name + " — beim Abspielen werden Daten (z.B. deine IP-Adresse) an " + host.to + " übertragen.";
-      slot.appendChild(box);
-      slot.appendChild(hint);
-    };
-    if (!("IntersectionObserver" in window)) { load(); return; }
-    var io = new IntersectionObserver(function (entries) {
-      if (!entries.some(function (e) { return e.isIntersecting; })) return;
-      io.disconnect();
-      load();
-    }, { rootMargin: "200px" });
-    io.observe(slot);
+  if (kind === "mp4") {
+    var v = document.createElement("video");
+    v.controls = true;
+    v.preload = "none";
+    v.setAttribute("playsinline", "");
+    v.poster = host.poster(id);
+    v.title = label;
+    v.setAttribute("aria-label", label);
+    var s = document.createElement("source");
+    s.src = host.src(id);
+    s.type = "video/mp4";
+    v.appendChild(s);
+    var box = document.createElement("div");
+    box.className = "video-frame";
+    box.appendChild(v);
+    slot.appendChild(box);
     return;
   }
   var btn = document.createElement("button");
@@ -2683,7 +2685,13 @@ function initVideo(slot) {
     slot.classList.add("playing");
   });
 }
-Array.prototype.forEach.call(document.querySelectorAll(".video[data-yt], .video[data-ff]"), initVideo);
+Array.prototype.forEach.call(document.querySelectorAll(".video[data-yt], .video[data-mp4]"), initVideo);
+// Wer weiterblaettert, laesst kein Video unsichtbar weiterlaufen.
+new MutationObserver(function () {
+  Array.prototype.forEach.call(document.querySelectorAll(".video-frame video"), function (v) {
+    if (!v.paused && v.offsetParent === null) v.pause();
+  });
+}).observe(document.body, { attributes: true, attributeFilter: ["hidden"], subtree: true });
 
 /* ---- Start: p= aus dem Fragment, sonst letzte Slide, sonst erste ---- */
 go(readPageParam() || ui.page || (slides[0] && slides[0].id));
