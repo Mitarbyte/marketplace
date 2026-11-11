@@ -211,10 +211,13 @@ ss_json_get() {
     sed -n 's/^ *"'"$2"'": *"\(.*\)",*$/\1/p' "$1" 2>/dev/null | head -1
 }
 
-# users-Array (eine Zeile) → space-separierte Liste.
+# users-Array → space-separierte Liste. Ein- oder mehrzeilig (json.dumps mit
+# indent schreibt je Name eine Zeile); mehrzeilig fand die Abfrage frueher
+# keine Nutzer und uebersprang die UPNs still (lessons § 277).
 ss_json_get_users() {
-    sed -n 's/^ *"users": *\[\(.*\)\],*$/\1/p' "$1" 2>/dev/null | head -1 \
-        | tr -d '" ' | tr ',' ' '
+    tr '\n\t' '  ' < "$1" 2>/dev/null \
+        | sed -n 's/.*"users": *\[\([^]]*\)\].*/\1/p' | head -1 \
+        | tr -d '" ' | tr ',' ' ' | tr -s ' ' | sed 's/^ //; s/ $//'
 }
 
 # registration.json schreiben (700/600). Nutzt REG_*-Globals.

@@ -15,8 +15,10 @@ Bildschirm (Screen).
 
 ## Verbinden
 
-Download: https://hermes-agent.nousresearch.com/desktop (macOS, Windows,
-Linux; installiert in Teil 2 der Anleitung). In der App unter
+Download (installiert in Teil 2 der Anleitung): macOS über
+https://hermes-agent.nousresearch.com/desktop; **Windows 11 nur das signierte
+MSIX** über `https://hermes-assets.nousresearch.com/releases/win32/stable/stable.appinstaller`
+(siehe unten). In der App unter
 **Settings → Gateways → Remote gateway** die Agent-URL eintragen:
 `https://<VM_USER>-agent.<base-domain>` — aus der Übergabe-Nachricht (Pfad H)
 bzw. `GATEWAY_AGENT_URL` aus Schritt 7. Der Admin liest sie mit
@@ -93,6 +95,43 @@ Danke!
 | Screen zeigt kein Bild / „Start screen" | „Start screen" klicken; startet er nicht, den Admin bitten (er prüft `ki-os-fleet vm doctor`, Check `bot-screen`) |
 | Agent meldet `human_has_control` | Du hältst noch die Steuerung: im Screen **Zurückgeben** (bzw. **Hand back (force)**) |
 | Falsche Zeichen beim Tippen im Screen | US-Belegung, siehe oben |
+
+## Windows: signiertes Paket statt Webseiten-Installer
+
+Die Webseite liefert für Windows `Hermes-Setup.exe`, den **Bootstrap-Installer**:
+er legt je Benutzer einen Quelltext-Checkout samt Python unter
+`%LOCALAPPDATA%\hermes` an und baut die App dort selbst — `Hermes.exe` ist
+unsigniert, die Prüfsumme wechselt mit jedem Update, Updates laufen über
+PowerShell-Skripte (`-ExecutionPolicy Bypass`). Ein EDR (SentinelOne o. ä.)
+stuft das als verdächtig ein und beendet die App.
+
+Vorgesehen ist das **signierte MSIX** (Herausgeber `CN=Nous Research Inc.`,
+Azure Trusted Signing, mindestens Windows 11 22H2 bzw. Server 2025),
+installiert und aktualisiert vom Windows App Installer aus
+`stable.appinstaller` (Update-Prüfung beim Start, alle 12 h). Die Dateien liegen
+einmal unter `C:\Program Files\WindowsApps\` (für Benutzer nicht beschreibbar),
+je Benutzer nur Registrierung + Daten.
+
+**Terminalserver (mehrere Benutzer):**
+
+- Je Benutzer: `.appinstaller`-Datei öffnen bzw. per Anmeldeskript
+  `Add-AppxPackage -AppInstallerFile https://hermes-assets.nousresearch.com/releases/win32/stable/stable.appinstaller`
+  — Updates bleiben beim App Installer.
+- Zentral für alle: `.msixbundle` aus dem Descriptor (`MainBundle Uri`) per
+  `Add-AppxProvisionedPackage -Online -PackagePath <bundle> -SkipLicense`;
+  Updates rollt dann die IT selbst aus.
+- Vorher den Eigenbau je Benutzer entfernen (`%LOCALAPPDATA%\hermes\hermes-agent`);
+  in der neuen App die Agent-URL eintragen und neu anmelden.
+- **EDR-Ausnahme**, nur falls nach der Umstellung noch nötig: keine Ordner-
+  oder Hash-Ausnahme, sondern **Signer** `Nous Research Inc.` — oder Pfad unter
+  `C:\Program Files\WindowsApps\NousResearch.HermesBundled_*` (nicht
+  beschreibbar). Das Paket enthält einen signierten Python-Interpreter; die
+  Ausnahme darum auf `Hermes.exe` begrenzen, nicht auf den ganzen Signer.
+
+Restliche PowerShell-Aufrufe auch im MSIX: Paketprüfung beim Update
+(`-EncodedCommand`, `Get-AppxPackage`) und das Aufräumen beim Beenden
+(`Get-CimInstance Win32_Process`) — beide ohne Schalter; eine reine
+Fernbedien-Variante („Light") baut Upstream, veröffentlicht sie aber nicht.
 
 ## Abgrenzung
 

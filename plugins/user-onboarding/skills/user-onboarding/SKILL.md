@@ -246,9 +246,10 @@ sichtbar), dann die nächsten Schritte je Paket:
    (`references/hermes-desktop-app.md`). Einen Claude-/Modell-Login gibt es
    hier **nicht** — die Provider-Anmeldung hat der Admin eingerichtet.
 2. **Arbeiten** — in der **Hermes-Desktop-App** (Pflicht, Schritt 8); das
-   Dashboard im Browser (Agent-URL) bleibt Fallback. **Artefakte**
-   (Dashboards, kleine Web-Apps) stehen im Dashboard-Tab „KI-OS → Artefakte"
-   unter festen URLs (`<Apps-URL>/<slug>/` hinter dem Firmen-Login).
+   Dashboard im Browser (Agent-URL) bleibt Fallback. Das **Cockpit** ist die
+   Apps-URL selbst (`<Apps-URL>/`, hinter dem Firmen-Login): Artefakte
+   (Dashboards, kleine Web-Apps unter `<Apps-URL>/<slug>/`), Skills und
+   Automatisierungen je Arbeitsplatz — als Lesezeichen empfehlen.
 3. **Geplante Aufgaben:** in der App (Bots → Bot → Scheduled Jobs) bzw.
    `hermes cron` — dort sieht der User auch Fehlläufe; ein Zustellkanal
    (Mail/WhatsApp) ist eine Option, die der Admin bei der Übergabe setzt.

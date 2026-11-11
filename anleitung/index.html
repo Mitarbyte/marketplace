@@ -530,7 +530,9 @@
 </ol>
 <div class="codewrap keys" data-mgr="imran"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHUJ3XazgDQ/xoksmhhlfYUWnit6ugIAPoOz/1WLJrV9 imran@mitarbyte.com</code></pre></div>
 <div class="codewrap keys" data-mgr="nils"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILy/arXguqZNQcjv7Tu7WRsSznKEZbxNyTqHuiOwsMM/ nils@mitarbyte.com</code></pre></div>
+<div class="codewrap keys" data-mgr="nils-vm"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBZBNOonEivjezJwEfF4vTsULuwRljQqj3UIBE+2l866 nils-vm@mitarbyte.com</code></pre></div>
 <div class="codewrap keys" data-mgr="furkan"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEpRaiP6zhNnr4jyEG4HB9VbaAE9QY9Jswx706LvgzXl furkan@mitarbyte.com</code></pre></div>
+<div class="codewrap keys" data-mgr="moritz"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIxvLfl7RP71f7bGPUSAK4qye/dPb3+ta772RLZNfcFe moritz@mitarbyte.com</code></pre></div>
 <div class="codewrap keys" data-mgr="moritz-vm"><pre><code>ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMzv4/MyQnzieNV0mG08INiW8KH5Cd1GcfeEXksylrbI moritz-vm@mitarbyte.com</code></pre></div>
 <ol start="4">
 <li>Setup bestätigen. Hostinger installiert Ubuntu, das dauert ein paar Minuten.</li>
@@ -591,9 +593,10 @@
 <div class="slide" data-slide="step" data-step="40-arbeitsplatz-hermes--schritt-1-app-herunterladen-und-installieren">
 <h3 class="step" id="40-arbeitsplatz-hermes--schritt-1-app-herunterladen-und-installieren">Schritt 1 — App herunterladen und installieren</h3>
 <ol>
-<li>Öffne <a href="https://hermes-agent.nousresearch.com/desktop" target="_blank" rel="noopener">hermes-agent.nousresearch.com/desktop</a> und lade die Version für dein Betriebssystem herunter.</li>
-<li><strong>Mac:</strong> Öffne die Datei und zieh die App in den Programme-Ordner.</li>
-<li><strong>Windows:</strong> Führ den Installer aus und folge den Schritten.</li>
+<li><strong>Mac:</strong> Lade die Mac-Version von <a href="https://hermes-agent.nousresearch.com/desktop" target="_blank" rel="noopener">hermes-agent.nousresearch.com/desktop</a>, öffne die Datei und zieh die App in den Programme-Ordner.</li>
+<li><strong>Windows 11:</strong> Lade die Datei <a href="https://hermes-assets.nousresearch.com/releases/win32/stable/stable.appinstaller" target="_blank" rel="noopener">stable.appinstaller</a> herunter und öffne sie per Doppelklick. Windows zeigt „Hermes&quot; von <strong>Nous Research Inc.</strong> an → „Installieren&quot;. Das ist das signierte Paket; Updates holt Windows danach selbst.</li>
+<li><strong>Windows 10:</strong> Das signierte Paket braucht Windows 11. Nimm hier den Installer von der Webseite aus Punkt 1 und folge den Schritten.</li>
+<li><strong>Terminalserver oder Geräte mit Virenschutz-Überwachung (EDR):</strong> Immer das signierte Paket aus Punkt 2, nie den Installer von der Webseite. Auf einem Terminalserver richtet euer IT-Dienstleister es einmal zentral ein — die Anleitung dafür bekommt er von uns.</li>
 </ol>
 </div>
 <div class="slide" data-slide="step" data-step="40-arbeitsplatz-hermes--schritt-2-app-einmal-starten">
@@ -605,7 +608,8 @@
 <details class="meta"><summary>Falls etwas nicht funktioniert</summary>
 <ul>
 <li><strong>Mac: Die App lässt sich nicht öffnen („nicht verifiziert&quot;):</strong> Rechtsklick auf die App → „Öffnen&quot; → bestätigen.</li>
-<li><strong>Windows: SmartScreen warnt:</strong> „Weitere Informationen&quot; → „Trotzdem ausführen&quot;.</li>
+<li><strong>Windows: SmartScreen warnt:</strong> Dann hast du den Installer von der Webseite erwischt. Auf Windows 11 nimm stattdessen die Datei aus Schritt 1, Punkt 2.</li>
+<li><strong>Windows: Die App wird kurz nach dem Start beendet</strong> (Virenschutz meldet „Hermes.exe&quot;): Das ist der Installer von der Webseite. Deinstallieren und das signierte Paket aus Schritt 1, Punkt 2 nehmen.</li>
 <li><strong>Die Installation verlangt Adminrechte, die du nicht hast:</strong> Hol euren IT-Dienstleister dazu.</li>
 </ul>
 <p>Wenn dein Problem hier nicht aufgeführt ist, notier kurz, was passiert, und bring es mit in die erste Session.</p>
@@ -1209,7 +1213,7 @@ Files.Read  Files.ReadWrite</code></pre></div>
 <li>Öffne die Hermes-App, geh auf <strong>Settings → Gateways</strong>, wähl <strong>„Remote gateway&quot;</strong> und trag als URL deinen Dashboard-Link aus der Nachricht ein.</li>
 <li>Melde dich an: die App öffnet dafür deinen Browser mit dem gewohnten <strong>Firmen-Login</strong>. Nach der Anmeldung springt sie von selbst zurück, und du bist verbunden — dieselbe Anmeldung wie im Browser, es gibt keinen zusätzlichen Zugangscode.</li>
 <li>Läuft deine Anmeldung irgendwann ab, meldest du dich in der App einfach neu an. Soll ein Zugang enden, wird er dort entzogen, wo auch deine anderen Firmen-Zugänge liegen.</li>
-<li>Im Dashboard findest du unter <strong>KI-OS → Anmeldungen</strong> den Stand deiner Datenquellen; <strong>„Anmelden&quot;</strong> öffnet den Login im Bot Screen, den du in der App übernimmst. Unter <strong>KI-OS → Artefakte</strong> stehen deine Dashboards und kleinen Web-Apps unter festen Links.</li>
+<li>Im Dashboard findest du unter <strong>KI-OS → Anmeldungen</strong> den Stand deiner Datenquellen; <strong>„Anmelden&quot;</strong> öffnet den Login im Bot Screen, den du in der App übernimmst. Dein <strong>Cockpit</strong> ist die Startseite deiner Apps-Adresse (der Link unter <strong>KI-OS → Cockpit</strong>): dort stehen deine Artefakte — Dashboards und kleine Web-Apps unter festen Links —, deine Skills und deine Automatisierungen je Arbeitsplatz. Leg es dir als Lesezeichen an.</li>
 </ol>
 </div>
 <div class="slide" data-slide="step" data-step="50-verbinden-gateway--lesezeichen-setzen-und-erste-aufgabe" data-when="paket=claude">
