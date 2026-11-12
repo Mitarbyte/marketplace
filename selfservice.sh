@@ -86,6 +86,36 @@ ss_valid_guid() {
     printf '%s' "$1" | grep -Eq '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 }
 
+# CLIENT_SECRET unsichtbar abfragen (Enter = $1 behalten), Ergebnis in SS_ANSWER.
+# Eine GUID ist nie ein Secret-Wert, sondern die Secret-ID daneben in Entra
+# (AADSTS7000215 erst beim ersten Login) — abweisen. rc 1 bei EOF ohne gueltigen Wert.
+ss_ask_client_secret() {
+    local d="$1" hinweis="$2" v eof
+    while :; do
+        if [ -n "$d" ]; then
+            printf 'CLIENT_SECRET (Eingabe unsichtbar; Enter = gespeicherten Wert behalten): '
+        else
+            printf 'CLIENT_SECRET (Eingabe bleibt unsichtbar): '
+        fi
+        eof=0
+        IFS= read -rs v || eof=1
+        echo ""
+        [ -z "$v" ] && v="$d"
+        if [ -z "$v" ]; then
+            echo "     Das Secret darf nicht leer sein (${hinweis})."
+        elif ss_valid_guid "$v"; then
+            echo "     Das ist die 'Geheime ID', nicht der 'Wert' des Schluessels."
+            echo "     Bitte in 'Zertifikate & Geheimnisse' die Spalte 'Wert' kopieren — ist er nicht"
+            echo "     mehr sichtbar, einen neuen geheimen Clientschluessel anlegen (${hinweis})."
+        else
+            SS_ANSWER="$v"
+            return 0
+        fi
+        [ "$eof" = 1 ] && return 1
+        d=""
+    done
+}
+
 ss_valid_email() {
     printf '%s' "$1" | grep -Eq '^[^ @]+@[^ @]+\.[^ @]+$'
 }
@@ -440,18 +470,8 @@ ss_idp() {
         done
     fi
 
-    while :; do
-        if [ -n "$d_secret" ]; then
-            printf 'CLIENT_SECRET (Eingabe unsichtbar; Enter = gespeicherten Wert behalten): '
-        else
-            printf 'CLIENT_SECRET (Eingabe bleibt unsichtbar): '
-        fi
-        IFS= read -rs secret || secret=""
-        echo ""
-        [ -z "$secret" ] && secret="$d_secret"
-        [ -n "$secret" ] && break
-        echo "     Das Secret darf nicht leer sein (Schritt A3 bzw. B2)."
-    done
+    ss_ask_client_secret "$d_secret" "Schritt A3 bzw. B2" || return 1
+    secret="$SS_ANSWER"
 
     if [ "$idp_type" = "m365" ]; then
         while :; do
@@ -599,18 +619,8 @@ ss_m365() {
         fi
         break
     done
-    while :; do
-        if [ -n "$d_secret" ]; then
-            printf 'CLIENT_SECRET (Eingabe unsichtbar; Enter = gespeicherten Wert behalten): '
-        else
-            printf 'CLIENT_SECRET (Eingabe bleibt unsichtbar): '
-        fi
-        IFS= read -rs secret || secret=""
-        echo ""
-        [ -z "$secret" ] && secret="$d_secret"
-        [ -n "$secret" ] && break
-        echo "     Das Secret darf nicht leer sein (Teil 4, CLIENT_SECRET erzeugen)."
-    done
+    ss_ask_client_secret "$d_secret" "Teil 4, CLIENT_SECRET erzeugen" || return 1
+    secret="$SS_ANSWER"
 
     local want_ol want_sp d_ol=j d_sp=j tools=""
     if [ -n "$d_tools" ]; then
